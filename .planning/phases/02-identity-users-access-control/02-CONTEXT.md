@@ -133,20 +133,17 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
   7. `DELETE /users/{userId}` - evict `cache[userId]`.
   Implementation hint: use a small `AccessFilterCacheInvalidator` service with `invalidate(userId)` and `invalidateForRole(roleId)` so eviction logic does not spread through controllers/services.
 - **D-68:** `AccessFilter` is sent to Python in `QueryRequest.accessFilter` for chat query calls, matching `contracts/openapi/ai-service-v1.yaml`.
-- **D-69:** Flyway migration order for Phase 2 schema and seed must preserve FK dependencies. Illustrative order:
+- **D-69:** (updated) Flyway migration order for Phase 2 schema and seed uses V2 through V10:
   - `V2__create_users_table.sql`
   - `V3__create_refresh_tokens_table.sql`
   - `V4__create_audit_events_table.sql`
   - `V5__create_permissions_table.sql`
-  - `V6__seed_permissions.sql` with all 16 codes from D-37.
-  - `V7__create_roles_table.sql`
-  - `V8__seed_system_roles.sql` with `ADMIN`, `EMPLOYEE`, `VIEWER`, `is_system=true`.
-  - `V9__create_role_permissions_table.sql`
-  - `V10__seed_role_permissions.sql` with the matrix from D-39.
-  - `V11__create_user_roles_table.sql`
-  - `V12__create_access_policies_table.sql`
-  - `V13__seed_role_policies.sql` with defaults from D-63.
-  FK dependencies enforce this order: `role_permissions` references permissions and roles; `user_roles` references users and roles; `access_policies` references roles. Admin bootstrap from D-22 is not a Flyway migration; it runs at application startup after Flyway completes so BCrypt hashing happens in Java, not SQL. Version numbers are illustrative; the planner may choose different numbering if FK order is preserved. `V1__baseline.sql` from Phase 1 remains untouched.
+  - `V6__create_roles_table.sql`
+  - `V7__create_role_permissions_table.sql`
+  - `V8__create_user_roles_table.sql`
+  - `V9__create_access_policies_table.sql`
+  - `V10__seed_identity_defaults.sql`
+  Consolidated V10 seeds permissions (D-37), system roles (D-35), role-permission matrix (D-39), and default access policies (D-63) in one idempotent transaction. Idempotency uses `ON CONFLICT DO NOTHING`. Rationale: identity baseline is an atomic domain concept; dependent seeds should succeed or fail together for consistency. FK dependencies still enforce table creation before seed rows: `role_permissions` references permissions and roles; `user_roles` references users and roles; `access_policies` references roles. Admin bootstrap from D-22 is not a Flyway migration; it runs at application startup after Flyway completes so BCrypt hashing happens in Java, not SQL. `V1__baseline.sql` from Phase 1 remains untouched.
 - **D-70:** `audit_events.outcome` is a constrained string with exactly `SUCCESS`, `FAILURE`, and `ERROR`. Database constraint: `CHECK (outcome IN ('SUCCESS', 'FAILURE', 'ERROR'))`. `SUCCESS` means the operation completed as intended; `FAILURE` means it was rejected by validation, authorization, or business rules; `ERROR` means it crashed due to unexpected exception or infrastructure failure. Examples: `LOGIN_SUCCESS` is `SUCCESS`; bad-password `LOGIN_FAILED` is `FAILURE`; `REFRESH_TOKEN_REUSED` detection is `FAILURE`; `PASSWORD_CHANGED` is `SUCCESS`; `AUDIT_WRITE_FAILED` is an `ERROR` event written by a fallback path, or logged only if even fallback fails.
 - **D-71:** Phase 2 testing strategy:
   - Unit tests cover pure Java logic: `PasswordPolicyValidator`, `AccessFilterResolver`, JWT issuer, and role/permission matrix. These run through `mvn test` without infrastructure.
@@ -173,6 +170,19 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 - Choose generated ETag format: version-based ETag is preferred, but normalized representation hash is acceptable.
 - Choose Postgres storage for enum arrays (`VARCHAR[]`/`TEXT[]` versus native enum arrays) if contracts and validation stay consistent.
 - Reconcile unknown role names on assignment with existing `ROLE_NOT_FOUND` status in the current constants/contract while preserving the desired details payload.
+
+### Decision Numbering Confirmation
+
+The final Phase 2 context contains exactly D-01 through D-72. Plan artifacts are expected to reference this final numbering. Non-trivial stale wording resolved before execution:
+
+| Stale wording/reference | Final decision reference |
+|-------------------------|--------------------------|
+| `D-29: password verification uses BCrypt` | `D-25: Hash all passwords with BCrypt cost factor 12` |
+| `D-30: disabled users cannot authenticate` | No final D-NN; disabled-account handling is an implementation detail only if supported by the final contract/schema |
+| `D-36: system roles are ADMIN, EMPLOYEE, VIEWER` | `D-35: Seed three system roles: ADMIN, EMPLOYEE, VIEWER` |
+| `D-38: system role permission matrix` | `D-39: system role permission matrix` |
+| `D-40: new users default to EMPLOYEE` | `D-42: default role for new users is EMPLOYEE when omitted` |
+| `D-52 through D-66` old access-policy wording | Final access-policy decisions are D-52 through D-68 as written above |
 
 </decisions>
 
@@ -236,7 +246,7 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 <specifics>
 ## Specific Ideas
 
-- Phase 2 migration order is locked by D-69; keep `V1__baseline.sql` untouched.
+- Phase 2 migration order is locked by D-69 updated; keep `V1__baseline.sql` untouched.
 - Use idempotent seed SQL with `ON CONFLICT DO NOTHING` where possible.
 - Use BCrypt cost factor `12`.
 - Use one audit event with diff for role replacement instead of per-role event spam.

@@ -419,10 +419,10 @@ Missing dependencies with fallback:
 
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|--------------|
-| AUTH-01 | User can log in, call `/me`, refresh, change password when required, and log out with httpOnly cookies. | unit + slice + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
-| AUTH-02 | Admin can create users and roles, assign/remove memberships, reset passwords, and manage access policies. | slice + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
-| AUTH-03 | Protected endpoints reject unauthenticated users, insufficient permissions, bad Origin/Referer, self-modification, and last-admin-breaking changes. | unit + slice + security integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
-| AUTH-04 | Java resolves a user's effective `AccessFilter`, caches it for 60 seconds, evicts it on role/policy/user mutations, and passes it to downstream query requests. | unit + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
+| AUTH-01 | User can log in, call `/me`, refresh, change password when required, and log out with httpOnly cookies. | unit + slice + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | planned in 02-04/02-05 |
+| AUTH-02 | Admin can create users and roles, assign/remove memberships, reset passwords, and manage access policies. | slice + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | planned in 02-05/02-06/02-07 |
+| AUTH-03 | Protected endpoints reject unauthenticated users, insufficient permissions, bad Origin/Referer, self-modification, and last-admin-breaking changes. | unit + slice + security integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | planned in 02-04/02-06/02-07 |
+| AUTH-04 | Java resolves a user's effective `AccessFilter`, caches it for 60 seconds, evicts it on role/policy/user mutations, and passes it to downstream query requests. | unit + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | planned in 02-07 |
 
 ### Sampling Rate
 
@@ -430,18 +430,16 @@ Missing dependencies with fallback:
 - Per wave merge: `cd backend; mvn -q -pl corp-rag-app -am verify`
 - Phase gate: full suite green before `$gsd-verify-work`
 
-### Wave 0 Gaps
+### Prerequisite And Test Coverage Gaps
 
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/PasswordPolicyValidatorTest.java` covers AUTH-01 password policy and `must_change_password` constraints.
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/JwtServiceTest.java` covers AUTH-01 JWT issue/verify claims and expiry.
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/AccessFilterResolverTest.java` covers AUTH-04 effective policy union, PUBLIC visibility, empty role fail-safe, and cache eviction triggers.
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/RolePermissionMatrixTest.java` covers AUTH-02/AUTH-03 seeded role permission matrix and dotted wire values.
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/AuthControllerTest.java` covers AUTH-01 login, `/me`, refresh, logout, password change, cookie flags, and ProblemDetail errors.
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/UserRoleAccessPolicyControllerTest.java` covers AUTH-02 and AUTH-03 admin endpoints, ETag/If-Match, self-vs-other access, self-modification block, and last-admin protections.
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/AuthFlowIT.java` covers AUTH-01/AUTH-03 end-to-end auth flow against PostgreSQL with Testcontainers.
-- [ ] `backend/corp-rag-app/src/test/java/com/corprag/AuthSchemaIT.java` covers Flyway migration shape, seeds, constraints, refresh-token rotation fields, and audit indexes against PostgreSQL.
-- [ ] Add Maven test dependencies: `spring-boot-starter-security`, `spring-boot-starter-oauth2-resource-server`, `spring-security-test`, `spring-boot-testcontainers`, `org.testcontainers:junit-jupiter`, and `org.testcontainers:postgresql`.
-- [ ] Add Maven Failsafe binding so `mvn test` remains fast and `mvn verify` runs `*IT` PostgreSQL/Testcontainers tests.
+- [x] Plan 02-02 adds Maven test dependencies: `spring-boot-starter-security`, `spring-boot-starter-oauth2-resource-server`, `spring-security-test`, `spring-boot-testcontainers`, `org.testcontainers:junit-jupiter`, and `org.testcontainers:postgresql`.
+- [x] Plan 02-02 adds Maven Failsafe binding so `mvn test` remains fast and `mvn verify` runs `*IT` PostgreSQL/Testcontainers tests.
+- [x] `backend/corp-rag-app/src/test/java/com/corprag/SecurityDependencySmokeTest.java` is planned in 02-02.
+- [x] `backend/corp-rag-app/src/test/java/com/corprag/repository/IdentitySchemaIT.java` is planned in 02-03.
+- [x] `backend/corp-rag-app/src/test/java/com/corprag/security/JwtServiceTest.java`, `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/AuthControllerTest.java`, and `backend/corp-rag-app/src/test/java/com/corprag/service/auth/AuthFlowIT.java` are planned in 02-04.
+- [x] `backend/corp-rag-app/src/test/java/com/corprag/security/PasswordPolicyValidatorTest.java` and `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/UserControllerTest.java` are planned in 02-05.
+- [x] `backend/corp-rag-app/src/test/java/com/corprag/security/RolePermissionMatrixTest.java` and `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/UserRoleControllerTest.java` are planned in 02-06.
+- [x] `backend/corp-rag-app/src/test/java/com/corprag/service/access/AccessFilterResolverTest.java`, `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/AccessPolicyControllerTest.java`, `backend/corp-rag-app/src/test/java/com/corprag/service/audit/AuditEventWriterTest.java`, and `backend/corp-rag-app/src/test/java/com/corprag/IdentityAccessFlowIT.java` are planned in 02-07.
 
 ## Security Domain
 
