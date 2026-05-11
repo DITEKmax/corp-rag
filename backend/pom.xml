@@ -14,6 +14,7 @@
 
     <modules>
         <module>corp-rag-contracts</module>
+        <module>corp-rag-app</module>
     </modules>
 
     <properties>
@@ -22,6 +23,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.3.6</spring-boot.version>
         <openapi-generator.version>7.10.0</openapi-generator.version>
+        <maven-surefire.version>3.2.5</maven-surefire.version>
     </properties>
 
     <dependencyManagement>
@@ -51,6 +53,16 @@
                     <groupId>org.openapitools</groupId>
                     <artifactId>openapi-generator-maven-plugin</artifactId>
                     <version>${openapi-generator.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${maven-surefire.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
