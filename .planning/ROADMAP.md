@@ -34,7 +34,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 Plans:
 - [x] 01-01-PLAN.md - Define root OpenAPI, AsyncAPI, and constants contracts.
 - [x] 01-02-PLAN.md - Add contract generation and verification harness.
-- [ ] 01-03-PLAN.md - Scaffold Java Spring Boot backend foundation.
+- [x] 01-03-PLAN.md - Scaffold Java Spring Boot backend foundation.
 - [ ] 01-04-PLAN.md - Scaffold Python FastAPI AI-service foundation.
 - [x] 01-05-PLAN.md - Add static frontend nginx shell.
 - [ ] 01-06-PLAN.md - Wire Docker Compose, Postgres initialization, env examples, and Makefile targets.

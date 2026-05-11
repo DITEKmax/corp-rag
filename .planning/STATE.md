@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-05-11T19:04:09.180Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-05-11T19:20:35.951Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-11)
 ## Current Position
 
 Phase: 01 (foundation-contracts) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-05-11
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01 P01 | 2 min | 2 tasks | 4 files |
 | Phase 01 P05 | 8 min | 2 tasks | 5 files |
 | Phase 01 P02 | 22 min | 2 tasks | 9 files |
+| Phase 01 P03 | 10 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent locked decisions affecting current work:
 - [Phase 01]: Contract verification is centralized in scripts/verify-contracts.py with Makefile, PowerShell, and POSIX wrappers delegating to the same command. — Plan 01-02 requires one local verification command family for lint, generation, Java compile, and Python smoke imports.
 - [Phase 01]: Python contract modules import Pydantic when available but remain smoke-importable before ai-service dependency management exists. — Plan 01-04 owns Python dependency setup; Plan 01-02 still needs a local generated-module import smoke check.
 - [Phase 01]: Generated Java and Python contract outputs remain build artifacts and are not committed. — Matches D-15 through D-17 and keeps root contracts plus generator scripts as the source of truth.
+- [Phase 01]: Java backend remains a minimal Spring Boot 3.3 skeleton with Actuator health only; auth, JWT, business controllers, AMQP declarations, and domain tables remain deferred. — Plan 01-03 follows D-22 and D-23 so later behavior phases add protected APIs and domain schema deliberately.
+- [Phase 01]: Java app database configuration uses JAVA_DB_URL, JAVA_DB_USER, and JAVA_DB_PASSWORD with local corp_rag_java defaults. — These names give Plan 01-06 compose and migration targets one env surface for the Java-owned database.
+- [Phase 01]: The backend Dockerfile is repository-root-context based so Maven can access backend modules and root contract YAML sources. — Plan 01-02 keeps contracts/ at the repo root and generated Java outputs under backend/corp-rag-contracts/target.
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T19:03:35.163Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-05-11T19:19:56.330Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
