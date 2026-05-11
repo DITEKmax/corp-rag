@@ -119,10 +119,10 @@ Source classifications: `.planning/intel/classifications/`
 - source: `docs/CONTEXT.md`, `docs/ARCHITECTURE.md`
 - description: The MVP runs through Docker Compose in an internal/on-premise style environment with observability.
 - acceptance criteria:
-  - Compose starts Java, Python, frontend, PostgreSQL, MinIO, RabbitMQ, Qdrant, Neo4j, Langfuse, Prometheus, and Grafana services as needed.
+  - Phase 1 Compose starts Java, Python, frontend, PostgreSQL, MinIO, RabbitMQ, Qdrant, Neo4j, and Langfuse.
   - Health/readiness endpoints indicate service dependencies.
   - Langfuse traces LLM chains.
-  - Prometheus/Grafana expose service metrics.
+  - Prometheus/Grafana expose service metrics in Phase 7 (Evaluation & Observability), not in Phase 1.
 - scope: Docker Compose, health checks, observability
 
 ## Implementation Epics Extracted From Source

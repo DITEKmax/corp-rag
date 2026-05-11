@@ -1,6 +1,6 @@
 # infra/
 
-Инфраструктурные манифесты: docker-compose, скрипты деплоя, конфиги observability.
+Инфраструктурные манифесты: docker-compose, скрипты деплоя, базовая observability.
 
 Эта папка пустая — здесь появится содержимое в **EPIC 1** (Infrastructure & Setup).
 
@@ -8,21 +8,18 @@
 
 ```
 infra/
-├── docker-compose.yml               # PostgreSQL, MinIO, RabbitMQ, Qdrant, Neo4j, Java app, Python app, nginx
-├── docker-compose.observability.yml # Langfuse + его Postgres + Prometheus + Grafana
+├── docker-compose.yml               # PostgreSQL, MinIO, RabbitMQ, Qdrant, Neo4j, Langfuse, Java app, Python app, nginx
 ├── .env.example                     # пример переменных окружения
 ├── postgres/
 │   └── init.sql                     # создание БД для Java и Python (если нужно)
 ├── nginx/
 │   └── default.conf                 # конфиг nginx для frontend + proxy
-├── prometheus/
-│   └── prometheus.yml
-├── grafana/
-│   └── dashboards/
 └── scripts/
     ├── seed-corpus.sh               # загрузка корпуса в систему
     └── reset-data.sh                # очистка всех volumes
 ```
+
+Prometheus/Grafana добавляются в Phase 7 (Evaluation & Observability). В Phase 1 вся базовая инфраструктура живёт в одном `docker-compose.yml`; отдельного `docker-compose.observability.yml` нет.
 
 ## Команды (появятся когда будет docker-compose.yml)
 

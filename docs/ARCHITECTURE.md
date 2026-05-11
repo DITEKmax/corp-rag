@@ -106,7 +106,7 @@
                             ┌────────────────────────────┐
                             │   Observability            │
                             │   Langfuse (Docker)        │
-                            │   Prometheus + Grafana     │
+                            │   Prometheus + Grafana     │  Phase 7
                             └────────────────────────────┘
 ```
 
@@ -202,11 +202,11 @@
 | Neo4j | `neo4j:5-community` | 7474, 7687 |
 | Langfuse | `langfuse/langfuse:2` | 3000 |
 | Langfuse DB | `postgres:16-alpine` | — |
-| Prometheus | `prom/prometheus` | 9090 |
-| Grafana | `grafana/grafana` | 3001 |
 | Java app | собственный образ | 8080 |
 | Python app | собственный образ | 8000 |
 | Frontend | `nginx:alpine` (отдаёт статику) | 80 |
+
+Prometheus и Grafana добавляются в Phase 7 (Evaluation & Observability), а не в Phase 1 foundation compose.
 
 ### 3.5 Frontend
 
@@ -1728,8 +1728,8 @@ class RAGAnswer(BaseModel):
 | # | Задача | Оценка |
 |---|---|---|
 | 1.1 | Создать репозиторий, README с архитектурной диаграммой (заглушкой) | 0.25 |
-| 1.2 | `docker-compose.yml`: PostgreSQL (Java), MinIO, RabbitMQ, Qdrant, Neo4j | 0.5 |
-| 1.3 | `docker-compose.observability.yml`: Langfuse + его Postgres | 0.25 |
+| 1.2 | `docker-compose.yml`: PostgreSQL, MinIO, RabbitMQ, Qdrant, Neo4j, Langfuse, Java app, Python app, frontend | 0.5 |
+| 1.3 | Langfuse health/config в том же `docker-compose.yml`; Prometheus/Grafana отложены до Phase 7 | 0.25 |
 | 1.4 | `.env.example` со всеми переменными | 0.1 |
 | 1.5 | Поднять всё `docker compose up -d`, проверить здоровье через UI каждого сервиса | 0.25 |
 | 1.6 | Получить API keys: Google AI Studio, OpenRouter, HuggingFace (если нужно) | 0.15 |
