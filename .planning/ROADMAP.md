@@ -33,7 +33,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 **Plans:** 6 plans
 Plans:
 - [x] 01-01-PLAN.md - Define root OpenAPI, AsyncAPI, and constants contracts.
-- [ ] 01-02-PLAN.md - Add contract generation and verification harness.
+- [x] 01-02-PLAN.md - Add contract generation and verification harness.
 - [ ] 01-03-PLAN.md - Scaffold Java Spring Boot backend foundation.
 - [ ] 01-04-PLAN.md - Scaffold Python FastAPI AI-service foundation.
 - [x] 01-05-PLAN.md - Add static frontend nginx shell.
@@ -128,7 +128,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Contracts | 0/TBD | Not started | - |
+| 1. Foundation & Contracts | 3/6 | In Progress | - |
 | 2. Identity, Users & Access Control | 0/TBD | Not started | - |
 | 3. Documents, Events & Audit | 0/TBD | Not started | - |
 | 4. Python Ingestion & Indexing | 0/TBD | Not started | - |

@@ -9,7 +9,7 @@
 
 - [x] **FND-01**: Local Docker Compose environment can run core infrastructure for PostgreSQL, MinIO, RabbitMQ, Qdrant, Neo4j, and observability dependencies.
 - [x] **FND-02**: Shared OpenAPI and AsyncAPI contracts define Java frontend API, Java-to-Python API, and RabbitMQ events before implementation.
-- [ ] **FND-03**: Generated Java DTOs/constants and Python Pydantic models/constants are produced from the shared contracts.
+- [x] **FND-03**: Generated Java DTOs/constants and Python Pydantic models/constants are produced from the shared contracts.
 
 ### Identity and Access
 
@@ -91,7 +91,7 @@
 |-------------|-------|--------|
 | FND-01 | Phase 1 | Complete |
 | FND-02 | Phase 1 | Complete |
-| FND-03 | Phase 1 | Pending |
+| FND-03 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |
