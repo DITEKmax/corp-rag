@@ -1,8 +1,10 @@
-"""empty baseline
+"""Phase 1 baseline — intentionally empty.
 
-Revision ID: 0001_empty_baseline
-Revises:
-Create Date: 2026-05-11
+This migration establishes the Alembic infrastructure for the
+Python AI service's Postgres database. Domain tables are
+introduced starting in Phase 4 (Python Ingestion & Indexing).
+
+See .planning/ROADMAP.md and ADR-003.
 """
 
 from collections.abc import Sequence
