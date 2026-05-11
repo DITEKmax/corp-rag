@@ -220,44 +220,48 @@
 
 ## 4. Декомпозиция Java Spring сервиса
 
-### 4.1 Структура Maven multi-module
+### 4.1 Структура контрактов и Maven multi-module
 
 ```
-corp-rag-backend/
-├── pom.xml                              (parent POM)
-├── corp-rag-contracts/                  (модуль контрактов — ниже)
-│   ├── pom.xml
+corp-rag/
+├── contracts/                           (общий source of truth, не принадлежит Java или Python)
 │   ├── openapi/
 │   │   ├── api-v1.yaml                  (REST API для frontend)
 │   │   └── ai-service-v1.yaml           (REST API Python для Java)
 │   ├── asyncapi/
 │   │   └── events-v1.yaml               (RabbitMQ события)
-│   └── src/main/java/                   (сгенерированные DTO)
+│   └── constants.yaml                   (routing keys, queues, exchanges, error codes)
 │
-├── corp-rag-app/                        (основное приложение)
-│   ├── pom.xml
-│   └── src/main/java/com/corprag/
-│       ├── CorpRagApplication.java
-│       ├── config/
-│       ├── adapter/
-│       │   ├── rest/                    (controllers)
-│       │   ├── amqp/                    (publishers, consumers)
-│       │   └── client/                  (AI service client)
-│       ├── service/                     (use cases)
-│       ├── domain/                      (entities, exceptions, value objects)
-│       ├── repository/                  (Spring Data repositories)
-│       ├── security/
-│       ├── assembler/                   (HATEOAS assemblers)
-│       └── shared/                      (utils, common)
-│   └── src/main/resources/
-│       ├── application.yml
-│       └── db/migration/                (Flyway)
-│
-└── corp-rag-tests/                      (integration тесты)
-    └── src/test/java/
+├── backend/
+│   ├── pom.xml                          (parent POM)
+│   ├── corp-rag-contracts/              (Java generated DTO/constants module; consumes ../contracts)
+│   │   ├── pom.xml
+│   │   └── src/main/java/               (сгенерированные DTO и константы)
+│   │
+│   ├── corp-rag-app/                    (основное приложение)
+│   │   ├── pom.xml
+│   │   └── src/main/java/com/corprag/
+│   │       ├── CorpRagApplication.java
+│   │       ├── config/
+│   │       ├── adapter/
+│   │       │   ├── rest/                (controllers)
+│   │       │   ├── amqp/                (publishers, consumers)
+│   │       │   └── client/              (AI service client)
+│   │       ├── service/                 (use cases)
+│   │       ├── domain/                  (entities, exceptions, value objects)
+│   │       ├── repository/              (Spring Data repositories)
+│   │       ├── security/
+│   │       ├── assembler/               (HATEOAS assemblers)
+│   │       └── shared/                  (utils, common)
+│   │   └── src/main/resources/
+│   │       ├── application.yml
+│   │       └── db/migration/            (Flyway)
+│   │
+│   └── corp-rag-tests/                  (integration тесты)
+│       └── src/test/java/
 ```
 
-Почему отдельный модуль `corp-rag-contracts` — это **Separate Contract Module** + **Schema as API**: контракты вынесены, не зависят от реализации, могут публиковаться как jar и подключаться к другим проектам (если в будущем появятся).
+Почему корневой `contracts/` — это **Separate Contract Module** + **Schema as API**: YAML-контракты и `constants.yaml` вынесены из сервисов, не зависят от Java или Python и могут быть выделены в отдельный репозиторий/сабмодуль. Java-модуль `corp-rag-contracts` содержит сгенерированные DTO/константы и Maven-настройки генерации, но не владеет исходными YAML.
 
 ### 4.2 Слои и их зоны ответственности
 
@@ -492,13 +496,13 @@ DocumentIndexedConsumer.receive(event)
 
 | Паттерн | Где применён |
 |---|---|
-| Contract-First | OpenAPI/AsyncAPI YAML → DTO генерируются Maven plugin'ом |
-| Separate Contract Module | `corp-rag-contracts` Maven module |
-| Compile-Time Safety | openapi-generator-maven-plugin, MapStruct, Bean Validation |
+| Contract-First | OpenAPI/AsyncAPI YAML + `constants.yaml` → DTO и константы генерируются до реализации |
+| Separate Contract Module | корневой `contracts/` для YAML/manifest + `corp-rag-contracts` для Java generated surface |
+| Compile-Time Safety | openapi-generator-maven-plugin, constants generator, MapStruct, Bean Validation |
 | Adapter Layer | пакет `adapter/` |
 | Thin Transport Layer | Controllers не содержат логики, только мапят и валидируют |
 | Service Layer | пакет `service/` |
-| DTO Separation | DTO в `corp-rag-contracts`, entity в `domain/` — не пересекаются |
+| DTO Separation | DTO генерируются из `contracts/` в `corp-rag-contracts`, entity в `domain/` — не пересекаются |
 | Semantic DTO | `CreateDocumentRequest`, `UpdateDocumentRequest`, `DocumentResponse`, `DocumentSummary` |
 | PUT/PATCH Semantics | `PUT /documents/{id}` полная замена; `PATCH /documents/{id}` JSON Merge Patch |
 | Validation at Boundary | `@Valid` на параметрах контроллера + Pydantic на Python |
@@ -515,7 +519,7 @@ DocumentIndexedConsumer.receive(event)
 | Event-Driven Decoupling | Java публикует `document.uploaded`, не знает о Python |
 | Event Contract | AsyncAPI YAML описывает события |
 | Event Envelope | `EventEnvelope<T> { metadata: { eventId, eventType, eventVersion, occurredAt, correlationId, sourceService }, payload: T }` |
-| Routing Keys as Constants | `EventRoutingKeys` final class |
+| Routing Keys as Constants | `EventRoutingKeys`, `QueueNames`, `ExchangeNames`, `ErrorCodes` генерируются из `contracts/constants.yaml` |
 | Fire-and-Forget Publication | `audit.event.*` через `EventPublisher.publishAsync` |
 | Outbox for Strong Delivery | `document.uploaded` через `OutboxService` + `OutboxPublisher` |
 | Idempotent Consumer | `IdempotentConsumerSupport` + `processed_events` таблица |
@@ -537,18 +541,22 @@ corp-rag-ai/
 ├── .env.example
 ├── README.md
 │
-├── contracts/                           (зеркало contracts из Java для удобства)
-│   ├── openapi/
-│   │   └── ai-service-v1.yaml
-│   ├── asyncapi/
-│   │   └── events-v1.yaml
-│   └── generated/
-│       └── pydantic_models.py           (сгенерированы из OpenAPI)
-│
 ├── src/corp_rag_ai/
 │   ├── __init__.py
 │   ├── main.py                          (FastAPI app + AMQP consumers startup)
 │   ├── config.py                        (pydantic-settings)
+│   │
+│   ├── contracts/                       (сгенерированная контрактная поверхность Python)
+│   │   ├── __init__.py
+│   │   └── generated/
+│   │       ├── __init__.py
+│   │       ├── api_v1.py                (модели frontend API при необходимости)
+│   │       ├── ai_service_v1.py         (модели Java ↔ Python API)
+│   │       ├── events_v1.py             (модели AsyncAPI events)
+│   │       ├── routing_keys.py          (из contracts/constants.yaml)
+│   │       ├── queue_names.py           (из contracts/constants.yaml)
+│   │       ├── exchange_names.py        (из contracts/constants.yaml)
+│   │       └── error_codes.py           (из contracts/constants.yaml)
 │   │
 │   ├── adapter/
 │   │   ├── rest/
@@ -631,8 +639,7 @@ corp-rag-ai/
 │   │
 │   └── shared/
 │       ├── problem_detail.py
-│       ├── telemetry.py                 (Langfuse decorators)
-│       └── routing_keys.py              (константы AMQP)
+│       └── telemetry.py                 (Langfuse decorators)
 │
 ├── data/
 │   ├── raw/
@@ -742,7 +749,7 @@ output_guard
 | Adapter Layer | `adapter/rest`, `adapter/amqp` |
 | Thin Transport Layer | Router'ы FastAPI только мапят и вызывают service |
 | Service Layer | `service/` (`IngestionService`, `QueryService`) |
-| DTO Separation | Pydantic-модели в `contracts/generated` отдельно от domain |
+| DTO Separation | Pydantic-модели в `corp_rag_ai/contracts/generated` отдельно от domain |
 | Validation at Boundary | Pydantic v2 на роутерах |
 | Custom Validation | `@field_validator` на доменных полях |
 | Centralized Error Handling | `error_handlers.py` + RFC 7807 |
@@ -751,7 +758,7 @@ output_guard
 | Idempotent Consumer | `idempotent.py` + таблица `processed_events` в Postgres (отдельная Python-БД) |
 | Dead Letter Queue | RabbitMQ DLX на consumer queues |
 | Event Envelope | парсит тот же `EventEnvelope` (Pydantic) |
-| Routing Keys as Constants | `shared/routing_keys.py` |
+| Routing Keys as Constants | `corp_rag_ai/contracts/generated/routing_keys.py`, `queue_names.py`, `exchange_names.py` из `contracts/constants.yaml` |
 | Layered Responsibility | adapter → service → pipeline → repository |
 | Versioning | `/v1/...` |
 
@@ -1674,9 +1681,9 @@ class RAGAnswer(BaseModel):
 
 | # | Паттерн | Где применён | Конкретно |
 |---|---|---|---|
-| 1 | Contract-First | Java + Python | OpenAPI/AsyncAPI YAML коммитятся первыми, реализация после |
-| 2 | Separate Contract Module | Java | Maven module `corp-rag-contracts` |
-| 3 | Compile-Time Safety | Java | openapi-generator-maven-plugin генерирует DTO; Bean Validation; MapStruct |
+| 1 | Contract-First | Java + Python | OpenAPI/AsyncAPI YAML и `constants.yaml` коммитятся первыми, реализация после |
+| 2 | Separate Contract Module | оба | корневой `contracts/` — общий YAML/manifest source of truth; Java-модуль `corp-rag-contracts` содержит generated DTO/constants |
+| 3 | Compile-Time Safety | оба | openapi-generator-maven-plugin генерирует Java DTO; constants generator генерирует Java/Python constants; Python codegen генерирует Pydantic; Bean Validation; MapStruct |
 | 4 | Adapter Layer | оба | `adapter/rest`, `adapter/amqp`, `adapter/client` |
 | 5 | Thin Transport Layer | оба | Controllers/Routers только мапят и делегируют |
 | 6 | Service Layer | оба | пакет `service/` |
@@ -1693,7 +1700,7 @@ class RAGAnswer(BaseModel):
 | 17 | Pagination Pattern | Java | `PagedResponse<T>` с полями `content, page, size, total, totalPages, last` |
 | 18 | Filtering as Contract | Java | `DocumentFilter`, `UserFilter` — explicit query objects |
 | 19 | Root Entry Point | Java | `GET /api/v1/` отдаёт `_links` ко всем коллекциям |
-| 20 | Schema as API | оба | YAML — источник истины |
+| 20 | Schema as API | оба | `contracts/` — источник истины для схем и контрактных констант |
 | 21 | Resolver Pattern | Python | Lazy load parent chunks в `parent_resolver.py` |
 | 22 | Input/Output Type Split | оба | Request DTO без `id`/`createdAt`/`_links`; Response с ними |
 | 23 | Custom Scalar / Type Mapping | оба | UUID (string), datetime ISO-8601, enums как string |
@@ -1701,13 +1708,13 @@ class RAGAnswer(BaseModel):
 | 25 | Event-Driven Decoupling | оба | Java публикует `document.uploaded` не зная о Python |
 | 26 | Event Contract | оба | AsyncAPI YAML |
 | 27 | Event Envelope | оба | `EventEnvelope { metadata, payload }` |
-| 28 | Routing Keys as Constants | оба | `EventRoutingKeys.java`, `shared/routing_keys.py` |
+| 28 | Routing Keys as Constants | оба | `contracts/constants.yaml` → `EventRoutingKeys.java`, `QueueNames.java`, `ExchangeNames.java`, Python generated constants |
 | 29 | Fire-and-Forget Publication | оба | audit events (если когда-нибудь окажется нужно), не критично |
 | 30 | Outbox for Strong Delivery | Java | `outbox_events` + `OutboxPublisher` для `document.uploaded` |
 | 31 | Idempotent Consumer | оба | `processed_events` таблица + проверка `eventId` |
 | 32 | Dead Letter Queue | RabbitMQ | DLX + DLQ на каждой queue |
 | 33 | Layered Responsibility | оба | adapter / service / domain / repository |
-| 34 | One Source of Truth | оба | contracts module, единые enum значения |
+| 34 | One Source of Truth | оба | корневой `contracts/`, `constants.yaml`, единые enum значения |
 | 35 | Versioning | оба | `/api/v1/...`, `eventVersion: "1.0"` в envelope |
 
 ---
@@ -1731,13 +1738,14 @@ class RAGAnswer(BaseModel):
 
 | # | Задача | Оценка |
 |---|---|---|
-| 2.1 | Maven multi-module setup, parent POM, `corp-rag-contracts` module | 0.25 |
-| 2.2 | `openapi/api-v1.yaml` — Auth + Users endpoints | 0.25 |
-| 2.3 | `openapi/api-v1.yaml` — Documents + Chat endpoints | 0.5 |
-| 2.4 | `openapi/ai-service-v1.yaml` — Python endpoints | 0.25 |
-| 2.5 | `asyncapi/events-v1.yaml` — все 4 события + EventEnvelope | 0.25 |
+| 2.1 | Создать корневой `contracts/` и Maven multi-module setup с `corp-rag-contracts` generated DTO/constants module | 0.25 |
+| 2.2 | `contracts/openapi/api-v1.yaml` — Auth + Users endpoints | 0.25 |
+| 2.3 | `contracts/openapi/api-v1.yaml` — Documents + Chat endpoints | 0.5 |
+| 2.4 | `contracts/openapi/ai-service-v1.yaml` — Python endpoints | 0.25 |
+| 2.5 | `contracts/asyncapi/events-v1.yaml` — все 4 события + EventEnvelope | 0.25 |
 | 2.6 | openapi-generator-maven-plugin: генерация Java DTO | 0.15 |
-| 2.7 | Скрипт для генерации Pydantic-моделей в Python из тех же YAML | 0.25 |
+| 2.7 | `contracts/constants.yaml` + генерация Java/Python routing keys, queues, exchanges, error codes | 0.25 |
+| 2.8 | Скрипт для генерации Pydantic-моделей в Python из тех же YAML | 0.25 |
 
 ### EPIC 3: Java — Auth + Users (3 дня)
 
@@ -1778,7 +1786,7 @@ class RAGAnswer(BaseModel):
 | 5.3 | `OutboxService` — сохранение event'а в той же транзакции | 0.25 |
 | 5.4 | `AmqpConfig`: exchanges, queues, bindings, DLX | 0.5 |
 | 5.5 | `OutboxPublisher` (scheduled, читает unpublished, публикует) | 0.5 |
-| 5.6 | `EventEnvelope` builder, `EventRoutingKeys` константы | 0.25 |
+| 5.6 | `EventEnvelope` builder, использование сгенерированных `EventRoutingKeys` | 0.25 |
 | 5.7 | Интеграция в `DocumentUploadService`: после save → outbox event | 0.25 |
 | 5.8 | Тесты с Testcontainers RabbitMQ | 0.5 |
 

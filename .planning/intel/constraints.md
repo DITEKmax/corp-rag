@@ -20,7 +20,7 @@ Source classifications: `.planning/intel/classifications/`
 
 - source: `docs/ARCHITECTURE.md`, `docs/PATTERNS.md`
 - type: api-contract
-- constraint: OpenAPI and AsyncAPI YAML are written before implementation and generate Java DTOs and Python Pydantic models.
+- constraint: OpenAPI, AsyncAPI, and constants manifests are written before implementation and generate Java DTOs/constants and Python Pydantic models/constants.
 
 ### Layered responsibility
 

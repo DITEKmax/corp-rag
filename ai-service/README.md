@@ -11,13 +11,19 @@ ai-service/
 ├── pyproject.toml                   # управление через uv
 ├── Dockerfile
 ├── .env.example
-├── contracts/
-│   ├── openapi/
-│   ├── asyncapi/
-│   └── generated/pydantic_models.py
 ├── src/corp_rag_ai/
 │   ├── main.py
 │   ├── config.py
+│   ├── contracts/
+│   │   ├── __init__.py
+│   │   └── generated/
+│   │       ├── api_v1.py
+│   │       ├── ai_service_v1.py
+│   │       ├── events_v1.py
+│   │       ├── routing_keys.py
+│   │       ├── queue_names.py
+│   │       ├── exchange_names.py
+│   │       └── error_codes.py
 │   ├── adapter/
 │   ├── service/
 │   ├── pipeline/
@@ -29,6 +35,8 @@ ai-service/
 ├── eval/
 └── tests/
 ```
+
+Исходные OpenAPI/AsyncAPI YAML и `constants.yaml` живут в корневом `contracts/`; Python генерирует локальные Pydantic-модели и контрактные константы из этого общего источника.
 
 Полная структура — см. `docs/ARCHITECTURE.md` раздел 5.1.
 

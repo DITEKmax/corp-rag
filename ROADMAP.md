@@ -19,10 +19,11 @@
   - API keys получены (Gemini, OpenRouter)
 - [ ] **EPIC 2: Contracts** (1.5д)
   - Maven multi-module setup
-  - `openapi/api-v1.yaml` (Auth, Users, Documents, Chat)
-  - `openapi/ai-service-v1.yaml`
-  - `asyncapi/events-v1.yaml`
-  - Codegen для Java и Python
+  - `contracts/openapi/api-v1.yaml` (Auth, Users, Documents, Chat)
+  - `contracts/openapi/ai-service-v1.yaml`
+  - `contracts/asyncapi/events-v1.yaml`
+  - `contracts/constants.yaml`
+  - Codegen для Java и Python DTO/constants
 - [ ] **EPIC 3: Java — Auth + Users** (3д)
   - Spring Boot skeleton, Flyway, БД-сущности
   - Spring Security + JWT
@@ -50,7 +51,7 @@
   - `outbox_events` таблица + entity
   - `OutboxService`, `OutboxPublisher` (scheduled)
   - AmqpConfig (exchanges, queues, bindings, DLX)
-  - `EventEnvelope` builder, `EventRoutingKeys`
+  - `EventEnvelope` builder, сгенерированные `EventRoutingKeys`
 - [ ] **EPIC 6: Java — AMQP Consumers** (1.5д)
   - `processed_events` таблица
   - `IdempotentConsumerSupport`

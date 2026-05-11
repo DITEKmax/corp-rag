@@ -9,18 +9,15 @@ Java Spring Boot multi-module проект.
 ```
 backend/
 ├── pom.xml                          # parent POM
-├── corp-rag-contracts/              # модуль контрактов
+├── corp-rag-contracts/              # Java DTO/constants generation module; consumes ../contracts
 │   ├── pom.xml
-│   ├── openapi/
-│   │   ├── api-v1.yaml
-│   │   └── ai-service-v1.yaml
-│   ├── asyncapi/
-│   │   └── events-v1.yaml
-│   └── src/main/java/               # сгенерированные DTO
+│   └── src/main/java/               # сгенерированные DTO и constants
 └── corp-rag-app/                    # основное приложение
     ├── pom.xml
     └── src/main/java/com/corprag/
 ```
+
+Исходные OpenAPI/AsyncAPI YAML и `constants.yaml` живут в корневом `contracts/`, а не внутри `backend/`.
 
 Полная структура пакетов — см. `docs/ARCHITECTURE.md` раздел 4.4.
 

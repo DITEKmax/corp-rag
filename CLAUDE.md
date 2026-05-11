@@ -44,9 +44,9 @@ corp-rag/
 
 1. **Следуй паттернам из `docs/PATTERNS.md`.** Они не декоративные — это решения, принятые до тебя. Если паттерн кажется неудобным для конкретной задачи — НЕ обходи его молча. Подними вопрос пользователю, обсудите, при необходимости — занесите изменение в ADR (`docs/decisions/`).
 
-2. **Контракт первичен.** OpenAPI и AsyncAPI YAML в `backend/corp-rag-contracts/` — единственный источник истины для API и событий. Любое изменение endpoint'а или события начинается с YAML, не с кода.
+2. **Контракт первичен.** OpenAPI, AsyncAPI и `constants.yaml` в корневом `contracts/` — единственный источник истины для API, событий, routing keys, queue/exchange names и error codes. Любое изменение endpoint'а, события или контрактной константы начинается с `contracts/`, не с кода.
 
-3. **DTO и domain не смешиваются.** DTO живут в contracts-модуле, domain-сущности в `domain/`. Никогда не отдавай entity наружу через REST.
+3. **DTO/contract constants и domain не смешиваются.** DTO и контрактные константы генерируются из `contracts/`, domain-сущности живут в `domain/`. Никогда не отдавай entity наружу через REST.
 
 4. **Database per service.** Java владеет PostgreSQL. Python владеет Qdrant + Neo4j (+ свой минимальный Postgres для idempotency). Никаких JDBC-коннектов из Java в Qdrant и из Python в основную Postgres.
 
@@ -54,7 +54,7 @@ corp-rag/
 
 6. **Все ошибки — RFC 7807 Problem Details.** Никаких произвольных JSON со строкой `"error": "..."`.
 
-7. **События идут через конверт `EventEnvelope { metadata, payload }`.** Routing keys — только из констант (`EventRoutingKeys` в Java, `routing_keys.py` в Python).
+7. **События идут через конверт `EventEnvelope { metadata, payload }`.** Routing keys — только из сгенерированных констант из `contracts/constants.yaml` (`EventRoutingKeys` в Java, `routing_keys.py` в Python).
 
 8. **`document.uploaded` публикуется через Outbox.** Никаких прямых `rabbitTemplate.send()` для критичных событий.
 

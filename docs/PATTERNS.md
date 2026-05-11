@@ -22,7 +22,7 @@
 
 **Суть.** Контракт вынесен отдельно от реализации: API-модели, интерфейсы, схемы, события, ошибки, routing keys. Все участники подключают один и тот же контракт.
 
-**Где.** Maven-модуль `backend/corp-rag-contracts/`. Python потребляет те же YAML через скрипт генерации Pydantic-моделей.
+**Где.** Корневой каталог `contracts/` содержит общий YAML/manifest source of truth. Java потребляет его через Maven-модуль `backend/corp-rag-contracts/`, Python — через скрипт генерации Pydantic-моделей и констант.
 
 ### Compile-Time Safety
 
@@ -93,7 +93,7 @@
 
 Не отдавай entity или внутренние объекты напрямую.
 
-**Где.** Java: DTO в contracts-модуле, entity в `domain/`. Python: Pydantic-модели в `contracts/generated/`, domain-объекты в `domain/`.
+**Где.** Java: DTO в contracts-модуле, entity в `domain/`. Python: Pydantic-модели в `corp_rag_ai/contracts/generated/`, domain-объекты в `domain/`.
 
 ### Semantic DTO
 
@@ -248,7 +248,7 @@
 
 **Суть.** События тоже имеют контракт: тип события, payload, metadata, версия, routing key. Producer и consumer зависят от одного описания события.
 
-**Где.** AsyncAPI YAML в `backend/corp-rag-contracts/asyncapi/events-v1.yaml`. Из него генерируются Java и Python модели события.
+**Где.** AsyncAPI YAML в `contracts/asyncapi/events-v1.yaml`. Из него генерируются Java и Python модели события.
 
 ### Event Envelope
 
@@ -273,7 +273,7 @@
 
 **Суть.** Имена маршрутов, topic keys, queue names и event types должны быть общими константами/контрактом, а не строками, раскиданными по коду.
 
-**Где.** Java: `EventRoutingKeys` final class. Python: `shared/routing_keys.py` модуль. Никаких `"document.uploaded"` строковых литералов в логике.
+**Где.** `contracts/constants.yaml` — единственный источник routing keys, queue names, exchange names и error codes. Из него генерируются Java `EventRoutingKeys`, `QueueNames`, `ExchangeNames`, `ErrorCodes` и Python `routing_keys.py`, `queue_names.py`, `exchange_names.py`, `error_codes.py`. Никаких `"document.uploaded"` строковых литералов в логике.
 
 ---
 
@@ -314,9 +314,9 @@
 **Суть.** Одинаковые правила не дублируются в разных местах. Если URL, схема события, DTO или ошибка нужны нескольким частям системы, они должны жить в одном источнике.
 
 **Где.**
-- Contracts-модуль для DTO и событий.
+- Корневой `contracts/` для DTO, событий и контрактных констант.
 - Единые enum значения (`AccessLevel`, `DocType`, `Department`) в обоих языках — generated из OpenAPI.
-- Routing keys в одном месте на язык.
+- Routing keys, queue names, exchange names и error codes — generated из `contracts/constants.yaml`.
 
 ---
 

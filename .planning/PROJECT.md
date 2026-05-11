@@ -44,7 +44,7 @@ The system shape is three application services plus infrastructure:
 ## Constraints
 
 - **Architecture**: Java and Python are separate services with database-per-service ownership.
-- **Contracts**: OpenAPI and AsyncAPI are the source of truth and are written before implementation.
+- **Contracts**: OpenAPI, AsyncAPI, and `constants.yaml` live in top-level `contracts/` as the shared source of truth and are written before implementation.
 - **Security**: Retrieval must enforce access level, department, and document type filters before chunks reach generation.
 - **RAG Quality**: Evaluation is required; RAGAS, retrieval metrics, injection probes, and ablation are part of done.
 - **Budget**: LLM/embedding choices should work with free or conditional-free tiers and preserve an on-premise story.
@@ -59,6 +59,8 @@ The system shape is three application services plus infrastructure:
 - **ADR-001**: Use `BAAI/bge-m3` for dense 1024-dimensional and learned sparse embeddings in one pipeline.
 - **ADR-002**: Use Qdrant for dense+sparse vector storage and payload-filtered retrieval.
 - **ADR-003**: Split Java Spring backend and Python AI service; frontend talks only to Java; Java/Python communicate by REST for queries and RabbitMQ for indexing.
+- **Contract location**: Shared YAML contracts live in top-level `contracts/`; Java and Python both consume that source rather than owning separate service-local YAML.
+- **Contract constants**: Routing keys, queue names, exchange names, and error codes live in `contracts/constants.yaml` and generate Java/Python constants.
 
 </decisions>
 
