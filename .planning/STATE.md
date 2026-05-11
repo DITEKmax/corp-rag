@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-05-11T18:24:49.897Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-05-11T18:40:17.881Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
-  percent: 17
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-11)
 ## Current Position
 
 Phase: 01 (foundation-contracts) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-05-11
 
-Progress: [██░░░░░░░░] 17%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [██░░░░░░░░] 17%
 - Trend: N/A
 
 | Phase 01 P01 | 2 min | 2 tasks | 4 files |
+| Phase 01 P05 | 8 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ Recent locked decisions affecting current work:
 - ADR-002: Use Qdrant for vector storage and payload-filtered retrieval.
 - ADR-003: Split Java Spring backend and Python AI service.
 - [Phase 01]: Root contracts/ remains the only shared source location for REST, event, and generated constant contracts. — Plan 01-01 verified api-v1.yaml, ai-service-v1.yaml, events-v1.yaml, and constants.yaml as the shared contract baseline.
+- [Phase 01]: Plan 01-05 keeps the Phase 1 frontend static and nginx-served with no JavaScript modules, routing, API client, or auth/session guard. — Matches D-22 and D-26; real UI behavior is deferred to Phase 6.
 
 ### Pending Todos
 
@@ -84,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T18:24:49.885Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-05-11T18:40:17.868Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None

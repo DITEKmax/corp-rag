@@ -36,7 +36,7 @@ Plans:
 - [ ] 01-02-PLAN.md - Add contract generation and verification harness.
 - [ ] 01-03-PLAN.md - Scaffold Java Spring Boot backend foundation.
 - [ ] 01-04-PLAN.md - Scaffold Python FastAPI AI-service foundation.
-- [ ] 01-05-PLAN.md - Add static frontend nginx shell.
+- [x] 01-05-PLAN.md - Add static frontend nginx shell.
 - [ ] 01-06-PLAN.md - Wire Docker Compose, Postgres initialization, env examples, and Makefile targets.
 
 ### Phase 2: Identity, Users & Access Control
