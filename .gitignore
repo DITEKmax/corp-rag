@@ -48,6 +48,7 @@ ai-service/htmlcov/
 ai-service/dist/
 ai-service/build/
 ai-service/*.egg-info/
+ai-service/src/corp_rag_ai/contracts/generated/
 
 # Frontend
 frontend/node_modules/
