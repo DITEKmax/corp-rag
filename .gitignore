@@ -34,6 +34,8 @@ backend/**/out/
 *.class
 
 # Python
+scripts/__pycache__/
+scripts/**/*.pyc
 ai-service/.venv/
 ai-service/venv/
 ai-service/__pycache__/

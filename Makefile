@@ -25,7 +25,7 @@ compose-down:
 	$(DOCKER_COMPOSE) --env-file $(COMPOSE_ENV) -f $(COMPOSE_FILE) down
 
 migrate-java:
-	cd backend && $(MAVEN) -q -pl corp-rag-app org.flywaydb:flyway-maven-plugin:$(FLYWAY_MAVEN_PLUGIN_VERSION):migrate -Dflyway.url="$(JAVA_MIGRATION_DB_URL)" -Dflyway.user="$(JAVA_DB_USER)" -Dflyway.password="$(JAVA_DB_PASSWORD)" -Dflyway.locations="filesystem:corp-rag-app/src/main/resources/db/migration"
+	cd backend && $(MAVEN) -q -N install && $(MAVEN) -q -pl corp-rag-contracts install -DskipTests && $(MAVEN) -q -pl corp-rag-app org.flywaydb:flyway-maven-plugin:$(FLYWAY_MAVEN_PLUGIN_VERSION):migrate -Dflyway.url="$(JAVA_MIGRATION_DB_URL)" -Dflyway.user="$(JAVA_DB_USER)" -Dflyway.password="$(JAVA_DB_PASSWORD)" -Dflyway.locations="filesystem:corp-rag-app/src/main/resources/db/migration"
 
 migrate-python:
 	cd ai-service && uv run alembic upgrade head
