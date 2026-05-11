@@ -30,7 +30,14 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
   2. Java, Python, frontend, and contract directories exist with consistent project structure.
   3. OpenAPI and AsyncAPI files describe the v1 REST and RabbitMQ contracts.
   4. Generated DTO/model code can be produced from the contracts.
-**Plans**: TBD
+**Plans:** 6 plans
+Plans:
+- [ ] 01-01-PLAN.md - Define root OpenAPI, AsyncAPI, and constants contracts.
+- [ ] 01-02-PLAN.md - Add contract generation and verification harness.
+- [ ] 01-03-PLAN.md - Scaffold Java Spring Boot backend foundation.
+- [ ] 01-04-PLAN.md - Scaffold Python FastAPI AI-service foundation.
+- [ ] 01-05-PLAN.md - Add static frontend nginx shell.
+- [ ] 01-06-PLAN.md - Wire Docker Compose, Postgres initialization, env examples, and Makefile targets.
 
 ### Phase 2: Identity, Users & Access Control
 **Goal**: Authenticated users and admins can operate within role and document-access boundaries enforced by Java.
