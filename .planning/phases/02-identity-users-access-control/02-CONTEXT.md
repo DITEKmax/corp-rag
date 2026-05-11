@@ -59,7 +59,12 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 - **D-26:** Seeded admin has `must_change_password=true` and receives `ADMIN` role.
 - **D-27:** Admin-created users are created by `POST /users` without a password field. Backend generates a one-time temporary password and returns it exactly once in the response.
 - **D-28:** Temporary password generation uses `SecureRandom`, 16 characters, alphanumeric alphabet excluding visually similar characters such as `0/O` and `1/l/I`.
-- **D-29:** New and reset users have `must_change_password=true`. First login issues normal access+refresh cookies with a `must_change_password=true` claim; middleware blocks all endpoints except `POST /auth/password`.
+- **D-29:** First login, or login after admin password reset, issues a normal access+refresh token pair, both carrying `must_change_password=true`. Middleware, such as a Spring Security filter or aspect, blocks all endpoints except:
+  - `POST /auth/password` - change the password.
+  - `POST /auth/refresh` - rotate the pair; the new pair keeps the same flag until password change succeeds.
+  - `POST /auth/logout` - abort the flow.
+  - `GET /me` - fetch current user state for the password-change UI.
+  Once `POST /auth/password` succeeds, `users.must_change_password` is cleared in the database and a new access+refresh pair is issued without the claim. All previously active refresh tokens for that user are invalidated, like logout-all, to prevent stale flagged sessions.
 - **D-30:** `POST /auth/password` validates current/new password, clears `must_change_password`, invalidates old refresh state as needed, and issues a new token pair without the flag.
 - **D-31:** `POST /users/{userId}/reset-password` requires admin permission, generates a new temporary password, invalidates active refresh tokens, and returns the temporary password once.
 - **D-32:** Password policy: minimum 12 chars; at least 3 of 4 character classes; reject username, email local-part, weak words, current year, and top-100 common passwords.
@@ -79,7 +84,7 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 - **D-40:** Use `permissions`, `roles`, `role_permissions`, and `user_roles` tables. `user_roles` records `assigned_by` and `assigned_at`.
 - **D-41:** Multiple roles per user are allowed. Effective permissions are the union of role permissions.
 - **D-42:** Default role for a newly created user is `EMPLOYEE` when roles are omitted.
-- **D-43:** Assigning `ADMIN` requires a double gate: `users.update` plus role-management authority. The existing role-assignment endpoint itself remains `POST /users/{userId}/roles` with `users.update`.
+- **D-43:** Assigning the seeded `ADMIN` role to a user requires the caller to hold both `users.update` and `roles.update`. The endpoint remains `POST /users/{userId}/roles` with primary permission `users.update` declared in `x-required-permissions`; the additional `roles.update` requirement applies only when the request body contains `"ADMIN"` in the roles array. If the caller lacks `roles.update` while attempting to grant `ADMIN`, respond `403 INSUFFICIENT_PERMISSIONS` with details `{ "required_additional": "roles.update", "reason": "admin_grant" }`. This double gate does not apply to assigning `EMPLOYEE`, `VIEWER`, or custom roles; those require only `users.update`.
 - **D-44:** System roles cannot be updated or deleted. Roles currently assigned to users cannot be deleted.
 - **D-45:** Custom roles can be created at runtime, but only with existing seeded permission codes.
 - **D-46:** `PUT /roles/{roleId}` is full replacement and uses ETag/`If-Match`. Missing `If-Match` returns 428; mismatch returns 412; success increments `roles.version`.
@@ -108,8 +113,40 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 - **D-64:** System role policies are editable. `is_system` protects role definitions, not organizational policy scope.
 - **D-65:** Access policy updates use ETag/`If-Match` like role updates.
 - **D-66:** Last-admin-visibility protection blocks mutations that would leave no user with full visibility: `RESTRICTED` max level, wildcard departments, and all six docTypes.
-- **D-67:** Cache resolved access filters in Java with TTL 60 seconds and explicit eviction on user-role or policy mutations. Simple in-memory Map is acceptable for Phase 2; Caffeine metrics are deferred.
+- **D-67:** Cache resolved access filters in Java with TTL 60 seconds. A simple in-memory `Map<UserId, CachedFilter>` with TTL is acceptable for Phase 2; Caffeine metrics are deferred to Phase 7. Explicit eviction triggers, running inside the mutating transaction or as a transaction synchronization `afterCommit` hook:
+  1. `POST /users/{userId}/roles` - evict `cache[userId]`.
+  2. `PUT /roles/{roleId}` when permissions change - evict cache for all users with that role via `SELECT user_id FROM user_roles WHERE role_id = ?`.
+  3. `DELETE /roles/{roleId}` - same role-based eviction; custom roles only because seeded roles are protected.
+  4. `POST /access-policies` - evict cache for all users with the policy's role.
+  5. `PUT /access-policies/{policyId}` - same role-based eviction.
+  6. `DELETE /access-policies/{policyId}` - same role-based eviction.
+  7. `DELETE /users/{userId}` - evict `cache[userId]`.
+  Implementation hint: use a small `AccessFilterCacheInvalidator` service with `invalidate(userId)` and `invalidateForRole(roleId)` so eviction logic does not spread through controllers/services.
 - **D-68:** `AccessFilter` is sent to Python in `QueryRequest.accessFilter` for chat query calls, matching `contracts/openapi/ai-service-v1.yaml`.
+- **D-69:** Flyway migration order for Phase 2 schema and seed must preserve FK dependencies. Illustrative order:
+  - `V2__create_users_table.sql`
+  - `V3__create_refresh_tokens_table.sql`
+  - `V4__create_audit_events_table.sql`
+  - `V5__create_permissions_table.sql`
+  - `V6__seed_permissions.sql` with all 16 codes from D-37.
+  - `V7__create_roles_table.sql`
+  - `V8__seed_system_roles.sql` with `ADMIN`, `EMPLOYEE`, `VIEWER`, `is_system=true`.
+  - `V9__create_role_permissions_table.sql`
+  - `V10__seed_role_permissions.sql` with the matrix from D-39.
+  - `V11__create_user_roles_table.sql`
+  - `V12__create_access_policies_table.sql`
+  - `V13__seed_role_policies.sql` with defaults from D-63.
+  FK dependencies enforce this order: `role_permissions` references permissions and roles; `user_roles` references users and roles; `access_policies` references roles. Admin bootstrap from D-22 is not a Flyway migration; it runs at application startup after Flyway completes so BCrypt hashing happens in Java, not SQL. Version numbers are illustrative; the planner may choose different numbering if FK order is preserved. `V1__baseline.sql` from Phase 1 remains untouched.
+- **D-70:** `audit_events.outcome` is a constrained string with exactly `SUCCESS`, `FAILURE`, and `ERROR`. Database constraint: `CHECK (outcome IN ('SUCCESS', 'FAILURE', 'ERROR'))`. `SUCCESS` means the operation completed as intended; `FAILURE` means it was rejected by validation, authorization, or business rules; `ERROR` means it crashed due to unexpected exception or infrastructure failure. Examples: `LOGIN_SUCCESS` is `SUCCESS`; bad-password `LOGIN_FAILED` is `FAILURE`; `REFRESH_TOKEN_REUSED` detection is `FAILURE`; `PASSWORD_CHANGED` is `SUCCESS`; `AUDIT_WRITE_FAILED` is an `ERROR` event written by a fallback path, or logged only if even fallback fails.
+- **D-71:** Phase 2 testing strategy:
+  - Unit tests cover pure Java logic: `PasswordPolicyValidator`, `AccessFilterResolver`, JWT issuer, and role/permission matrix. These run through `mvn test` without infrastructure.
+  - Slice tests use `@WebMvcTest` for auth, users, roles, and access-policy controllers with mocked services. They verify HTTP status codes, ProblemDetail shape, ETag headers, and error codes from `contracts/constants.yaml`.
+  - Integration tests use `@SpringBootTest` plus Testcontainers with real PostgreSQL 16. They verify Flyway migrations, repository logic, and end-to-end auth flow: login, `/me`, refresh, logout.
+  - Replace the current H2-backed `CorpRagApplicationTests.java` approach with Testcontainers Postgres because Phase 2 uses PostgreSQL-specific features such as `INET`, `JSONB`, and array types.
+  - Security tests use `@WithMockUser` and/or `SecurityMockMvcRequestPostProcessors` for admin-only endpoints, self-vs-other user access, last-admin protection, and self-modify forbidden scenarios.
+  - Coverage target is 80% line coverage for core security classes: `JwtService`, `PasswordPolicyValidator`, `AccessFilterResolver`, `AuditEventWriter`, and role/permission matrix. DTOs, mappers, and glue code do not need a hard target.
+  - Testing libraries: Spring Boot Test, Testcontainers PostgreSQL module, AssertJ via `spring-boot-starter-test`, and optional REST Assured for black-box auth flow tests.
+  - Run profiles: `mvn test` runs unit and slice tests without Docker; `mvn verify` adds integration tests with Testcontainers and requires a Docker daemon.
 
 ### the agent's Discretion
 - Choose exact Spring Security CSRF configuration as long as it preserves Strict SameSite cookies, explicit Origin/Referer checks for auth endpoints, and does not globally disable CSRF.
@@ -179,7 +216,7 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 <specifics>
 ## Specific Ideas
 
-- Role and policy seed migration order should be permissions first, then roles, then role permissions, then role policies, then admin bootstrap at application startup.
+- Phase 2 migration order is locked by D-69; keep `V1__baseline.sql` untouched.
 - Use idempotent seed SQL with `ON CONFLICT DO NOTHING` where possible.
 - Use BCrypt cost factor `12`.
 - Use one audit event with diff for role replacement instead of per-role event spam.
