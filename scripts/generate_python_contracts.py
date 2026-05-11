@@ -3,30 +3,22 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import keyword
 import re
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_DIR = Path(__file__).resolve().parent
 PYTHON_OUT = ROOT / "ai-service" / "src" / "corp_rag_ai" / "contracts" / "generated"
 
 
-def _load_yaml_parser():
-    parser_path = SCRIPT_DIR / "generate_constants.py"
-    spec = importlib.util.spec_from_file_location("generate_constants", parser_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Cannot load YAML parser from {parser_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.load_yaml
-
-
-load_yaml = _load_yaml_parser()
+def load_yaml(path: Path) -> Any:
+    with path.open(encoding="utf-8") as file:
+        return yaml.safe_load(file)
 
 
 def class_name(name: str) -> str:
@@ -176,17 +168,7 @@ def generate_module(module_name: str, source_file: Path) -> Path:
         "from typing import Any, Literal",
         "from uuid import UUID",
         "",
-        "try:",
-        "    from pydantic import BaseModel, ConfigDict, Field",
-        "except ModuleNotFoundError:",
-        "    class BaseModel:",
-        "        pass",
-        "",
-        "    def ConfigDict(**kwargs: Any) -> dict[str, Any]:",
-        "        return dict(kwargs)",
-        "",
-        "    def Field(default: Any = None, **_: Any) -> Any:",
-        "        return default",
+        "from pydantic import BaseModel, ConfigDict, Field",
         "",
     ]
     lines.extend(scalar_lines)

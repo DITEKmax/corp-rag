@@ -1,4 +1,4 @@
-PYTHON ?= python
+PYTHON ?= uv run --project ai-service python
 MAVEN ?= $(or $(MAVEN_CMD),mvn)
 DOCKER_COMPOSE ?= docker compose
 
