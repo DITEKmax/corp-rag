@@ -50,9 +50,9 @@ def lint_yaml() -> None:
         print(f"lint ok: {path.relative_to(ROOT)}")
 
 
-def run_maven(goal: str) -> None:
+def run_maven(goal: str, module: str = "corp-rag-contracts") -> None:
     maven = os.environ.get("MAVEN_CMD", "mvn")
-    run([maven, "-q", "-pl", "corp-rag-contracts", goal], cwd=ROOT / "backend")
+    run([maven, "-q", "-pl", module, goal], cwd=ROOT / "backend")
 
 
 def smoke_import_python() -> None:
