@@ -13,26 +13,23 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 CONSTANTS_FILE = ROOT / "contracts" / "constants.yaml"
+
+# Keep these synchronized with backend/pom.xml and ai-service/pyproject.toml package layout.
+JAVA_MODULE = "corp-rag-contracts"
+JAVA_PACKAGE = "com.corprag.contracts.constants"
+PYTHON_PACKAGE = "corp_rag_ai.contracts.generated"
+
 JAVA_OUT = (
     ROOT
     / "backend"
-    / "corp-rag-contracts"
-    / "target"
-    / "generated-sources"
-    / "constants"
-    / "java"
-    / "com"
-    / "corprag"
-    / "contracts"
-    / "constants"
+    / JAVA_MODULE
+    / "target/generated-sources/constants/java"
+    / Path(*JAVA_PACKAGE.split("."))
 )
 PYTHON_OUT = (
     ROOT
-    / "ai-service"
-    / "src"
-    / "corp_rag_ai"
-    / "contracts"
-    / "generated"
+    / "ai-service/src"
+    / Path(*PYTHON_PACKAGE.split("."))
 )
 
 
