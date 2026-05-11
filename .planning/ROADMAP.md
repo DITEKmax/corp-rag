@@ -48,7 +48,26 @@ Plans:
   2. Admin can create users and roles and assign/remove role membership.
   3. Protected endpoints reject unauthorized users and users without required permissions.
   4. Java can resolve a user's access filter for downstream document retrieval.
-**Plans**: TBD
+**Plans:** 7 plans
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md - Extend Phase 2 contracts and constants.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md - Add backend security dependencies and validation harness.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-03-PLAN.md - Add identity schema, seed data, domain records, and repositories.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-04-PLAN.md - Implement core auth, sessions, cookies, JWT, and security filters.
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-05-PLAN.md - Implement first-admin bootstrap, password lifecycle, and user management.
+- [ ] 02-06-PLAN.md - Implement roles, permissions, and user-role assignment.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 02-07-PLAN.md - Implement access policies, access filters, audit integration, and full flow tests.
 
 ### Phase 3: Documents, Events & Audit
 **Goal**: Java owns document metadata, object storage orchestration, document events, indexing status updates, and audit logging.
@@ -129,7 +148,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
-| 2. Identity, Users & Access Control | 0/TBD | Not started | - |
+| 2. Identity, Users & Access Control | 0/7 | Planned | - |
 | 3. Documents, Events & Audit | 0/TBD | Not started | - |
 | 4. Python Ingestion & Indexing | 0/TBD | Not started | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
