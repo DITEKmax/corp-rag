@@ -23,8 +23,17 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 - **D-07:** Limit active refresh tokens to `MAX_ACTIVE_SESSIONS_PER_USER`, default `5`. On login above the limit, evict the least-recently-used refresh token by `last_used_at` and record a session-evicted audit event.
 - **D-08:** Update `last_used_at` on every successful `/auth/refresh`.
 - **D-09:** Cookie `Secure` is false in local/dev HTTP, true in prod/non-local. Configure via `cookies.secure`, default false in `application.yml`, true in `application-prod.yml`.
-- **D-10:** Use `SameSite=Strict` as primary CSRF defense. Auth endpoints also validate `Origin`/`Referer` against configurable `ALLOWED_ORIGINS`; dev defaults are `http://localhost` and `http://localhost:80`.
-- **D-11:** Do not globally disable CSRF. Do not add a separate frontend-managed non-httpOnly CSRF cookie for the MVP.
+- **D-10:** Use `SameSite=Strict` cookies as the primary CSRF defense. Additionally, implement an explicit `OriginRefererValidationFilter` for all non-safe HTTP methods (`POST`, `PUT`, `PATCH`, `DELETE`) on `/api/v1/**` requests that use cookie auth, not only `/api/v1/auth/**`.
+  Filter logic:
+  - If the method is `GET`, `HEAD`, or `OPTIONS`, skip validation.
+  - If the request does not carry cookie auth and uses a bearer token instead, skip validation.
+  - Otherwise require an `Origin` header matching one of the allowed origins configured through `app.security.cors.allowed-origins`; dev profile defaults are `http://localhost` and `http://localhost:80`.
+  - If `Origin` is absent, which can happen when corporate proxies strip it, fall back to `Referer` with the same allowed-origin matching.
+  - If neither `Origin` nor `Referer` is valid, return `403` ProblemDetail with `error_code=ORIGIN_VALIDATION_FAILED`.
+- **D-11:** Do not use Spring Security's default CSRF filter (`CsrfFilter`) in Phase 2. Do not introduce a frontend-readable CSRF token cookie in Phase 2. Browser CSRF defense consists of two layers:
+  1. `SameSite=Strict` cookies so browsers block cross-origin cookie transmission.
+  2. `OriginRefererValidationFilter` as server-side defense-in-depth for cases where SameSite is ineffective, including same-origin XSS pressure, subdomain confusion, older browsers, or intermediary behavior.
+  Phase 7 upgrade path: if security review raises the issue, add a CSRF token cookie as a third layer without replacing the D-10/D-11 behavior.
 - **D-12:** Existing access JWTs may keep stale permissions for up to 15 minutes after role changes. Force-refresh via `user.force_refresh_at` is deferred.
 
 ### Contract-First Additions
@@ -40,6 +49,7 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
   - `SYSTEM_ROLE_PROTECTED` (409)
   - `LAST_ADMIN_PROTECTED` (409)
   - `SELF_MODIFICATION_FORBIDDEN` (403)
+  - `ORIGIN_VALIDATION_FAILED` (403): `https://corp-rag.local/problems/origin-validation-failed`, title "Запрос отклонён по политике безопасности cross-origin"
   - `ROLE_POLICY_ALREADY_EXISTS` (409)
   - `LAST_ADMIN_VISIBILITY_LOST` (409)
 - **D-16:** Do not add `SESSION_LIMIT_EXCEEDED` as an API error code; session eviction is an audit/info event, not a client error.
@@ -147,10 +157,19 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
   - Coverage target is 80% line coverage for core security classes: `JwtService`, `PasswordPolicyValidator`, `AccessFilterResolver`, `AuditEventWriter`, and role/permission matrix. DTOs, mappers, and glue code do not need a hard target.
   - Testing libraries: Spring Boot Test, Testcontainers PostgreSQL module, AssertJ via `spring-boot-starter-test`, and optional REST Assured for black-box auth flow tests.
   - Run profiles: `mvn test` runs unit and slice tests without Docker; `mvn verify` adds integration tests with Testcontainers and requires a Docker daemon.
+- **D-72:** JWT issuing and verification use `spring-boot-starter-oauth2-resource-server` with self-issued tokens.
+  - Access JWT signing uses HS256 symmetric signing with a `SecretKey` of at least 32 bytes.
+  - The signing secret is read from `JWT_SECRET`; production profile fails fast if it is missing.
+  - Development profile may generate a random startup secret with a warning.
+  - Use `NimbusJwtEncoder` for issuing access JWTs.
+  - Use `NimbusJwtDecoder.withSecretKey()` for verifying access JWTs.
+  - Do not use `NimbusJwtDecoder.withIssuerLocation()` because CVE-2026-22748 affects Spring Security 6.3.0 through 6.3.14; the current Spring Boot 3.3.6 BOM supplies Spring Security 6.3.5, which is in the affected range.
+  - Refresh tokens are opaque, not JWTs. Store only their hash in PostgreSQL and use family-based reuse detection, consistent with RFC 9700 refresh-token rotation guidance.
+  - Phase 7 upgrade path: migrate to RS256 asymmetric signing with key rotation through a JWKS endpoint.
 
 ### the agent's Discretion
-- Choose exact Spring Security CSRF configuration as long as it preserves Strict SameSite cookies, explicit Origin/Referer checks for auth endpoints, and does not globally disable CSRF.
-- Choose `PermissionEvaluator` versus explicit controller/service checks for self-vs-other user authorization.
+- Choose the exact Spring Security wiring for D-10/D-11 as long as Phase 2 does not use `CsrfFilter`, preserves Strict SameSite cookies, and applies `OriginRefererValidationFilter` to all unsafe `/api/v1/**` cookie-auth requests.
+- Use `@EnableMethodSecurity` plus `@PreAuthorize` for method-level security. Defer custom `PermissionEvaluator`; choose explicit controller/service checks or `@PreAuthorize` SpEL such as `#authentication.principal.id == #userId` for self-vs-other authorization.
 - Choose generated ETag format: version-based ETag is preferred, but normalized representation hash is acceptable.
 - Choose Postgres storage for enum arrays (`VARCHAR[]`/`TEXT[]` versus native enum arrays) if contracts and validation stay consistent.
 - Reconcile unknown role names on assignment with existing `ROLE_NOT_FOUND` status in the current constants/contract while preserving the desired details payload.
@@ -168,6 +187,7 @@ Phase 2 delivers Java-owned identity and authorization: login, logout, refresh, 
 - `.planning/ROADMAP.md` - Phase 2 goal and success criteria.
 - `.planning/STATE.md` - current project state and accumulated Phase 1 decisions.
 - `.planning/phases/01-foundation-contracts/01-CONTEXT.md` - contract-first, root contracts, generated-code, Java skeleton, Docker Compose, and database ownership decisions carried forward.
+- `.planning/phases/02-identity-users-access-control/02-RESEARCH.md` - accepted Phase 2 research findings and implementation hints for Spring Security, refresh rotation, Testcontainers, CSRF, ETag, and method security.
 
 ### Contracts
 - `contracts/openapi/api-v1.yaml` - frontend-facing Java API contract; must be extended before Phase 2 Java implementation.
