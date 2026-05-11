@@ -48,6 +48,12 @@ def java_string(value: Any) -> str:
     return json.dumps(str(value), ensure_ascii=False)
 
 
+def write_lines(path: Path, lines: list[str]) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
 def write_java_string_class(class_name: str, values: dict[str, str]) -> Path:
     lines = [
         "package com.corprag.contracts.constants;",
@@ -60,9 +66,7 @@ def write_java_string_class(class_name: str, values: dict[str, str]) -> Path:
     for key, value in values.items():
         lines.append(f"    public static final String {constant_name(key)} = {java_string(value)};")
     lines.append("}")
-    path = JAVA_OUT / f"{class_name}.java"
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return path
+    return write_lines(JAVA_OUT / f"{class_name}.java", lines)
 
 
 def write_java_error_codes(values: dict[str, dict[str, Any]]) -> Path:
@@ -90,9 +94,7 @@ def write_java_error_codes(values: dict[str, dict[str, Any]]) -> Path:
     entries = [f"        Map.entry({constant_name(key)}.code(), {constant_name(key)})" for key in values]
     lines.append(",\n".join(entries))
     lines.extend(["    );", "}"])
-    path = JAVA_OUT / "ErrorCodes.java"
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return path
+    return write_lines(JAVA_OUT / "ErrorCodes.java", lines)
 
 
 def write_python_string_module(module_name: str, values: dict[str, str]) -> Path:
@@ -107,9 +109,7 @@ def write_python_string_module(module_name: str, values: dict[str, str]) -> Path
     for key in values:
         lines.append(f"    {json.dumps(constant_name(key))},")
     lines.append("]")
-    path = PYTHON_OUT / f"{module_name}.py"
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return path
+    return write_lines(PYTHON_OUT / f"{module_name}.py", lines)
 
 
 def write_python_error_codes(values: dict[str, dict[str, Any]]) -> Path:
@@ -129,9 +129,7 @@ def write_python_error_codes(values: dict[str, dict[str, Any]]) -> Path:
     for key in values:
         lines.append(f"    {json.dumps(constant_name(key))},")
     lines.extend(['    "ERROR_CODES",', "]"])
-    path = PYTHON_OUT / "error_codes.py"
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return path
+    return write_lines(PYTHON_OUT / "error_codes.py", lines)
 
 
 def generate(constants_file: Path = CONSTANTS_FILE) -> list[Path]:
