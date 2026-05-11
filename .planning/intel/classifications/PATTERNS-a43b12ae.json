@@ -1,0 +1,28 @@
+{
+  "source_path": "C:/Users/maksd/IntelliJIDEA/corp-rag/docs/PATTERNS.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Паттерны программирования",
+  "summary": "Defines implementation patterns and engineering constraints that Java and Python services must follow.",
+  "scope": [
+    "contract-first development",
+    "layered architecture",
+    "DTO separation",
+    "boundary validation",
+    "problem details",
+    "HATEOAS",
+    "pagination",
+    "event-driven architecture",
+    "outbox",
+    "idempotent consumers",
+    "dead letter queues"
+  ],
+  "cross_refs": [
+    "ARCHITECTURE.md",
+    "PATTERNS.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Classified as SPEC because it imposes technical conventions and non-functional implementation constraints rather than only providing prose context."
+}

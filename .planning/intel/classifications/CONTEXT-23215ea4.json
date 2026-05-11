@@ -1,0 +1,29 @@
+{
+  "source_path": "C:/Users/maksd/IntelliJIDEA/corp-rag/docs/CONTEXT.md",
+  "type": "PRD",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "CONTEXT — краткая сводка проекта",
+  "summary": "Summarizes the product goal, rationale, constraints, architecture choices, portfolio value, and expected project scale.",
+  "scope": [
+    "corporate RAG assistant",
+    "diploma project",
+    "portfolio project",
+    "hybrid search",
+    "Graph RAG",
+    "prompt injection protection",
+    "RBAC",
+    "evaluation"
+  ],
+  "cross_refs": [
+    "ARCHITECTURE.md",
+    "decisions/ADR-003-java-python-split.md",
+    "ADR-001",
+    "ADR-002",
+    "ADR-003",
+    "ROADMAP.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Classified as PRD because it defines product scope, goals, constraints, and success rationale, though it is not formatted as a formal PRD."
+}

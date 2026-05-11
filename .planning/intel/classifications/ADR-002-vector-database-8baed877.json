@@ -1,0 +1,20 @@
+{
+  "source_path": "C:/Users/maksd/IntelliJIDEA/corp-rag/docs/decisions/ADR-002-vector-database.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "ADR-002: Vector database — Qdrant",
+  "summary": "Records the accepted choice of Qdrant for dense and sparse vector storage with payload filtering.",
+  "scope": [
+    "vector database",
+    "Qdrant",
+    "Python AI Service",
+    "indexing",
+    "retrieval",
+    "RBAC payload filters"
+  ],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

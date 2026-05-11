@@ -1,0 +1,17 @@
+{
+  "source_path": "C:/Users/maksd/IntelliJIDEA/corp-rag/docs/decisions/ADR-template.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "ADR-NNN: Краткое название решения",
+  "summary": "Provides a reusable template for future Architecture Decision Records.",
+  "scope": [
+    "ADR process",
+    "architecture decision template",
+    "decision documentation"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Filename and path match ADR conventions, but the content is a placeholder template rather than an actual architectural decision."
+}

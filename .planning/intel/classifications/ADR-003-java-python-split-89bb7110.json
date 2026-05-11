@@ -1,0 +1,23 @@
+{
+  "source_path": "C:/Users/maksd/IntelliJIDEA/corp-rag/docs/decisions/ADR-003-java-python-split.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "ADR-003: Разделение Java и Python — два сервиса",
+  "summary": "Records the accepted decision to split the system into a Java Spring backend and Python AI service.",
+  "scope": [
+    "service architecture",
+    "Java Spring Backend",
+    "Python AI Service",
+    "Frontend SPA",
+    "RabbitMQ",
+    "REST",
+    "database per service"
+  ],
+  "cross_refs": [
+    "PATTERNS.md"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}

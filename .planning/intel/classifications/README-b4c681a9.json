@@ -1,0 +1,29 @@
+{
+  "source_path": "C:/Users/maksd/IntelliJIDEA/corp-rag/docs/decisions/README.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Architecture Decision Records",
+  "summary": "Explains how ADRs are used, lists accepted ADRs, and names likely future ADR topics.",
+  "scope": [
+    "ADR process",
+    "accepted ADR index",
+    "future architecture decisions"
+  ],
+  "cross_refs": [
+    "PATTERNS.md",
+    "ADR-001-embedding-model.md",
+    "ADR-002-vector-database.md",
+    "ADR-003-java-python-split.md",
+    "ADR-004",
+    "ADR-005",
+    "ADR-006",
+    "ADR-007",
+    "ADR-008",
+    "ADR-009",
+    "ADR-010"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

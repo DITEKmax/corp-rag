@@ -1,0 +1,23 @@
+{
+  "source_path": "C:/Users/maksd/IntelliJIDEA/corp-rag/docs/decisions/ADR-001-embedding-model.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "ADR-001: Embedding model — bge-m3",
+  "summary": "Records the accepted choice of BAAI/bge-m3 for multilingual dense and learned sparse embeddings.",
+  "scope": [
+    "embedding model",
+    "Python AI Service",
+    "ingestion",
+    "retrieval",
+    "Qdrant",
+    "hybrid search"
+  ],
+  "cross_refs": [
+    "ADR-009",
+    "ROADMAP"
+  ],
+  "locked": true,
+  "precedence": null,
+  "notes": ""
+}
