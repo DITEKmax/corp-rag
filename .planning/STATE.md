@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-05-11T19:20:35.951Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-05-11T19:34:15.141Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-11)
 ## Current Position
 
 Phase: 01 (foundation-contracts) — EXECUTING
-Plan: 4 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-05-11
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [███████░░░] 67%
 | Phase 01 P05 | 8 min | 2 tasks | 5 files |
 | Phase 01 P02 | 22 min | 2 tasks | 9 files |
 | Phase 01 P03 | 10 min | 2 tasks | 8 files |
+| Phase 01 P04 | 9 min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent locked decisions affecting current work:
 - [Phase 01]: Java backend remains a minimal Spring Boot 3.3 skeleton with Actuator health only; auth, JWT, business controllers, AMQP declarations, and domain tables remain deferred. — Plan 01-03 follows D-22 and D-23 so later behavior phases add protected APIs and domain schema deliberately.
 - [Phase 01]: Java app database configuration uses JAVA_DB_URL, JAVA_DB_USER, and JAVA_DB_PASSWORD with local corp_rag_java defaults. — These names give Plan 01-06 compose and migration targets one env surface for the Java-owned database.
 - [Phase 01]: The backend Dockerfile is repository-root-context based so Maven can access backend modules and root contract YAML sources. — Plan 01-02 keeps contracts/ at the repo root and generated Java outputs under backend/corp-rag-contracts/target.
+- [Phase 01]: Python AI service configuration uses AI_DB_URL as the shared Alembic and runtime database setting. — Gives Plan 01-06 one compose variable for the AI-owned corp_rag_ai Postgres database.
+- [Phase 01]: Python generated contract outputs stay ignored while corp_rag_ai.contracts remains a tracked package namespace. — Preserves D-15 and D-17 while keeping Plan 01-02 generated modules importable from the documented path.
+- [Phase 01]: Python AI service remains Phase 1 minimal with health and readiness only. — Matches D-22 and D-25; retrieval, embeddings, graph, guard, AMQP consumer, and business routers remain deferred.
 
 ### Pending Todos
 
@@ -94,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T19:19:56.330Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-05-11T19:34:04.487Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
