@@ -187,7 +187,7 @@ def generate() -> list[Path]:
     ]
     init_file = PYTHON_OUT / "__init__.py"
     if not init_file.exists():
-        init_file.write_text('"""Generated contract modules."""\n', encoding="utf-8")
+        init_file.write_text('"""Generated Pydantic models and constants. Do not edit by hand."""\n', encoding="utf-8")
     return generated
 
 

@@ -1,1 +1,1 @@
-"""Generated contract package namespace for Python consumers."""
+"""Contract modules (tracked package marker for generated children)."""

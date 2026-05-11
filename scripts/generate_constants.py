@@ -145,7 +145,7 @@ def generate(constants_file: Path = CONSTANTS_FILE) -> list[Path]:
         write_python_error_codes(data["error_codes"]),
     ]
     init_file = PYTHON_OUT / "__init__.py"
-    init_file.write_text('"""Generated contract modules."""\n', encoding="utf-8")
+    write_lines(init_file, ['"""Generated Pydantic models and constants. Do not edit by hand."""'])
     generated.append(init_file)
     return generated
 
