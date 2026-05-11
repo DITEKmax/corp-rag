@@ -81,3 +81,5 @@ htmlcov/
 tmp/
 temp/
 *.tmp
+
+.codex
