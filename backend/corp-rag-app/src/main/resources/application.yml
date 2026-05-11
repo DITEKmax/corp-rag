@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: corp-rag-backend
+  datasource:
+    url: ${JAVA_DB_URL:jdbc:postgresql://localhost:5432/corp_rag_java}
+    username: ${JAVA_DB_USER:corp_rag_java}
+    password: ${JAVA_DB_PASSWORD:corp_rag_java_password}
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  sql:
+    init:
+      mode: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

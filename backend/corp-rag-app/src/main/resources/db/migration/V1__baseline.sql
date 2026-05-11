@@ -1,0 +1,2 @@
+-- Empty baseline for the Java-owned corp_rag_java database.
+-- Domain tables are deferred to later phases so Flyway history starts explicitly.
