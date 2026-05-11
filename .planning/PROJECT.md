@@ -12,7 +12,8 @@ Employees can ask natural-language questions over permitted corporate documents 
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Phase 1 validated the contract-first foundation: root OpenAPI/AsyncAPI/constants contracts generate Java and Python surfaces.
+- [x] Phase 1 validated the runnable local platform: Docker Compose starts postgres, minio, rabbitmq, qdrant, neo4j, langfuse, Java backend, Python AI service, and frontend with healthy checks.
 
 ### Active
 
@@ -40,6 +41,10 @@ The system shape is three application services plus infrastructure:
 - Java Spring Backend: auth, RBAC, users, roles, document metadata, chat history, audit, MinIO orchestration, REST API for frontend, AMQP publisher/consumer.
 - Python AI Service: parsing, chunking, sanitization, bge-m3 embeddings, Qdrant vector storage, Neo4j graph storage, retrieval, reranking, guards, generation, evaluation.
 - Frontend SPA: semantic HTML/CSS/vanilla JS, BEM styling, communicates only with Java.
+
+## Current State
+
+Phase 1 is complete as of 2026-05-11. The repository now has the contract baseline, Java/Python/frontend service skeletons, generated contract verification, local Docker Compose platform, scoped Postgres bootstrap, and root command surface. Phase 2 is next: identity, users, roles, permissions, and access filters in Java.
 
 ## Constraints
 
@@ -76,4 +81,4 @@ The system shape is three application services plus infrastructure:
 | RabbitMQ indexing | Long-running indexing needs retry, DLQ, and asynchronous delivery | — Pending |
 
 ---
-*Last updated: 2026-05-11 after ingesting docs/*
+*Last updated: 2026-05-11 after completing Phase 1*
