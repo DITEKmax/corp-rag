@@ -1,0 +1,83 @@
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+.DS_Store
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Secrets
+*.pem
+*.key
+secrets/
+
+# Java
+backend/**/target/
+backend/**/.mvn/wrapper/maven-wrapper.jar
+backend/**/build/
+backend/**/.gradle/
+backend/**/out/
+*.class
+
+# Python
+ai-service/.venv/
+ai-service/venv/
+ai-service/__pycache__/
+ai-service/**/__pycache__/
+ai-service/**/*.pyc
+ai-service/.pytest_cache/
+ai-service/.ruff_cache/
+ai-service/.mypy_cache/
+ai-service/uv.lock
+ai-service/.coverage
+ai-service/htmlcov/
+ai-service/dist/
+ai-service/build/
+ai-service/*.egg-info/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.cache/
+
+# Docker
+infra/data/
+infra/volumes/
+
+# Data
+data/raw/
+data/processed/
+data/synthetic/
+data/eval/*.jsonl
+!data/eval/.gitkeep
+
+# Local models / caches
+**/.cache/
+**/models/
+**/*.gguf
+**/*.safetensors
+
+# Coverage & reports
+coverage/
+*.cover
+htmlcov/
+
+# Temp
+tmp/
+temp/
+*.tmp
