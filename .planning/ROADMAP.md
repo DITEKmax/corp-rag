@@ -10,7 +10,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Foundation & Contracts** - Local infrastructure and shared API/event contracts are ready.
+- [x] **Phase 1: Foundation & Contracts** - Local infrastructure and shared API/event contracts are ready.
 - [ ] **Phase 2: Identity, Users & Access Control** - Java authentication, users, roles, permissions, and access filters work.
 - [ ] **Phase 3: Documents, Events & Audit** - Java can manage documents and exchange indexing events safely.
 - [ ] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status.
@@ -37,7 +37,7 @@ Plans:
 - [x] 01-03-PLAN.md - Scaffold Java Spring Boot backend foundation.
 - [x] 01-04-PLAN.md - Scaffold Python FastAPI AI-service foundation.
 - [x] 01-05-PLAN.md - Add static frontend nginx shell.
-- [ ] 01-06-PLAN.md - Wire Docker Compose, Postgres initialization, env examples, and Makefile targets.
+- [x] 01-06-PLAN.md - Wire Docker Compose, Postgres initialization, env examples, and Makefile targets.
 
 ### Phase 2: Identity, Users & Access Control
 **Goal**: Authenticated users and admins can operate within role and document-access boundaries enforced by Java.
@@ -128,7 +128,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Contracts | 5/6 | In Progress | - |
+| 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 0/TBD | Not started | - |
 | 3. Documents, Events & Audit | 0/TBD | Not started | - |
 | 4. Python Ingestion & Indexing | 0/TBD | Not started | - |
