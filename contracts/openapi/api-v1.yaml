@@ -1,0 +1,1941 @@
+openapi: "3.0.3"
+
+info:
+  title: Corporate RAG — Frontend API
+  version: "1.0.0"
+  description: |
+    Frontend-facing REST API Java Spring Backend. Единственный API, доступный
+    браузеру через nginx-прокси. Все RAG-запросы идут через этот API; Python
+    AI Service напрямую недоступен.
+
+    **Аутентификация:** JWT в httpOnly cookie `corp_rag_session`. Cookie
+    устанавливается через `POST /auth/login`, валидируется на каждом защищённом
+    endpoint, удаляется через `POST /auth/logout`.
+
+    **Авторизация:** RBAC. У каждого endpoint указаны требуемые permissions
+    (см. `x-required-permissions` extension).
+
+    **HATEOAS:** Ответы содержат `_links` для дискаверабильности. Frontend SPA
+    может строить навигацию по этим ссылкам.
+
+    **Контракт-First Pattern:** этот файл написан до реализации. Frontend и
+    Java генерируют DTO/типы из этой схемы. Breaking changes требуют ADR.
+
+    **Связи с другими контрактами:**
+    - `contracts/openapi/ai-service-v1.yaml` — internal Java↔Python API
+    - `contracts/asyncapi/events-v1.yaml` — RabbitMQ события
+    - `contracts/constants.yaml` — error_codes для ProblemDetail.errorCode
+  contact:
+    name: Corporate RAG Team
+  license:
+    name: Internal
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Локальный Java backend через Docker Compose
+  - url: http://localhost/api/v1
+    description: Через nginx-прокси (порт 80)
+
+tags:
+  - name: root
+    description: Точка входа API с HATEOAS
+  - name: auth
+    description: Аутентификация (login / logout / me)
+  - name: users
+    description: Управление пользователями (admin)
+  - name: roles
+    description: Управление ролями и правами (admin)
+  - name: access-policies
+    description: Политики доступа к документам (admin)
+  - name: documents
+    description: Загрузка, листинг, удаление документов
+  - name: chat-conversations
+    description: Диалоги пользователя
+  - name: chat-messages
+    description: Сообщения внутри диалога
+  - name: chat-query
+    description: Главный RAG-endpoint
+
+paths:
+  # ===========================================================================
+  # Root
+  # ===========================================================================
+  /:
+    get:
+      operationId: getApiRoot
+      tags: [root]
+      summary: Точка входа API с HATEOAS-навигацией
+      description: Возвращает список доступных ресурсов API через `_links`. Не требует аутентификации.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiRoot'
+              example:
+                apiVersion: "1.0.0"
+                _links:
+                  self: { href: "/api/v1/" }
+                  login: { href: "/api/v1/auth/login" }
+                  me: { href: "/api/v1/me" }
+                  documents: { href: "/api/v1/documents" }
+                  conversations: { href: "/api/v1/chat/conversations" }
+
+  # ===========================================================================
+  # Auth
+  # ===========================================================================
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Войти и установить session cookie
+      description: |
+        При успехе устанавливает httpOnly cookie `corp_rag_session`.
+        Cookie защищён: `HttpOnly`, `Secure` (в production), `SameSite=Strict`,
+        `Path=/`. TTL — 30 минут (см. ARCHITECTURE.md).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: "ivanov"
+              password: "supersecret"
+      responses:
+        '200':
+          description: Успешный вход
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: "corp_rag_session=eyJhbGc...; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=1800"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                user:
+                  id: "a1b2c3d4-e89b-12d3-a456-426614174000"
+                  username: "ivanov"
+                  fullName: "Иванов Иван Иванович"
+                  email: "ivanov@example.com"
+                  department: "HR"
+                  roles: ["EMPLOYEE"]
+                  active: true
+                expiresAt: "2026-05-11T15:23:45.000Z"
+                _links:
+                  self: { href: "/api/v1/auth/login" }
+                  me: { href: "/api/v1/me" }
+                  logout: { href: "/api/v1/auth/logout" }
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Выйти и удалить session cookie
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Cookie удалён, сессия завершена
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: "corp_rag_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Получить профиль текущего пользователя
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Профиль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+              example:
+                id: "a1b2c3d4-e89b-12d3-a456-426614174000"
+                username: "ivanov"
+                fullName: "Иванов Иван Иванович"
+                email: "ivanov@example.com"
+                department: "HR"
+                roles: ["EMPLOYEE"]
+                permissions: ["chat.query", "documents.read", "documents.upload"]
+                active: true
+                _links:
+                  self: { href: "/api/v1/me" }
+                  logout: { href: "/api/v1/auth/logout" }
+                  conversations: { href: "/api/v1/chat/conversations" }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===========================================================================
+  # Users (admin)
+  # ===========================================================================
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: Список пользователей
+      x-required-permissions: ["users.read"]
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+        - name: department
+          in: query
+          schema:
+            $ref: '#/components/schemas/Department'
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedUsers'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Создать пользователя
+      x-required-permissions: ["users.create"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              username: "petrov"
+              password: "TempPass2026!"
+              fullName: "Петров Пётр Петрович"
+              email: "petrov@example.com"
+              department: "IT"
+              roles: ["EMPLOYEE"]
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Детали пользователя
+      x-required-permissions: ["users.read"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Обновить пользователя
+      x-required-permissions: ["users.update"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Удалить пользователя (soft delete — active=false)
+      x-required-permissions: ["users.delete"]
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Удалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  /users/{userId}/roles:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    post:
+      operationId: assignUserRoles
+      tags: [users, roles]
+      summary: Назначить роли пользователю (replace-set)
+      x-required-permissions: ["users.update"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roles]
+              properties:
+                roles:
+                  type: array
+                  items:
+                    type: string
+                  example: ["EMPLOYEE", "MANAGER"]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  # ===========================================================================
+  # Roles (admin)
+  # ===========================================================================
+  /roles:
+    get:
+      operationId: listRoles
+      tags: [roles]
+      summary: Список ролей
+      x-required-permissions: ["roles.read"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+                  _links:
+                    $ref: '#/components/schemas/HateoasLinks'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createRole
+      tags: [roles]
+      summary: Создать роль
+      x-required-permissions: ["roles.create"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+            example:
+              name: "MANAGER"
+              description: "Руководитель отдела"
+              permissions: ["chat.query", "documents.read", "documents.upload", "users.read"]
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /roles/{roleId}:
+    parameters:
+      - $ref: '#/components/parameters/RoleIdPath'
+    get:
+      operationId: getRole
+      tags: [roles]
+      summary: Детали роли
+      x-required-permissions: ["roles.read"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoleNotFound'
+    patch:
+      operationId: updateRole
+      tags: [roles]
+      summary: Обновить роль
+      x-required-permissions: ["roles.update"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoleNotFound'
+    delete:
+      operationId: deleteRole
+      tags: [roles]
+      summary: Удалить роль
+      x-required-permissions: ["roles.delete"]
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Удалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoleNotFound'
+
+  # ===========================================================================
+  # Access Policies (admin)
+  # ===========================================================================
+  /access-policies:
+    get:
+      operationId: listAccessPolicies
+      tags: [access-policies]
+      summary: Список политик доступа
+      x-required-permissions: ["access_policies.read"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AccessPolicy'
+                  _links:
+                    $ref: '#/components/schemas/HateoasLinks'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createAccessPolicy
+      tags: [access-policies]
+      summary: Создать политику доступа
+      description: |
+        Политика связывает role с разрешёнными accessLevels, departments, docTypes.
+        Из этой политики Java резолвит `AccessFilter` для каждого пользователя.
+      x-required-permissions: ["access_policies.create"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccessPolicyRequest'
+            example:
+              roleId: "r1234567-e89b-12d3-a456-426614174000"
+              accessLevels: [PUBLIC, INTERNAL]
+              departments: [HR, IT, FINANCE]
+              docTypes: [POLICY, REGULATION, GUIDE]
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPolicy'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RoleNotFound'
+
+  /access-policies/{policyId}:
+    parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getAccessPolicy
+      tags: [access-policies]
+      summary: Детали политики
+      x-required-permissions: ["access_policies.read"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPolicy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccessPolicyNotFound'
+    patch:
+      operationId: updateAccessPolicy
+      tags: [access-policies]
+      summary: Обновить политику
+      x-required-permissions: ["access_policies.update"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccessPolicyRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPolicy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccessPolicyNotFound'
+    delete:
+      operationId: deleteAccessPolicy
+      tags: [access-policies]
+      summary: Удалить политику
+      x-required-permissions: ["access_policies.delete"]
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Удалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/AccessPolicyNotFound'
+
+  # ===========================================================================
+  # Documents
+  # ===========================================================================
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: Список документов с фильтрами и пагинацией
+      x-required-permissions: ["documents.read"]
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocumentStatus'
+        - name: department
+          in: query
+          schema:
+            $ref: '#/components/schemas/Department'
+        - name: docType
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocType'
+        - name: language
+          in: query
+          schema:
+            $ref: '#/components/schemas/Language'
+        - name: search
+          in: query
+          description: Текстовый поиск по title/filename.
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedDocuments'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: uploadDocument
+      tags: [documents]
+      summary: Загрузить документ
+      description: |
+        Загрузка файла + метаданные через `multipart/form-data`.
+        Файл сохраняется в MinIO, метаданные в Postgres,
+        событие `document.uploaded` публикуется в RabbitMQ (см. events-v1.yaml).
+        Лимит размера: 50 МБ.
+      x-required-permissions: ["documents.upload"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, title, accessLevel, department, docType, language]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF, DOCX, HTML, MD, или TXT (до 50 МБ).
+                title:
+                  type: string
+                  maxLength: 512
+                  example: "Регламент отпусков 2026"
+                accessLevel:
+                  $ref: '#/components/schemas/AccessLevel'
+                department:
+                  $ref: '#/components/schemas/Department'
+                docType:
+                  $ref: '#/components/schemas/DocType'
+                language:
+                  $ref: '#/components/schemas/Language'
+                description:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Документ создан, индексация начата асинхронно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+              example:
+                id: "d8f3a1c2-e89b-12d3-a456-426614174000"
+                title: "Регламент отпусков 2026"
+                originalFilename: "Регламент отпусков 2026.pdf"
+                mimeType: "application/pdf"
+                sizeBytes: 248576
+                accessLevel: "INTERNAL"
+                department: "HR"
+                docType: "POLICY"
+                language: "ru"
+                status: "UPLOADED"
+                ownerUserId: "a1b2c3d4-e89b-12d3-a456-426614174000"
+                uploadedAt: "2026-05-11T14:23:40.000Z"
+                indexedAt: null
+                chunkCount: null
+                failureReason: null
+                _links:
+                  self: { href: "/api/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000" }
+                  raw: { href: "/api/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000/raw" }
+                  delete: { href: "/api/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000" }
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          description: Файл слишком большой
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdPath'
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Детали документа
+      x-required-permissions: ["documents.read"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/DocumentNotFound'
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Удалить документ
+      description: |
+        Soft delete документа. Публикует событие `document.deleted` — Python
+        очистит индексы (Qdrant + Neo4j).
+      x-required-permissions: ["documents.delete"]
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Удалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/DocumentNotFound'
+        '409':
+          description: Документ в процессе индексации
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /documents/{documentId}/raw:
+    parameters:
+      - $ref: '#/components/parameters/DocumentIdPath'
+    get:
+      operationId: getDocumentRaw
+      tags: [documents]
+      summary: Получить presigned URL для скачивания файла
+      description: |
+        Возвращает временный URL к файлу в MinIO. URL действителен 5 минут.
+        Frontend использует его для open-in-tab / download. Java не проксирует
+        бинарные данные.
+      x-required-permissions: ["documents.read"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresAt]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                    example: "https://minio.local/corp-rag-documents/2026/05/d8f3a1c2.pdf?X-Amz-Algorithm=..."
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    example: "2026-05-11T14:28:40.000Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/DocumentNotFound'
+
+  # ===========================================================================
+  # Chat — Conversations
+  # ===========================================================================
+  /chat/conversations:
+    get:
+      operationId: listConversations
+      tags: [chat-conversations]
+      summary: Список диалогов текущего пользователя
+      x-required-permissions: ["chat.query"]
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedConversations'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createConversation
+      tags: [chat-conversations]
+      summary: Создать новый диалог
+      x-required-permissions: ["chat.query"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 200
+                  description: Опциональное название диалога. Если не указано, Java создаст из первого сообщения.
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /chat/conversations/{conversationId}:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdPath'
+    get:
+      operationId: getConversation
+      tags: [chat-conversations]
+      summary: Детали диалога
+      x-required-permissions: ["chat.query"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ConversationNotFound'
+    delete:
+      operationId: deleteConversation
+      tags: [chat-conversations]
+      summary: Удалить диалог
+      x-required-permissions: ["chat.query"]
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Удалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ConversationNotFound'
+
+  /chat/conversations/{conversationId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ConversationIdPath'
+    get:
+      operationId: listMessages
+      tags: [chat-messages]
+      summary: История сообщений диалога
+      x-required-permissions: ["chat.query"]
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedMessages'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ConversationNotFound'
+
+  # ===========================================================================
+  # Chat — Query (главный endpoint)
+  # ===========================================================================
+  /chat/query:
+    post:
+      operationId: chatQuery
+      tags: [chat-query]
+      summary: Отправить RAG-запрос и получить ответ с цитатами
+      description: |
+        Главный endpoint для пользователя. Java:
+        1. Валидирует запрос и аутентифицирует пользователя.
+        2. Резолвит AccessFilter из ролей пользователя.
+        3. Загружает историю диалога (последние ~10 сообщений).
+        4. Вызывает Python AI Service `POST /v1/query` (см. ai-service-v1.yaml).
+        5. Сохраняет user message и assistant response в conversations table.
+        6. Возвращает ответ frontend'у.
+
+        **Rate limit:** 30 req/min на пользователя.
+      x-required-permissions: ["chat.query"]
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatQueryRequest'
+            example:
+              message: "Сколько дней отпуска положено сотруднику после 5 лет работы?"
+              conversationId: "c1234567-e89b-12d3-a456-426614174000"
+      responses:
+        '200':
+          description: OK — ответ сгенерирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatQueryResponse'
+              example:
+                conversationId: "c1234567-e89b-12d3-a456-426614174000"
+                messageId: "m1234567-e89b-12d3-a456-426614174999"
+                answered: true
+                answer: "Согласно регламенту HR, после 5 лет стажа сотруднику положено 31 календарный день отпуска [1]. Дополнительные дни предоставляются за работу с ненормированным рабочим днём [2]."
+                citations:
+                  - documentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
+                    documentTitle: "Регламент отпусков 2026"
+                    chunkId: "ch-001-042"
+                    quote: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день."
+                    pageNumber: 4
+                    score: 0.92
+                    accessLevel: "INTERNAL"
+                  - documentId: "d8f3a1c2-e89b-12d3-a456-426614174001"
+                    documentTitle: "Положение об оплате труда"
+                    chunkId: "ch-002-017"
+                    quote: "За работу с ненормированным рабочим днём предоставляется дополнительный отпуск не менее 3 календарных дней."
+                    pageNumber: 12
+                    score: 0.81
+                    accessLevel: "INTERNAL"
+                confidence: 0.88
+                guardVerdict: null
+                _links:
+                  self: { href: "/api/v1/chat/query" }
+                  conversation: { href: "/api/v1/chat/conversations/c1234567-e89b-12d3-a456-426614174000" }
+                  citationDetails: { href: "/api/v1/chat/messages/m1234567-e89b-12d3-a456-426614174999/citations" }
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ConversationNotFound'
+        '422':
+          description: Запрос заблокирован системой защиты
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '429':
+          description: Превышен rate limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: AI-сервис недоступен
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /chat/messages/{messageId}/citations:
+    parameters:
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getCitationDetails
+      tags: [chat-messages]
+      summary: Получить детали всех цитат сообщения
+      description: |
+        Загружает full content каждого процитированного чанка через
+        Python AI Service `GET /chunks/{chunkId}`. Используется при open
+        Citation Viewer в UI.
+      x-required-permissions: ["chat.query"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messageId, chunks]
+                properties:
+                  messageId:
+                    type: string
+                    format: uuid
+                  chunks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChunkDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Сообщение не найдено
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+
+  # ---------------------------------------------------------------------------
+  # Security Schemes
+  # ---------------------------------------------------------------------------
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: corp_rag_session
+      description: |
+        JWT в httpOnly cookie `corp_rag_session`. Cookie устанавливается
+        через `POST /auth/login` и удаляется через `POST /auth/logout`.
+        Cookie защищён: `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`.
+
+  # ---------------------------------------------------------------------------
+  # Reusable Parameters
+  # ---------------------------------------------------------------------------
+  parameters:
+    PageQuery:
+      name: page
+      in: query
+      description: Номер страницы (0-indexed).
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    SizeQuery:
+      name: size
+      in: query
+      description: Размер страницы.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RoleIdPath:
+      name: roleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DocumentIdPath:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ConversationIdPath:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  # ---------------------------------------------------------------------------
+  # Reusable Responses
+  # ---------------------------------------------------------------------------
+  responses:
+    Unauthorized:
+      description: Не аутентифицирован
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/authentication-failed"
+            title: "Не удалось аутентифицировать пользователя"
+            status: 401
+            errorCode: "AUTHENTICATION_FAILED"
+            correlationId: "550e8400-e29b-41d4-a716-446655440099"
+    Forbidden:
+      description: Недостаточно прав
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/insufficient-permissions"
+            title: "Недостаточно прав для выполнения операции"
+            status: 403
+            errorCode: "INSUFFICIENT_PERMISSIONS"
+    ValidationFailed:
+      description: Запрос не прошёл валидацию
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/validation-failed"
+            title: "Запрос не прошёл валидацию"
+            status: 400
+            errorCode: "VALIDATION_FAILED"
+            validationErrors:
+              - field: "username"
+                message: "must not be blank"
+    AuthenticationFailed:
+      description: Неверные учётные данные
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/authentication-failed"
+            title: "Не удалось аутентифицировать пользователя"
+            status: 401
+            errorCode: "AUTHENTICATION_FAILED"
+    Conflict:
+      description: Ресурс уже существует
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/duplicate-resource"
+            title: "Ресурс уже существует"
+            status: 409
+            errorCode: "DUPLICATE_RESOURCE"
+    UserNotFound:
+      description: Пользователь не найден
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/user-not-found"
+            title: "Пользователь не найден"
+            status: 404
+            errorCode: "USER_NOT_FOUND"
+    RoleNotFound:
+      description: Роль не найдена
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/role-not-found"
+            title: "Роль не найдена"
+            status: 404
+            errorCode: "ROLE_NOT_FOUND"
+    DocumentNotFound:
+      description: Документ не найден
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/document-not-found"
+            title: "Документ не найден"
+            status: 404
+            errorCode: "DOCUMENT_NOT_FOUND"
+    ConversationNotFound:
+      description: Диалог не найден
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/conversation-not-found"
+            title: "Диалог не найден"
+            status: 404
+            errorCode: "CONVERSATION_NOT_FOUND"
+    AccessPolicyNotFound:
+      description: Политика не найдена
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/access-policy-not-found"
+            title: "Политика доступа не найдена"
+            status: 404
+            errorCode: "ACCESS_POLICY_NOT_FOUND"
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+
+    # ===== Enums (shared with ai-service-v1.yaml — duplicated by design) =====
+
+    AccessLevel:
+      type: string
+      enum: [PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED]
+    Department:
+      type: string
+      minLength: 1
+      maxLength: 64
+      example: "HR"
+    DocType:
+      type: string
+      enum: [POLICY, REGULATION, GUIDE, REPORT, MANUAL, OTHER]
+    Language:
+      type: string
+      enum: [ru, en]
+    DocumentStatus:
+      type: string
+      description: |
+        Статус документа в pipeline индексации:
+        - `UPLOADED` — файл сохранён, событие отправлено
+        - `INDEXING` — Python обрабатывает
+        - `INDEXED` — индексация успешно завершена
+        - `INDEXING_FAILED` — невосстановимая ошибка
+      enum: [UPLOADED, INDEXING, INDEXED, INDEXING_FAILED]
+    ConversationRole:
+      type: string
+      enum: [user, assistant]
+
+    # ===== HATEOAS =====
+
+    HateoasLink:
+      type: object
+      required: [href]
+      properties:
+        href:
+          type: string
+          format: uri-reference
+          example: "/api/v1/documents"
+        method:
+          type: string
+          enum: [GET, POST, PATCH, DELETE]
+        title:
+          type: string
+
+    HateoasLinks:
+      type: object
+      description: Карта HATEOAS-ссылок. Ключ — rel (relationship name), значение — link.
+      additionalProperties:
+        $ref: '#/components/schemas/HateoasLink'
+
+    # ===== Root =====
+
+    ApiRoot:
+      type: object
+      required: [apiVersion, _links]
+      properties:
+        apiVersion:
+          type: string
+          example: "1.0.0"
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    # ===== Auth =====
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 8
+          maxLength: 200
+
+    LoginResponse:
+      type: object
+      required: [user, expiresAt, _links]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        expiresAt:
+          type: string
+          format: date-time
+          description: Когда истекает сессия (cookie).
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    CurrentUser:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            permissions:
+              type: array
+              items:
+                type: string
+              description: Плоский список permissions, агрегированный из всех ролей.
+              example: ["chat.query", "documents.read"]
+            _links:
+              $ref: '#/components/schemas/HateoasLinks'
+
+    # ===== Users =====
+
+    User:
+      type: object
+      required: [id, username, fullName, email, department, roles, active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          maxLength: 64
+        fullName:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        department:
+          $ref: '#/components/schemas/Department'
+        roles:
+          type: array
+          items:
+            type: string
+          example: ["EMPLOYEE"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    CreateUserRequest:
+      type: object
+      required: [username, password, fullName, email, department, roles]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9._-]+$'
+        password:
+          type: string
+          minLength: 8
+          maxLength: 200
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        department:
+          $ref: '#/components/schemas/Department'
+        roles:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          example: ["EMPLOYEE"]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          maxLength: 200
+        email:
+          type: string
+          format: email
+        department:
+          $ref: '#/components/schemas/Department'
+        active:
+          type: boolean
+
+    PagedUsers:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+
+    # ===== Roles =====
+
+    Role:
+      type: object
+      required: [id, name, permissions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 64
+          example: "MANAGER"
+        description:
+          type: string
+          maxLength: 500
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["chat.query", "documents.read"]
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    CreateRoleRequest:
+      type: object
+      required: [name, permissions]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Z_]+$'
+        description:
+          type: string
+          maxLength: 500
+        permissions:
+          type: array
+          items:
+            type: string
+          minItems: 1
+
+    UpdateRoleRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          maxLength: 500
+        permissions:
+          type: array
+          items:
+            type: string
+
+    # ===== Access Policies =====
+
+    AccessPolicy:
+      type: object
+      required: [id, roleId, accessLevels, departments, docTypes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        roleId:
+          type: string
+          format: uuid
+        roleName:
+          type: string
+          description: Денормализованное имя роли для удобства UI.
+          example: "EMPLOYEE"
+        accessLevels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessLevel'
+          minItems: 1
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+        docTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocType'
+          minItems: 1
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    CreateAccessPolicyRequest:
+      type: object
+      required: [roleId, accessLevels, docTypes]
+      properties:
+        roleId:
+          type: string
+          format: uuid
+        accessLevels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessLevel'
+          minItems: 1
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+          description: Пустой массив = "только свой отдел и публичные".
+        docTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocType'
+          minItems: 1
+
+    UpdateAccessPolicyRequest:
+      type: object
+      properties:
+        accessLevels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessLevel'
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Department'
+        docTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocType'
+
+    # ===== Documents =====
+
+    Document:
+      type: object
+      required:
+        - id
+        - title
+        - originalFilename
+        - mimeType
+        - sizeBytes
+        - accessLevel
+        - department
+        - docType
+        - language
+        - status
+        - ownerUserId
+        - uploadedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 512
+        originalFilename:
+          type: string
+          maxLength: 512
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+        department:
+          $ref: '#/components/schemas/Department'
+        docType:
+          $ref: '#/components/schemas/DocType'
+        language:
+          $ref: '#/components/schemas/Language'
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        ownerUserId:
+          type: string
+          format: uuid
+        uploadedAt:
+          type: string
+          format: date-time
+        indexedAt:
+          type: string
+          format: date-time
+          nullable: true
+        chunkCount:
+          type: integer
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+          description: Причина ошибки индексации (только при `status=INDEXING_FAILED`).
+        description:
+          type: string
+          maxLength: 1000
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    PagedDocuments:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Document'
+
+    # ===== Chat =====
+
+    Conversation:
+      type: object
+      required: [id, userId, title, createdAt, updatedAt, messageCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+          example: "Вопрос про отпуска"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+          minimum: 0
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    PagedConversations:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Conversation'
+
+    Message:
+      type: object
+      required: [id, conversationId, role, content, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/ConversationRole'
+        content:
+          type: string
+          maxLength: 8000
+        citations:
+          type: array
+          description: Только для assistant-сообщений.
+          items:
+            $ref: '#/components/schemas/Citation'
+        confidence:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0
+          maximum: 1
+        createdAt:
+          type: string
+          format: date-time
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    PagedMessages:
+      allOf:
+        - $ref: '#/components/schemas/PagedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    # ===== Chat Query =====
+
+    ChatQueryRequest:
+      type: object
+      required: [message, conversationId]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        conversationId:
+          type: string
+          format: uuid
+
+    ChatQueryResponse:
+      type: object
+      required: [conversationId, messageId, answered, answer, citations, confidence, _links]
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+        messageId:
+          type: string
+          format: uuid
+        answered:
+          type: boolean
+        answer:
+          type: string
+          maxLength: 8000
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        guardVerdict:
+          allOf:
+            - $ref: '#/components/schemas/GuardVerdict'
+          nullable: true
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    # ===== Shared with ai-service-v1.yaml — duplicated by design =====
+
+    Citation:
+      type: object
+      required: [documentId, documentTitle, chunkId, quote, score, accessLevel]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        documentTitle:
+          type: string
+        chunkId:
+          type: string
+          pattern: '^ch-\d{3}-\d{3,}$'
+        quote:
+          type: string
+          maxLength: 1000
+        pageNumber:
+          type: integer
+          nullable: true
+          minimum: 1
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+
+    GuardVerdict:
+      type: object
+      required: [safe]
+      properties:
+        safe:
+          type: boolean
+        reason:
+          type: string
+          example: "INJECTION_PATTERN_DETECTED"
+        tier:
+          type: string
+          enum: [TIER_0_REGEX, TIER_1_LLM, OUTPUT_CHECK]
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    ChunkDetail:
+      type: object
+      required: [documentId, chunkId, content, language, accessLevel, department, docType]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        chunkId:
+          type: string
+          pattern: '^ch-\d{3}-\d{3,}$'
+        parentChunkId:
+          type: string
+          nullable: true
+        content:
+          type: string
+          maxLength: 8000
+        pageNumber:
+          type: integer
+          nullable: true
+        sectionTitle:
+          type: string
+          nullable: true
+        language:
+          $ref: '#/components/schemas/Language'
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+        department:
+          $ref: '#/components/schemas/Department'
+        docType:
+          $ref: '#/components/schemas/DocType'
+
+    # ===== Pagination =====
+
+    PagedResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items: {}
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        _links:
+          $ref: '#/components/schemas/HateoasLinks'
+
+    # ===== RFC 7807 Problem Details =====
+
+    ProblemDetail:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errorCode:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        validationErrors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+        guardVerdict:
+          allOf:
+            - $ref: '#/components/schemas/GuardVerdict'
+          nullable: true

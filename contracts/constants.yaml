@@ -1,0 +1,216 @@
+# =============================================================================
+# Corporate RAG System — Shared Contract Constants
+# =============================================================================
+#
+# Source of truth for routing keys, queue names, exchange names, and error
+# codes. Java and Python services generate symbolic constants from this file
+# via scripts/generate_constants.py.
+#
+# DO NOT hand-write these values anywhere else in the codebase. If a constant
+# is needed, add it here first, then regenerate.
+#
+# Naming conventions:
+#   - YAML keys use snake_case (Python-friendly).
+#   - Routing keys / queues / exchanges use dot.notation (AMQP convention).
+#   - Error codes use UPPER_SNAKE_CASE (HTTP/RFC 7807 convention).
+#
+# Versioning:
+#   - This file is locked at v1. Adding new constants is additive and allowed
+#     without an ADR. Renaming or removing constants requires an ADR.
+# =============================================================================
+
+version: "1.0.0"
+
+# -----------------------------------------------------------------------------
+# Routing Keys (AMQP)
+# -----------------------------------------------------------------------------
+# Used as the routing_key when publishing to topic exchanges. Consumers bind
+# their queues to these keys via the matching exchange.
+#
+# Java generated symbol:   com.corprag.contracts.constants.EventRoutingKeys.DOCUMENT_UPLOADED
+# Python generated symbol: corp_rag_ai.contracts.generated.routing_keys.DOCUMENT_UPLOADED
+# -----------------------------------------------------------------------------
+routing_keys:
+  document_uploaded: "document.uploaded"
+  document_deleted: "document.deleted"
+  document_indexed: "document.indexed"
+  document_indexing_failed: "document.indexing.failed"
+
+# -----------------------------------------------------------------------------
+# Exchanges (AMQP)
+# -----------------------------------------------------------------------------
+# Topic exchanges for document lifecycle and the matching dead-letter exchange
+# for failed deliveries.
+#
+# Java generated symbol:   com.corprag.contracts.constants.ExchangeNames.DOCUMENTS_TOPIC
+# Python generated symbol: corp_rag_ai.contracts.generated.exchange_names.DOCUMENTS_TOPIC
+# -----------------------------------------------------------------------------
+exchanges:
+  documents_topic: "corp-rag.documents"
+  documents_dlx: "corp-rag.documents.dlx"
+
+# -----------------------------------------------------------------------------
+# Queues (AMQP)
+# -----------------------------------------------------------------------------
+# Direction conventions in queue names:
+#   - "ai.*"      = consumed by the Python AI service
+#   - "backend.*" = consumed by the Java Spring backend
+#
+# Every primary queue has a matching ".dlq" companion bound to the DLX. Failed
+# messages (after retries) end up in the .dlq for manual inspection.
+#
+# Java generated symbol:   com.corprag.contracts.constants.QueueNames.AI_DOCUMENT_UPLOADED
+# Python generated symbol: corp_rag_ai.contracts.generated.queue_names.AI_DOCUMENT_UPLOADED
+# -----------------------------------------------------------------------------
+queues:
+  # Java publishes → Python consumes
+  ai_document_uploaded: "ai.document.uploaded"
+  ai_document_uploaded_dlq: "ai.document.uploaded.dlq"
+  ai_document_deleted: "ai.document.deleted"
+  ai_document_deleted_dlq: "ai.document.deleted.dlq"
+
+  # Python publishes → Java consumes
+  backend_document_indexed: "backend.document.indexed"
+  backend_document_indexed_dlq: "backend.document.indexed.dlq"
+  backend_document_failed: "backend.document.failed"
+  backend_document_failed_dlq: "backend.document.failed.dlq"
+
+# -----------------------------------------------------------------------------
+# Error Codes (RFC 7807 Problem Details)
+# -----------------------------------------------------------------------------
+# Each error code maps to:
+#   - http_status   : HTTP status code returned by the API.
+#   - problem_type  : URI used in ProblemDetail.type field (machine-readable).
+#   - default_title : human-readable title used in ProblemDetail.title.
+#
+# The problem_type URIs use the placeholder host "corp-rag.local". In production
+# this should be replaced with the actual operator domain. The path identifies
+# the error class.
+#
+# Java generated symbol:   com.corprag.contracts.constants.ErrorCodes.DOCUMENT_NOT_FOUND
+# Python generated symbol: corp_rag_ai.contracts.generated.error_codes.DOCUMENT_NOT_FOUND
+# -----------------------------------------------------------------------------
+error_codes:
+  # ---- 400 Bad Request ----
+  VALIDATION_FAILED:
+    http_status: 400
+    problem_type: "https://corp-rag.local/problems/validation-failed"
+    default_title: "Запрос не прошёл валидацию"
+  INVALID_FILE_FORMAT:
+    http_status: 400
+    problem_type: "https://corp-rag.local/problems/invalid-file-format"
+    default_title: "Неподдерживаемый формат файла"
+  INVALID_QUERY:
+    http_status: 400
+    problem_type: "https://corp-rag.local/problems/invalid-query"
+    default_title: "Некорректный запрос"
+
+  # ---- 401 Unauthorized ----
+  AUTHENTICATION_FAILED:
+    http_status: 401
+    problem_type: "https://corp-rag.local/problems/authentication-failed"
+    default_title: "Не удалось аутентифицировать пользователя"
+  TOKEN_EXPIRED:
+    http_status: 401
+    problem_type: "https://corp-rag.local/problems/token-expired"
+    default_title: "Срок действия токена истёк"
+  TOKEN_INVALID:
+    http_status: 401
+    problem_type: "https://corp-rag.local/problems/token-invalid"
+    default_title: "Токен недействителен"
+
+  # ---- 403 Forbidden ----
+  ACCESS_DENIED:
+    http_status: 403
+    problem_type: "https://corp-rag.local/problems/access-denied"
+    default_title: "Доступ запрещён"
+  INVALID_ACCESS_LEVEL:
+    http_status: 403
+    problem_type: "https://corp-rag.local/problems/invalid-access-level"
+    default_title: "Недостаточный уровень доступа"
+  INSUFFICIENT_PERMISSIONS:
+    http_status: 403
+    problem_type: "https://corp-rag.local/problems/insufficient-permissions"
+    default_title: "Недостаточно прав для выполнения операции"
+
+  # ---- 404 Not Found ----
+  USER_NOT_FOUND:
+    http_status: 404
+    problem_type: "https://corp-rag.local/problems/user-not-found"
+    default_title: "Пользователь не найден"
+  ROLE_NOT_FOUND:
+    http_status: 404
+    problem_type: "https://corp-rag.local/problems/role-not-found"
+    default_title: "Роль не найдена"
+  DOCUMENT_NOT_FOUND:
+    http_status: 404
+    problem_type: "https://corp-rag.local/problems/document-not-found"
+    default_title: "Документ не найден"
+  CHUNK_NOT_FOUND:
+    http_status: 404
+    problem_type: "https://corp-rag.local/problems/chunk-not-found"
+    default_title: "Фрагмент документа не найден"
+  CONVERSATION_NOT_FOUND:
+    http_status: 404
+    problem_type: "https://corp-rag.local/problems/conversation-not-found"
+    default_title: "Диалог не найден"
+  ACCESS_POLICY_NOT_FOUND:
+    http_status: 404
+    problem_type: "https://corp-rag.local/problems/access-policy-not-found"
+    default_title: "Политика доступа не найдена"
+
+  # ---- 409 Conflict ----
+  DUPLICATE_RESOURCE:
+    http_status: 409
+    problem_type: "https://corp-rag.local/problems/duplicate-resource"
+    default_title: "Ресурс уже существует"
+  DOCUMENT_INDEXING_IN_PROGRESS:
+    http_status: 409
+    problem_type: "https://corp-rag.local/problems/document-indexing-in-progress"
+    default_title: "Документ в процессе индексации, операция недоступна"
+
+  # ---- 413 Payload Too Large ----
+  FILE_TOO_LARGE:
+    http_status: 413
+    problem_type: "https://corp-rag.local/problems/file-too-large"
+    default_title: "Размер файла превышает допустимый"
+
+  # ---- 422 Unprocessable Entity ----
+  QUERY_BLOCKED_BY_GUARD:
+    http_status: 422
+    problem_type: "https://corp-rag.local/problems/query-blocked-by-guard"
+    default_title: "Запрос заблокирован системой защиты"
+
+  # ---- 429 Too Many Requests ----
+  RATE_LIMIT_EXCEEDED:
+    http_status: 429
+    problem_type: "https://corp-rag.local/problems/rate-limit-exceeded"
+    default_title: "Превышен лимит запросов"
+
+  # ---- 500 Internal Server Error ----
+  INTERNAL_ERROR:
+    http_status: 500
+    problem_type: "https://corp-rag.local/problems/internal-error"
+    default_title: "Внутренняя ошибка сервера"
+  INDEXING_PIPELINE_ERROR:
+    http_status: 500
+    problem_type: "https://corp-rag.local/problems/indexing-pipeline-error"
+    default_title: "Ошибка в конвейере индексации"
+  RETRIEVAL_ERROR:
+    http_status: 500
+    problem_type: "https://corp-rag.local/problems/retrieval-error"
+    default_title: "Ошибка при поиске документов"
+  LLM_PROVIDER_ERROR:
+    http_status: 500
+    problem_type: "https://corp-rag.local/problems/llm-provider-error"
+    default_title: "Ошибка обращения к языковой модели"
+
+  # ---- 503 Service Unavailable ----
+  AI_SERVICE_UNAVAILABLE:
+    http_status: 503
+    problem_type: "https://corp-rag.local/problems/ai-service-unavailable"
+    default_title: "AI-сервис временно недоступен"
+  DEPENDENCY_UNAVAILABLE:
+    http_status: 503
+    problem_type: "https://corp-rag.local/problems/dependency-unavailable"
+    default_title: "Внешняя зависимость недоступна"

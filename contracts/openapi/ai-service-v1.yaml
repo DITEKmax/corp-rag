@@ -1,0 +1,923 @@
+openapi: "3.0.3"
+
+info:
+  title: Corporate RAG — AI Service Internal API
+  version: "1.0.0"
+  description: |
+    Внутренний REST API Python AI Service, потребляемый Java Spring Backend.
+
+    **Этот API не выставляется наружу.** Java выступает в роли BFF (Backend
+    for Frontend) и проксирует пользовательские запросы в этот сервис,
+    добавляя `AccessFilter`, резолвенный на основе ролей пользователя.
+
+    **Контракт-First Pattern:** этот файл написан до реализации. Java и Python
+    генерируют DTO/Pydantic-модели из этой схемы. Любые breaking changes
+    требуют новый ADR (см. D-06 в Phase 1 CONTEXT.md).
+
+    **Endpoints:**
+    - `POST /v1/query` — главный RAG endpoint. Java передаёт пользовательский
+      запрос с access filter, Python возвращает ответ с цитатами, метаданными
+      ретрива и (опционально) guard verdict.
+    - `GET /v1/documents/{documentId}/chunks/{chunkId}` — поиск конкретного
+      чанка для отображения в Citation Viewer.
+    - `GET /health` / `GET /ready` — стандартные health endpoints для
+      Docker Compose healthchecks.
+
+    **Защита:**
+    - Сетевая изоляция: API доступен только внутри Docker Compose network.
+    - В Phase 7 будет добавлена mTLS или shared secret между Java и Python.
+      В Phase 1 защита на уровне сетевой топологии.
+
+    **Связи с другими контрактами:**
+    - `contracts/openapi/api-v1.yaml` — frontend-facing Java REST API,
+      использует совместимые схемы `Citation`, `GuardVerdict`, `AccessFilter`.
+    - `contracts/asyncapi/events-v1.yaml` — RabbitMQ события индексации.
+    - `contracts/constants.yaml` — единый источник `error_codes` для
+      `ProblemDetail.errorCode`.
+  contact:
+    name: Corporate RAG Team
+  license:
+    name: Internal
+
+servers:
+  - url: http://localhost:8000
+    description: Локальный Python AI Service (Docker Compose)
+  - url: http://python-ai:8000
+    description: Имя сервиса в Docker Compose network (используется Java)
+
+tags:
+  - name: query
+    description: Главный RAG endpoint
+  - name: chunks
+    description: Lookup чанков для Citation Viewer
+  - name: health
+    description: Health и readiness probes
+
+paths:
+  # ===========================================================================
+  # POST /v1/query — главный RAG endpoint
+  # ===========================================================================
+  /v1/query:
+    post:
+      operationId: queryRag
+      tags: [query]
+      summary: Выполнить RAG-запрос с цитатами
+      description: |
+        Главный endpoint AI-сервиса. Принимает пользовательский запрос с
+        access filter от Java, выполняет полный LangGraph-пайплайн:
+
+        1. **Input guard** (Tier-0 regex + Tier-1 LLM classifier) — проверка на
+           injection patterns и неуместный контент.
+        2. **Query router** — классификация запроса (factual / aggregation /
+           multi-hop / comparison / unsupported).
+        3. **Retrieval** — гибридный поиск (dense + sparse bge-m3 через Qdrant)
+           или Graph RAG (Neo4j), в зависимости от route. Применяется
+           `AccessFilter` на уровне БД.
+        4. **Reranking** — cross-encoder rerank финальных чанков.
+        5. **Synthesis** — генерация ответа Gemini Flash Lite с XML-изоляцией
+           контекста.
+        6. **Output guard** — проверка наличия цитат, PII, format compliance.
+
+        Возвращает структурированный ответ с `answer`, `citations`,
+        `confidence`, `guardVerdict` (если запрос заблокирован или модифицирован)
+        и `retrievalMeta` для трассировки.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            examples:
+              factualQuery:
+                summary: Простой фактический вопрос
+                value:
+                  userId: "a1b2c3d4-e89b-12d3-a456-426614174000"
+                  correlationId: "550e8400-e29b-41d4-a716-446655440000"
+                  conversationId: "c1234567-e89b-12d3-a456-426614174000"
+                  message: "Сколько дней отпуска положено сотруднику после 5 лет работы?"
+                  conversationHistory: []
+                  accessFilter:
+                    accessLevels: [PUBLIC, INTERNAL]
+                    departments: [HR, IT, FINANCE]
+                    docTypes: [POLICY, REGULATION, GUIDE]
+                  retrievalOptions:
+                    topK: 10
+                    rerankerEnabled: true
+              followUpQuery:
+                summary: Уточняющий вопрос с историей
+                value:
+                  userId: "a1b2c3d4-e89b-12d3-a456-426614174000"
+                  correlationId: "550e8400-e29b-41d4-a716-446655440011"
+                  conversationId: "c1234567-e89b-12d3-a456-426614174000"
+                  message: "А что если стаж меньше 3 лет?"
+                  conversationHistory:
+                    - role: user
+                      content: "Сколько дней отпуска положено сотруднику после 5 лет работы?"
+                    - role: assistant
+                      content: "Согласно регламенту, после 5 лет стажа полагается 31 календарный день."
+                  accessFilter:
+                    accessLevels: [PUBLIC, INTERNAL]
+                    departments: [HR, IT, FINANCE]
+                    docTypes: [POLICY, REGULATION, GUIDE]
+      responses:
+        '200':
+          description: Ответ с цитатами успешно сгенерирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              examples:
+                successfulAnswer:
+                  summary: Ответ с цитатами и метаданными
+                  value:
+                    answered: true
+                    answer: "Согласно регламенту HR, после 5 лет стажа сотруднику положено 31 календарный день отпуска [1]. Дополнительные дни предоставляются за работу с ненормированным рабочим днём [2]."
+                    citations:
+                      - documentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
+                        documentTitle: "Регламент отпусков 2026"
+                        chunkId: "ch-001-042"
+                        quote: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день."
+                        pageNumber: 4
+                        score: 0.92
+                        accessLevel: INTERNAL
+                      - documentId: "d8f3a1c2-e89b-12d3-a456-426614174001"
+                        documentTitle: "Положение об оплате труда"
+                        chunkId: "ch-002-017"
+                        quote: "За работу с ненормированным рабочим днём предоставляется дополнительный отпуск не менее 3 календарных дней."
+                        pageNumber: 12
+                        score: 0.81
+                        accessLevel: INTERNAL
+                    confidence: 0.88
+                    conversationId: "c1234567-e89b-12d3-a456-426614174000"
+                    messageId: "m1234567-e89b-12d3-a456-426614174999"
+                    guardVerdict: null
+                    retrievalMeta:
+                      route: FACTUAL
+                      retrievers: [HYBRID]
+                      latencyMs: 1342
+                      chunksConsidered: 10
+                      chunksReturned: 2
+                      rerankerUsed: true
+                      llmModel: "gemini-2.0-flash-lite"
+                outOfScopeAnswer:
+                  summary: Ответ отсутствует — нет релевантной информации в корпусе
+                  value:
+                    answered: false
+                    answer: "В доступных мне корпоративных документах нет информации по этому вопросу. Возможно, стоит обратиться в HR напрямую."
+                    citations: []
+                    confidence: 0.0
+                    conversationId: "c1234567-e89b-12d3-a456-426614174000"
+                    messageId: "m1234567-e89b-12d3-a456-426614175000"
+                    guardVerdict: null
+                    retrievalMeta:
+                      route: UNSUPPORTED
+                      retrievers: [HYBRID]
+                      latencyMs: 845
+                      chunksConsidered: 10
+                      chunksReturned: 0
+                      rerankerUsed: false
+                      llmModel: "gemini-2.0-flash-lite"
+        '400':
+          description: Невалидный запрос
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                validationFailed:
+                  value:
+                    type: "https://corp-rag.local/problems/validation-failed"
+                    title: "Запрос не прошёл валидацию"
+                    status: 400
+                    detail: "Поле 'message' не может быть пустым"
+                    instance: "/v1/query"
+                    errorCode: "VALIDATION_FAILED"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440000"
+        '422':
+          description: Запрос заблокирован системой защиты (Input Guard)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                guardBlocked:
+                  summary: Запрос заблокирован на Tier-0 (regex injection pattern)
+                  value:
+                    type: "https://corp-rag.local/problems/query-blocked-by-guard"
+                    title: "Запрос заблокирован системой защиты"
+                    status: 422
+                    detail: "Запрос содержит паттерны, характерные для prompt injection"
+                    instance: "/v1/query"
+                    errorCode: "QUERY_BLOCKED_BY_GUARD"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440012"
+                    guardVerdict:
+                      safe: false
+                      reason: "INJECTION_PATTERN_DETECTED"
+                      tier: "TIER_0_REGEX"
+                      confidence: 1.0
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ===========================================================================
+  # GET /v1/documents/{documentId}/chunks/{chunkId} — citation lookup
+  # ===========================================================================
+  /v1/documents/{documentId}/chunks/{chunkId}:
+    get:
+      operationId: getChunk
+      tags: [chunks]
+      summary: Получить детали чанка для Citation Viewer
+      description: |
+        Java запрашивает этот endpoint, когда пользователь нажимает на citation
+        chip в чате. Возвращает текст чанка, координаты в исходном документе,
+        и parent-chunk (если применима стратегия parent-document retrieval).
+
+        **Note:** Java должен заранее проверить, что у пользователя есть
+        доступ к `documentId` через свой RBAC. Этот endpoint предполагает,
+        что вызов уже авторизован.
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Идентификатор документа.
+          example: "d8f3a1c2-e89b-12d3-a456-426614174000"
+        - name: chunkId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^ch-\d{3}-\d{3,}$'
+          description: Идентификатор чанка в формате `ch-NNN-MMM` (parent-child иерархия).
+          example: "ch-001-042"
+      responses:
+        '200':
+          description: Детали чанка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChunkDetail'
+              examples:
+                typicalChunk:
+                  value:
+                    documentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
+                    chunkId: "ch-001-042"
+                    parentChunkId: "ch-001"
+                    content: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день. Дни предоставляются по графику, утверждённому руководителем подразделения не позднее 1 декабря предыдущего года."
+                    pageNumber: 4
+                    sectionTitle: "Раздел 3. Право на отпуск"
+                    language: "ru"
+                    accessLevel: "INTERNAL"
+                    department: "HR"
+                    docType: "POLICY"
+        '404':
+          description: Чанк или документ не найден
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                chunkNotFound:
+                  value:
+                    type: "https://corp-rag.local/problems/chunk-not-found"
+                    title: "Фрагмент документа не найден"
+                    status: 404
+                    detail: "Чанк ch-001-042 не найден в документе d8f3a1c2-e89b-12d3-a456-426614174000"
+                    instance: "/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000/chunks/ch-001-042"
+                    errorCode: "CHUNK_NOT_FOUND"
+                    correlationId: "550e8400-e29b-41d4-a716-446655440013"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===========================================================================
+  # GET /health — liveness probe
+  # ===========================================================================
+  /health:
+    get:
+      operationId: getHealth
+      tags: [health]
+      summary: Liveness probe
+      description: |
+        Возвращает 200 OK если процесс жив. Не проверяет зависимости — для
+        проверки готовности к работе используй `/ready`.
+      responses:
+        '200':
+          description: Сервис жив
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: "healthy"
+                service: "corp-rag-ai"
+                version: "1.0.0"
+
+  # ===========================================================================
+  # GET /ready — readiness probe
+  # ===========================================================================
+  /ready:
+    get:
+      operationId: getReady
+      tags: [health]
+      summary: Readiness probe
+      description: |
+        Возвращает 200 OK если сервис готов обрабатывать запросы (все
+        критические зависимости доступны: Qdrant, Neo4j, RabbitMQ, AI БД).
+
+        В Phase 1 возвращает простой OK. Глубокая проверка зависимостей
+        реализуется в Phase 4-5.
+      responses:
+        '200':
+          description: Сервис готов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessStatus'
+              example:
+                status: "ready"
+                service: "corp-rag-ai"
+                version: "1.0.0"
+                checks:
+                  qdrant: "ok"
+                  neo4j: "ok"
+                  database: "ok"
+                  rabbitmq: "ok"
+        '503':
+          description: Сервис не готов — одна или несколько зависимостей недоступны
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+# =============================================================================
+# Components
+# =============================================================================
+components:
+
+  # ---------------------------------------------------------------------------
+  # Reusable responses
+  # ---------------------------------------------------------------------------
+  responses:
+    InternalError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/internal-error"
+            title: "Внутренняя ошибка сервера"
+            status: 500
+            detail: "Unexpected error during query processing"
+            instance: "/v1/query"
+            errorCode: "INTERNAL_ERROR"
+            correlationId: "550e8400-e29b-41d4-a716-446655440099"
+
+    ServiceUnavailable:
+      description: Сервис временно недоступен
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/dependency-unavailable"
+            title: "Внешняя зависимость недоступна"
+            status: 503
+            detail: "Qdrant connection failed after 3 retries"
+            instance: "/v1/query"
+            errorCode: "DEPENDENCY_UNAVAILABLE"
+            correlationId: "550e8400-e29b-41d4-a716-446655440099"
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+
+    # =========================================================================
+    # Enums (shared with api-v1.yaml — duplicated by design, see info.description)
+    # =========================================================================
+
+    AccessLevel:
+      type: string
+      description: Уровень доступа к документу. Иерархический — PUBLIC доступен всем, RESTRICTED только узкому кругу.
+      enum: [PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED]
+
+    Department:
+      type: string
+      description: Отдел-владелец документа. Строка, не enum, потому что отделы определяются в БД.
+      minLength: 1
+      maxLength: 64
+      example: "HR"
+
+    DocType:
+      type: string
+      description: Тип документа в корпоративной классификации.
+      enum: [POLICY, REGULATION, GUIDE, REPORT, MANUAL, OTHER]
+
+    Language:
+      type: string
+      description: ISO 639-1 код языка.
+      enum: [ru, en]
+
+    QueryRoute:
+      type: string
+      description: |
+        Тип маршрута, выбранный Query Router'ом:
+        - `FACTUAL` — простой фактический вопрос (hybrid retrieval)
+        - `AGGREGATION` — вопрос требующий агрегации по корпусу (graph)
+        - `MULTI_HOP` — вопрос требующий цепочки рассуждений (graph)
+        - `COMPARISON` — сравнение нескольких сущностей (graph + hybrid)
+        - `UNSUPPORTED` — вопрос вне домена / без релевантного контекста
+      enum: [FACTUAL, AGGREGATION, MULTI_HOP, COMPARISON, UNSUPPORTED]
+
+    RetrieverType:
+      type: string
+      description: |
+        Тип retriever'а, использованного в пайплайне:
+        - `HYBRID` — bge-m3 dense + sparse через Qdrant с RRF
+        - `GRAPH_LOCAL` — entity-based поиск в Neo4j (один entity)
+        - `GRAPH_GLOBAL` — community-based поиск в Neo4j (multi-entity)
+        - `BM25_BASELINE` — только для ablation, не используется в production
+      enum: [HYBRID, GRAPH_LOCAL, GRAPH_GLOBAL, BM25_BASELINE]
+
+    ConversationRole:
+      type: string
+      description: Роль сообщения в истории диалога.
+      enum: [user, assistant]
+
+    GuardTier:
+      type: string
+      description: |
+        Уровень защитной системы, на котором сработал guard:
+        - `TIER_0_REGEX` — простые regex-паттерны (быстро, дёшево)
+        - `TIER_1_LLM` — LLM-классификатор (DeepSeek V3 через OpenRouter)
+        - `OUTPUT_CHECK` — проверка выхода (наличие citations, PII)
+      enum: [TIER_0_REGEX, TIER_1_LLM, OUTPUT_CHECK]
+
+    # =========================================================================
+    # Request
+    # =========================================================================
+
+    AccessFilter:
+      type: object
+      description: |
+        RBAC-фильтр, резолвенный Java на основе ролей текущего пользователя.
+        Применяется на уровне Qdrant payload filter и Neo4j Cypher WHERE для
+        исключения недоступных чанков ДО reranker'а и генерации.
+
+        **Критично для безопасности:** Java НЕ должна позволять пользователю
+        влиять на содержимое этого фильтра напрямую. Фильтр строится сервером
+        из роли пользователя.
+      required:
+        - accessLevels
+        - departments
+        - docTypes
+      properties:
+        accessLevels:
+          type: array
+          description: Уровни доступа, разрешённые пользователю. Минимум — `[PUBLIC]`.
+          items:
+            $ref: '#/components/schemas/AccessLevel'
+          minItems: 1
+          example: [PUBLIC, INTERNAL]
+        departments:
+          type: array
+          description: |
+            Список отделов, документы которых доступны пользователю.
+            Пустой массив означает "только свой отдел и публичные".
+            Пометка `*` или специальное значение `ALL` зарезервированы для
+            admin-роли (будет добавлено в Phase 2).
+          items:
+            $ref: '#/components/schemas/Department'
+          example: [HR, IT]
+        docTypes:
+          type: array
+          description: Типы документов, доступные пользователю.
+          items:
+            $ref: '#/components/schemas/DocType'
+          minItems: 1
+          example: [POLICY, REGULATION, GUIDE]
+
+    RetrievalOptions:
+      type: object
+      description: |
+        Опции для тонкой настройки retrieval pipeline. Все поля опциональны —
+        если не указаны, применяются server-side defaults.
+      properties:
+        topK:
+          type: integer
+          description: Максимум финальных чанков для генерации.
+          minimum: 1
+          maximum: 20
+          default: 10
+          example: 10
+        rerankerEnabled:
+          type: boolean
+          description: Включить cross-encoder reranking (bge-reranker-v2-m3).
+          default: true
+          example: true
+        forceRoute:
+          $ref: '#/components/schemas/QueryRoute'
+          description: |
+            (Опционально) Принудительно установить маршрут, обходя Query Router.
+            Используется только для отладки и ablation tests.
+
+    ConversationMessage:
+      type: object
+      description: Одно сообщение в истории диалога.
+      required: [role, content]
+      properties:
+        role:
+          $ref: '#/components/schemas/ConversationRole'
+        content:
+          type: string
+          description: Текст сообщения.
+          maxLength: 4000
+
+    QueryRequest:
+      type: object
+      description: |
+        Запрос от Java к Python AI Service. Содержит пользовательский message,
+        контекст диалога, и обязательный AccessFilter.
+      required:
+        - userId
+        - correlationId
+        - conversationId
+        - message
+        - accessFilter
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: Идентификатор пользователя (из Java auth context).
+        correlationId:
+          type: string
+          format: uuid
+          description: |
+            UUID для трассировки. Java создаёт его при получении запроса и
+            пробрасывает через все вложенные вызовы. Появляется в Langfuse
+            trace и audit log.
+        conversationId:
+          type: string
+          format: uuid
+          description: Идентификатор диалога. Резолвится Java из conversations table.
+        message:
+          type: string
+          description: Текст пользовательского запроса.
+          minLength: 1
+          maxLength: 2000
+          example: "Сколько дней отпуска положено сотруднику после 5 лет работы?"
+        conversationHistory:
+          type: array
+          description: |
+            Предыдущие сообщения диалога (опционально, для follow-up questions).
+            Java передаёт последние N сообщений (рекомендуется ≤10).
+          items:
+            $ref: '#/components/schemas/ConversationMessage'
+          maxItems: 20
+          default: []
+        accessFilter:
+          $ref: '#/components/schemas/AccessFilter'
+        retrievalOptions:
+          $ref: '#/components/schemas/RetrievalOptions'
+
+    # =========================================================================
+    # Response
+    # =========================================================================
+
+    Citation:
+      type: object
+      description: |
+        Одна цитата в RAG-ответе. Указывает на конкретный чанк, использованный
+        для генерации ответа. Frontend показывает цитаты как chip'ы под текстом,
+        при клике подгружается ChunkDetail через `GET /chunks/{chunkId}`.
+      required:
+        - documentId
+        - documentTitle
+        - chunkId
+        - quote
+        - score
+        - accessLevel
+      properties:
+        documentId:
+          type: string
+          format: uuid
+          description: Идентификатор документа.
+        documentTitle:
+          type: string
+          description: Название документа (берётся из metadata в Java).
+          example: "Регламент отпусков 2026"
+        chunkId:
+          type: string
+          pattern: '^ch-\d{3}-\d{3,}$'
+          description: Идентификатор чанка в формате `ch-NNN-MMM`.
+          example: "ch-001-042"
+        quote:
+          type: string
+          description: |
+            Текст цитаты из чанка. Не обязательно полный текст чанка —
+            может быть extractive summary, длиной 1-3 предложения.
+          maxLength: 1000
+        pageNumber:
+          type: integer
+          nullable: true
+          description: Номер страницы в исходном документе (если применимо).
+          minimum: 1
+        score:
+          type: number
+          format: float
+          description: |
+            Релевантность чанка к запросу. После reranker'а — это финальный
+            rerank score. До reranker'а — RRF score из Qdrant. Диапазон [0, 1].
+          minimum: 0
+          maximum: 1
+          example: 0.92
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+
+    GuardVerdict:
+      type: object
+      description: |
+        Вердикт защитной системы. Возвращается в `QueryResponse`, если запрос
+        был обработан с участием guard (модифицирован, помечен, или заблокирован).
+        Также возвращается в `ProblemDetail.guardVerdict` при ошибке 422.
+      required: [safe]
+      properties:
+        safe:
+          type: boolean
+          description: |
+            - `true` — запрос признан безопасным, ответ полноценный.
+            - `false` — запрос был модифицирован или заблокирован.
+        reason:
+          type: string
+          description: |
+            Машиночитаемый код причины срабатывания guard'а.
+            Примеры: `INJECTION_PATTERN_DETECTED`, `PII_LEAK_ATTEMPT`,
+            `OFF_TOPIC_REQUEST`, `MISSING_CITATIONS`.
+          example: "INJECTION_PATTERN_DETECTED"
+        tier:
+          $ref: '#/components/schemas/GuardTier'
+        confidence:
+          type: number
+          format: float
+          description: Уверенность guard'а в вердикте (0.0 — 1.0).
+          minimum: 0
+          maximum: 1
+          example: 0.95
+
+    RetrievalMeta:
+      type: object
+      description: |
+        Метаданные о том, как был обработан запрос. Используется для отладки,
+        UI ("ответ основан на 2 источниках"), и evaluation/ablation.
+      required:
+        - route
+        - retrievers
+        - latencyMs
+        - chunksConsidered
+        - chunksReturned
+        - rerankerUsed
+        - llmModel
+      properties:
+        route:
+          $ref: '#/components/schemas/QueryRoute'
+        retrievers:
+          type: array
+          description: Список retriever'ов, использованных в этом запросе.
+          items:
+            $ref: '#/components/schemas/RetrieverType'
+          minItems: 1
+        latencyMs:
+          type: integer
+          format: int64
+          description: Общая длительность обработки запроса в миллисекундах.
+          minimum: 0
+          example: 1342
+        chunksConsidered:
+          type: integer
+          description: Сколько чанков было рассмотрено до reranking.
+          minimum: 0
+          example: 10
+        chunksReturned:
+          type: integer
+          description: Сколько чанков попало в финальный контекст для LLM.
+          minimum: 0
+          example: 2
+        rerankerUsed:
+          type: boolean
+          description: Был ли применён reranker (bge-reranker-v2-m3).
+        llmModel:
+          type: string
+          description: Имя LLM-модели, использованной для генерации ответа.
+          example: "gemini-2.0-flash-lite"
+
+    QueryResponse:
+      type: object
+      description: |
+        Ответ Python AI Service на `/v1/query`. Структурированный — Java
+        получает не raw string, а typed объект с answer, citations, metadata.
+      required:
+        - answered
+        - answer
+        - citations
+        - confidence
+        - conversationId
+        - messageId
+        - retrievalMeta
+      properties:
+        answered:
+          type: boolean
+          description: |
+            - `true` — найдена релевантная информация, ответ содержит цитаты.
+            - `false` — релевантной информации нет; `answer` содержит вежливый
+              отказ, `citations` пустой.
+          example: true
+        answer:
+          type: string
+          description: |
+            Текст ответа на запрос пользователя. Содержит inline-цитаты в
+            формате `[N]`, где N — индекс в массиве `citations` (1-indexed).
+          maxLength: 8000
+        citations:
+          type: array
+          description: |
+            Список источников, использованных для генерации ответа.
+            Пустой массив, если `answered=false`.
+          items:
+            $ref: '#/components/schemas/Citation'
+        confidence:
+          type: number
+          format: float
+          description: |
+            Уверенность модели в ответе (0.0 — 1.0). При `answered=false`
+            всегда 0.0.
+          minimum: 0
+          maximum: 1
+          example: 0.88
+        conversationId:
+          type: string
+          format: uuid
+          description: ID диалога (тот же что в запросе).
+        messageId:
+          type: string
+          format: uuid
+          description: ID сообщения, созданного для этого ответа (генерируется Python).
+        guardVerdict:
+          allOf:
+            - $ref: '#/components/schemas/GuardVerdict'
+          nullable: true
+          description: |
+            Возвращается если был запущен и сработал guard (даже если запрос
+            прошёл). `null` — никакой guard не вмешивался.
+        retrievalMeta:
+          $ref: '#/components/schemas/RetrievalMeta'
+
+    # =========================================================================
+    # Chunk Detail (citation lookup)
+    # =========================================================================
+
+    ChunkDetail:
+      type: object
+      description: Детальная информация о чанке для отображения в Citation Viewer.
+      required:
+        - documentId
+        - chunkId
+        - content
+        - language
+        - accessLevel
+        - department
+        - docType
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        chunkId:
+          type: string
+          pattern: '^ch-\d{3}-\d{3,}$'
+        parentChunkId:
+          type: string
+          nullable: true
+          description: ID parent-чанка, если применима parent-document стратегия.
+          pattern: '^ch-\d{3}$'
+        content:
+          type: string
+          description: Полный текст чанка.
+          maxLength: 8000
+        pageNumber:
+          type: integer
+          nullable: true
+          minimum: 1
+        sectionTitle:
+          type: string
+          nullable: true
+          description: Название раздела, в котором находится чанк (если извлекаемо).
+        language:
+          $ref: '#/components/schemas/Language'
+        accessLevel:
+          $ref: '#/components/schemas/AccessLevel'
+        department:
+          $ref: '#/components/schemas/Department'
+        docType:
+          $ref: '#/components/schemas/DocType'
+
+    # =========================================================================
+    # Health
+    # =========================================================================
+
+    HealthStatus:
+      type: object
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          enum: [healthy]
+        service:
+          type: string
+          example: "corp-rag-ai"
+        version:
+          type: string
+          example: "1.0.0"
+
+    ReadinessStatus:
+      type: object
+      required: [status, service, checks]
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        service:
+          type: string
+          example: "corp-rag-ai"
+        version:
+          type: string
+          example: "1.0.0"
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [ok, error, skipped]
+          description: |
+            Карта проверок зависимостей. Ключи: `qdrant`, `neo4j`, `database`,
+            `rabbitmq`. Значения: `ok` / `error` / `skipped` (в Phase 1 все
+            могут быть `skipped`).
+
+    # =========================================================================
+    # RFC 7807 Problem Details
+    # =========================================================================
+
+    ProblemDetail:
+      type: object
+      description: |
+        Структурированная ошибка по RFC 7807. Используется во всех 4xx и 5xx
+        ответах. Каждый запрос с ошибкой имеет `correlationId` для трассировки.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: Машиночитаемый URI типа ошибки (см. constants.yaml).
+          example: "https://corp-rag.local/problems/validation-failed"
+        title:
+          type: string
+          description: Краткое человекочитаемое описание класса ошибки.
+          example: "Запрос не прошёл валидацию"
+        status:
+          type: integer
+          description: HTTP status code.
+          example: 400
+        detail:
+          type: string
+          description: Конкретное описание этого случая ошибки.
+        instance:
+          type: string
+          description: URI запроса, вызвавшего ошибку.
+          example: "/v1/query"
+        errorCode:
+          type: string
+          description: Короткий код ошибки из `constants.yaml:error_codes`.
+          example: "VALIDATION_FAILED"
+        correlationId:
+          type: string
+          format: uuid
+          description: UUID для трассировки (тот же что в request).
+        validationErrors:
+          type: array
+          description: Детали ошибок валидации (только при 400 VALIDATION_FAILED).
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+                example: "message"
+              message:
+                type: string
+                example: "must not be blank"
+        guardVerdict:
+          allOf:
+            - $ref: '#/components/schemas/GuardVerdict'
+          nullable: true
+          description: При 422 QUERY_BLOCKED_BY_GUARD содержит вердикт guard'а.
