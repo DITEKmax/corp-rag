@@ -1,7 +1,7 @@
 # Phase 2 Research Notes: Identity, Users & Access Control
 
 Date: 2026-05-12
-Status: research complete, planning intentionally paused for review
+Status: research complete, refreshed for Nyquist validation gate
 
 ## Guardrails
 
@@ -377,6 +377,101 @@ Items to review before planning:
    D-71 requires Testcontainers PostgreSQL for integration coverage. Recommended
    plan input: keep H2 only for lightweight non-schema tests, otherwise migrate
    integration tests to PostgreSQL containers under `mvn verify`.
+
+## Architectural Responsibility Map
+
+| Capability | Primary Tier | Secondary Tier | Rationale |
+|------------|--------------|----------------|-----------|
+| Login, refresh, logout, current profile, password change | Java backend | PostgreSQL | Browser auth state is cookie-based; Java owns credentials, JWT issuing, refresh-token persistence, and ProblemDetail failures. |
+| User, role, permission, and access-policy administration | Java backend | PostgreSQL | These are enterprise access-control workflows and must not move into frontend or Python. |
+| Access-filter resolution for retrieval | Java backend | Python AI service | Java computes `AccessFilter` from roles and policies; Python only applies the filter passed in `QueryRequest.accessFilter`. |
+| Audit event recording | Java backend | PostgreSQL | Phase 2 writes durable AUTH, ROLE, and ACCESS_POLICY audit rows in the Java-owned database. |
+| Contract deltas and generated DTO/constants | Root contracts + backend contract module | Java backend | Contract-first changes start in `contracts/`, then Java generated surfaces compile against them. |
+| Validation and regression evidence | Maven test layers | Docker/Testcontainers for full suite | Unit and slice tests stay Docker-free; PostgreSQL-specific behavior uses Testcontainers under `mvn verify`. |
+
+## Environment Availability
+
+| Dependency | Required By | Available | Version | Fallback |
+|------------|-------------|-----------|---------|----------|
+| Java 21 | backend compile/test | assumed from Phase 1 build | project property `java.version=21` | none |
+| Maven | backend compile/test | available through local approved Maven command path | 3.9.x approved in runner config | none |
+| Docker | Testcontainers integration tests and compose | available in Phase 1 verification context | local Docker daemon | keep unit/slice tests under `mvn test`; run integration tests only in `mvn verify` |
+| PostgreSQL 16 | Java integration tests | available through compose/Testcontainers image | `postgres:16-alpine` target | no H2 fallback for schema-specific tests |
+
+Missing dependencies with no fallback:
+- None for planning. Execution must still verify Docker before running Testcontainers integration tests.
+
+Missing dependencies with fallback:
+- If Docker is unavailable during a quick task, run unit/slice tests through `mvn test` and defer Testcontainers-only checks to the wave/phase gate.
+
+## Validation Architecture
+
+### Test Framework
+
+| Property | Value |
+|----------|-------|
+| Framework | JUnit Jupiter, Spring Boot Test, Spring Security Test, Maven Surefire, Maven Failsafe, Testcontainers PostgreSQL |
+| Config file | `backend/pom.xml`, `backend/corp-rag-app/pom.xml` |
+| Quick run command | `cd backend; mvn -q -pl corp-rag-app -am test` |
+| Full suite command | `cd backend; mvn -q -pl corp-rag-app -am verify` |
+
+### Phase Requirements to Test Map
+
+| Req ID | Behavior | Test Type | Automated Command | File Exists? |
+|--------|----------|-----------|-------------------|--------------|
+| AUTH-01 | User can log in, call `/me`, refresh, change password when required, and log out with httpOnly cookies. | unit + slice + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
+| AUTH-02 | Admin can create users and roles, assign/remove memberships, reset passwords, and manage access policies. | slice + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
+| AUTH-03 | Protected endpoints reject unauthenticated users, insufficient permissions, bad Origin/Referer, self-modification, and last-admin-breaking changes. | unit + slice + security integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
+| AUTH-04 | Java resolves a user's effective `AccessFilter`, caches it for 60 seconds, evicts it on role/policy/user mutations, and passes it to downstream query requests. | unit + integration | `cd backend; mvn -q -pl corp-rag-app -am test` and `cd backend; mvn -q -pl corp-rag-app -am verify` | Wave 0 |
+
+### Sampling Rate
+
+- Per task commit: `cd backend; mvn -q -pl corp-rag-app -am test`
+- Per wave merge: `cd backend; mvn -q -pl corp-rag-app -am verify`
+- Phase gate: full suite green before `$gsd-verify-work`
+
+### Wave 0 Gaps
+
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/PasswordPolicyValidatorTest.java` covers AUTH-01 password policy and `must_change_password` constraints.
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/JwtServiceTest.java` covers AUTH-01 JWT issue/verify claims and expiry.
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/AccessFilterResolverTest.java` covers AUTH-04 effective policy union, PUBLIC visibility, empty role fail-safe, and cache eviction triggers.
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/security/RolePermissionMatrixTest.java` covers AUTH-02/AUTH-03 seeded role permission matrix and dotted wire values.
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/AuthControllerTest.java` covers AUTH-01 login, `/me`, refresh, logout, password change, cookie flags, and ProblemDetail errors.
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/adapter/rest/UserRoleAccessPolicyControllerTest.java` covers AUTH-02 and AUTH-03 admin endpoints, ETag/If-Match, self-vs-other access, self-modification block, and last-admin protections.
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/AuthFlowIT.java` covers AUTH-01/AUTH-03 end-to-end auth flow against PostgreSQL with Testcontainers.
+- [ ] `backend/corp-rag-app/src/test/java/com/corprag/AuthSchemaIT.java` covers Flyway migration shape, seeds, constraints, refresh-token rotation fields, and audit indexes against PostgreSQL.
+- [ ] Add Maven test dependencies: `spring-boot-starter-security`, `spring-boot-starter-oauth2-resource-server`, `spring-security-test`, `spring-boot-testcontainers`, `org.testcontainers:junit-jupiter`, and `org.testcontainers:postgresql`.
+- [ ] Add Maven Failsafe binding so `mvn test` remains fast and `mvn verify` runs `*IT` PostgreSQL/Testcontainers tests.
+
+## Security Domain
+
+### Applicable ASVS Categories
+
+| ASVS Category | Applies | Standard Control |
+|---------------|---------|------------------|
+| V2 Authentication | yes | BCrypt cost 12, generated temporary passwords, password policy validator, no reusable default password |
+| V3 Session Management | yes | short-lived access JWT, opaque refresh token rotation, chain reuse detection, httpOnly SameSite Strict cookies |
+| V4 Access Control | yes | Spring Security Resource Server, `@EnableMethodSecurity`, explicit permissions and self-vs-other checks |
+| V5 Input Validation | yes | Bean Validation, domain validators, contract-first request schemas, department/doc type validation |
+| V6 Cryptography | yes | Spring Security/Nimbus JWT APIs, HS256 secret from `JWT_SECRET`, `SecureRandom`, no hand-rolled crypto |
+| V7 Error Handling and Logging | yes | RFC 7807 ProblemDetail, durable audit events, correlation IDs |
+
+### Known Threat Patterns for Spring Security Auth/RBAC
+
+| Pattern | STRIDE | Standard Mitigation |
+|---------|--------|---------------------|
+| Stolen refresh token reuse | Spoofing/Elevation of Privilege | Store only hashes, rotate on every refresh, revoke family on reuse |
+| CSRF on cookie-authenticated unsafe methods | Tampering | SameSite Strict plus Origin/Referer validation for unsafe `/api/v1/**` cookie-auth requests |
+| Stale permissions in JWT | Elevation of Privilege | Short 15-minute access TTL; force-refresh is deferred by D-12 |
+| Last admin lockout | Denial of Service | Last-admin and last-admin-visibility protections before role/user/policy mutation |
+| Weak password reset/onboarding | Spoofing | SecureRandom temporary passwords returned once, `must_change_password`, BCrypt cost 12 |
+| JWT issuer misconfiguration | Spoofing | Do not use `NimbusJwtDecoder.withIssuerLocation`; use explicit self-issued secret-key decoder/encoder |
+
+## Open Questions (RESOLVED)
+
+1. **Scope of Origin/Referer validation** — RESOLVED: apply to all unsafe `/api/v1/**` cookie-auth requests per D-10/D-11.
+2. **JWT decoder builder** — RESOLVED: use `NimbusJwtDecoder.withSecretKey()` and avoid `withIssuerLocation` for Phase 2 self-issued HS256 tokens.
+3. **Integration test database** — RESOLVED: use Testcontainers PostgreSQL under `mvn verify`; do not rely on H2 for Phase 2 schema behavior.
 
 ## Sources
 
