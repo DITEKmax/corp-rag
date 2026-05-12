@@ -53,10 +53,10 @@ public class RefreshTokenRepository {
                 .param("userId", token.userId())
                 .param("tokenHash", token.tokenHash())
                 .param("familyId", token.familyId())
-                .param("issuedAt", token.issuedAt())
-                .param("expiresAt", token.expiresAt())
-                .param("lastUsedAt", token.lastUsedAt())
-                .param("revokedAt", token.revokedAt())
+                .param("issuedAt", JdbcRowSupport.timestamp(token.issuedAt()))
+                .param("expiresAt", JdbcRowSupport.timestamp(token.expiresAt()))
+                .param("lastUsedAt", JdbcRowSupport.timestamp(token.lastUsedAt()))
+                .param("revokedAt", JdbcRowSupport.timestamp(token.revokedAt()))
                 .param("rotatedToTokenId", token.rotatedToTokenId())
                 .param("ipAddress", token.ipAddress())
                 .param("userAgent", token.userAgent())
@@ -71,7 +71,7 @@ public class RefreshTokenRepository {
                         WHERE family_id = :familyId
                         """)
                 .param("familyId", familyId)
-                .param("revokedAt", revokedAt)
+                .param("revokedAt", JdbcRowSupport.timestamp(revokedAt))
                 .update();
     }
 
@@ -85,7 +85,7 @@ public class RefreshTokenRepository {
                         """)
                 .param("tokenId", tokenId)
                 .param("rotatedToTokenId", rotatedToTokenId)
-                .param("lastUsedAt", lastUsedAt)
+                .param("lastUsedAt", JdbcRowSupport.timestamp(lastUsedAt))
                 .update();
         return updated == 1;
     }

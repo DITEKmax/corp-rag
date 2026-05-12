@@ -53,7 +53,7 @@ public class UserRoleRepository {
                     .param("userId", userId)
                     .param("roleId", roleId)
                     .param("assignedBy", assignedBy)
-                    .param("assignedAt", assignedAt)
+                    .param("assignedAt", JdbcRowSupport.timestamp(assignedAt))
                     .update();
         }
     }

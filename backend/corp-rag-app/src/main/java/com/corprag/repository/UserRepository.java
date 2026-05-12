@@ -71,9 +71,9 @@ public class UserRepository {
                 .param("passwordHash", user.passwordHash())
                 .param("active", user.active())
                 .param("mustChangePassword", user.mustChangePassword())
-                .param("createdAt", user.createdAt())
-                .param("updatedAt", user.updatedAt())
-                .param("deletedAt", user.deletedAt())
+                .param("createdAt", JdbcRowSupport.timestamp(user.createdAt()))
+                .param("updatedAt", JdbcRowSupport.timestamp(user.updatedAt()))
+                .param("deletedAt", JdbcRowSupport.timestamp(user.deletedAt()))
                 .param("version", user.version())
                 .update();
     }

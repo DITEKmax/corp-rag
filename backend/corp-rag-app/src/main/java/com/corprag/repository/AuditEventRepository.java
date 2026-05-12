@@ -28,7 +28,7 @@ public class AuditEventRepository {
                         )
                         """)
                 .param("id", event.id())
-                .param("occurredAt", event.occurredAt())
+                .param("occurredAt", JdbcRowSupport.timestamp(event.occurredAt()))
                 .param("eventCategory", event.eventCategory())
                 .param("eventType", event.eventType())
                 .param("outcome", event.outcome().name())

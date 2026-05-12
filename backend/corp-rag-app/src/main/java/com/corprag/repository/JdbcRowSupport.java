@@ -18,6 +18,10 @@ final class JdbcRowSupport {
         return timestamp == null ? null : timestamp.toInstant();
     }
 
+    static Timestamp timestamp(Instant value) {
+        return value == null ? null : Timestamp.from(value);
+    }
+
     static List<String> stringArray(ResultSet resultSet, String column) throws SQLException {
         Array array = resultSet.getArray(column);
         if (array == null) {

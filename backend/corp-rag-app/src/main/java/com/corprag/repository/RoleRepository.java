@@ -66,9 +66,9 @@ public class RoleRepository {
                 .param("code", role.code())
                 .param("description", role.description())
                 .param("system", role.system())
-                .param("createdAt", role.createdAt())
-                .param("updatedAt", role.updatedAt())
-                .param("deletedAt", role.deletedAt())
+                .param("createdAt", JdbcRowSupport.timestamp(role.createdAt()))
+                .param("updatedAt", JdbcRowSupport.timestamp(role.updatedAt()))
+                .param("deletedAt", JdbcRowSupport.timestamp(role.deletedAt()))
                 .param("version", role.version())
                 .update();
     }
