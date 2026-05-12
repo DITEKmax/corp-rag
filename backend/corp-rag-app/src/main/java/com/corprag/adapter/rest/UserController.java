@@ -10,7 +10,9 @@ import com.corprag.contracts.api.v1.model.UpdateUserRequest;
 import com.corprag.contracts.api.v1.model.User;
 import com.corprag.contracts.constants.ErrorCodes;
 import com.corprag.domain.UserAccount;
+import com.corprag.service.auth.RequestMetadata;
 import com.corprag.service.user.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -19,6 +21,7 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -84,6 +87,16 @@ public class UserController {
             JwtAuthorization.requirePermission(jwt, "users.update");
         }
         return toUser(userService.updateUser(userId, request, JwtAuthorization.userId(jwt)));
+    }
+
+    @DeleteMapping("/{userId}")
+    ResponseEntity<Void> deleteUser(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("userId") UUID userId,
+            HttpServletRequest request) {
+        JwtAuthorization.requirePermission(jwt, "users.delete");
+        userService.deleteUser(userId, JwtAuthorization.userId(jwt), RequestMetadata.from(request));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{userId}/reset-password")

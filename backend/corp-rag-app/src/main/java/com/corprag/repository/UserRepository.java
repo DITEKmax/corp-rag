@@ -1,6 +1,7 @@
 package com.corprag.repository;
 
 import com.corprag.domain.UserAccount;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -119,18 +120,19 @@ public class UserRepository {
         return updated == 1;
     }
 
-    public boolean softDelete(UUID userId, long expectedVersion) {
+    public boolean softDelete(UUID userId, Instant deletedAt) {
         int updated = jdbc.sql(
                         """
                         UPDATE users
                         SET active = FALSE,
-                            deleted_at = now(),
+                            deleted_at = :deletedAt,
+                            password_hash = '',
                             updated_at = now(),
                             version = version + 1
-                        WHERE id = :userId AND version = :expectedVersion AND deleted_at IS NULL
+                        WHERE id = :userId AND deleted_at IS NULL
                         """)
                 .param("userId", userId)
-                .param("expectedVersion", expectedVersion)
+                .param("deletedAt", JdbcRowSupport.timestamp(deletedAt))
                 .update();
         return updated == 1;
     }

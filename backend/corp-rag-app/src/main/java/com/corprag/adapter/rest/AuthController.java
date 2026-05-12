@@ -198,6 +198,6 @@ public class AuthController {
     }
 
     private static RequestMetadata metadata(HttpServletRequest request) {
-        return new RequestMetadata(request.getRemoteAddr(), request.getHeader(HttpHeaders.USER_AGENT));
+        return RequestMetadata.from(request);
     }
 }

@@ -13,6 +13,7 @@ import com.corprag.repository.UserRoleRepository;
 import com.corprag.security.JwtService;
 import com.corprag.security.Permission;
 import com.corprag.security.PasswordPolicyValidator;
+import com.corprag.service.access.AccessFilterCacheInvalidator;
 import com.corprag.service.auth.AuthSession;
 import com.corprag.service.auth.AuthenticatedUser;
 import com.corprag.service.auth.RefreshTokenService;
@@ -41,6 +42,7 @@ public class UserService {
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
+    private final AccessFilterCacheInvalidator cacheInvalidator;
     private final AuditEventWriter auditEventWriter;
 
     public UserService(
@@ -52,6 +54,7 @@ public class UserService {
             TemporaryPasswordGenerator temporaryPasswordGenerator,
             RefreshTokenService refreshTokenService,
             JwtService jwtService,
+            AccessFilterCacheInvalidator cacheInvalidator,
             AuditEventWriter auditEventWriter) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
@@ -61,6 +64,7 @@ public class UserService {
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
+        this.cacheInvalidator = cacheInvalidator;
         this.auditEventWriter = auditEventWriter;
     }
 
@@ -155,6 +159,38 @@ public class UserService {
                 null,
                 Map.of());
         return getUser(userId);
+    }
+
+    @Transactional
+    public void deleteUser(UUID userId, UUID actorUserId, RequestMetadata metadata) {
+        UserAccount existing = findUser(userId);
+        if (existing.id().equals(actorUserId)) {
+            throw new ApiProblemException(
+                    ErrorCodes.SELF_MODIFICATION_FORBIDDEN,
+                    "Cannot delete your own user account");
+        }
+        if (roleRepository.findPermissionsForUser(userId).contains(Permission.USERS_UPDATE)
+                && roleRepository.countActiveUsersWithPermissionExcludingUser(userId, Permission.USERS_UPDATE) == 0) {
+            throw new ApiProblemException(ErrorCodes.LAST_ADMIN_PROTECTED, "Cannot delete the last admin user");
+        }
+
+        Instant deletedAt = Instant.now();
+        if (!userRepository.softDelete(userId, deletedAt)) {
+            throw new ApiProblemException(ErrorCodes.USER_NOT_FOUND, "User not found");
+        }
+        refreshTokenService.revokeAllForUser(userId);
+        cacheInvalidator.invalidate(userId);
+        auditEventWriter.writeEvent(
+                "USER",
+                "USER_DELETED",
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                userId,
+                "USER",
+                userId,
+                metadata == null ? null : metadata.ipAddress(),
+                metadata == null ? null : metadata.userAgent(),
+                Map.of("username", existing.username(), "soft_delete", true));
     }
 
     @Transactional

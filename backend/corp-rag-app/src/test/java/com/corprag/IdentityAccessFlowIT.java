@@ -1,6 +1,7 @@
 package com.corprag;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -13,10 +14,14 @@ import com.corprag.domain.AccessLevel;
 import com.corprag.domain.AccessPolicyDefinition;
 import com.corprag.domain.DocType;
 import com.corprag.domain.ResolvedAccessFilter;
+import com.corprag.domain.RoleDefinition;
 import com.corprag.domain.UserAccount;
 import com.corprag.repository.AccessPolicyRepository;
+import com.corprag.repository.RefreshTokenRepository;
+import com.corprag.repository.RoleRepository;
 import com.corprag.repository.UserRepository;
 import com.corprag.repository.UserRoleRepository;
+import com.corprag.security.Permission;
 import com.corprag.service.access.AccessFilterResolver;
 import com.corprag.testsupport.AuthTestFixtures;
 import com.corprag.testsupport.PostgresIntegrationTestSupport;
@@ -48,6 +53,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class IdentityAccessFlowIT extends PostgresIntegrationTestSupport {
 
     private static final UUID ADMIN_ROLE_ID = UUID.fromString("00000000-0000-4000-8000-000000000001");
+    private static final UUID EMPLOYEE_ROLE_ID = UUID.fromString("00000000-0000-4000-8000-000000000002");
 
     @Autowired
     private MockMvc mockMvc;
@@ -63,6 +69,12 @@ class IdentityAccessFlowIT extends PostgresIntegrationTestSupport {
 
     @Autowired
     private AccessPolicyRepository accessPolicyRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     private AccessFilterResolver accessFilterResolver;
@@ -219,6 +231,70 @@ class IdentityAccessFlowIT extends PostgresIntegrationTestSupport {
                         "USER_ROLES_REPLACED");
     }
 
+    @Test
+    void deleteUserSoftDeletesRevokesTokensAndProtectsAdmins() throws Exception {
+        TestUser admin = createUserWithRole(ADMIN_ROLE_ID, "delete_admin");
+        Cookie adminSession = login(admin.username(), "CorrectHorseBattery12!")
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getCookie(properties.getCookies().getSessionName());
+
+        TestUser target = createUserWithRole(EMPLOYEE_ROLE_ID, "delete_target");
+        login(target.username(), "CorrectHorseBattery12!")
+                .andExpect(status().isOk());
+        assertThat(refreshTokenRepository.findActiveTerminalTokensForUser(target.id(), Instant.now()))
+                .hasSize(1);
+
+        mockMvc.perform(delete("/api/v1/users/{userId}", target.id())
+                        .header(HttpHeaders.ORIGIN, "http://localhost")
+                        .cookie(adminSession))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbc.sql("SELECT active FROM users WHERE id = :id")
+                        .param("id", target.id())
+                        .query(Boolean.class)
+                        .single())
+                .isFalse();
+        assertThat(jdbc.sql("SELECT password_hash FROM users WHERE id = :id")
+                        .param("id", target.id())
+                        .query(String.class)
+                        .single())
+                .isEmpty();
+        assertThat(jdbc.sql("SELECT COUNT(*) FROM users WHERE id = :id AND deleted_at IS NOT NULL")
+                        .param("id", target.id())
+                        .query(Integer.class)
+                        .single())
+                .isEqualTo(1);
+        assertThat(refreshTokenRepository.findActiveTerminalTokensForUser(target.id(), Instant.now()))
+                .isEmpty();
+        login(target.username(), "CorrectHorseBattery12!")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(delete("/api/v1/users/{userId}", admin.id())
+                        .header(HttpHeaders.ORIGIN, "http://localhost")
+                        .cookie(adminSession))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("SELF_MODIFICATION_FORBIDDEN"));
+
+        TestUser lastAdmin = createUserWithRole(ADMIN_ROLE_ID, "last_admin");
+        RoleDefinition deleteOnlyRole = createRole("DELETE_ONLY_" + shortId(), List.of(Permission.USERS_DELETE));
+        TestUser deleter = createUserWithRole(deleteOnlyRole.id(), "delete_only");
+        deactivateOtherUsersUpdateHolders(lastAdmin.id());
+        Cookie deleterSession = login(deleter.username(), "CorrectHorseBattery12!")
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getCookie(properties.getCookies().getSessionName());
+
+        mockMvc.perform(delete("/api/v1/users/{userId}", lastAdmin.id())
+                        .header(HttpHeaders.ORIGIN, "http://localhost")
+                        .cookie(deleterSession))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("LAST_ADMIN_PROTECTED"));
+    }
+
     private org.springframework.test.web.servlet.ResultActions login(String username, String password) throws Exception {
         return mockMvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -228,14 +304,18 @@ class IdentityAccessFlowIT extends PostgresIntegrationTestSupport {
     }
 
     private TestUser createAdmin() {
+        return createUserWithRole(ADMIN_ROLE_ID, "admin");
+    }
+
+    private TestUser createUserWithRole(UUID roleId, String prefix) {
         UUID id = UUID.randomUUID();
-        String username = "admin_" + shortId().toLowerCase(Locale.ROOT);
+        String username = prefix + "_" + shortId().toLowerCase(Locale.ROOT);
         Instant now = Instant.now();
         UserAccount user = new UserAccount(
                 id,
                 username,
                 username + "@example.com",
-                "Flow Admin",
+                "Flow " + prefix,
                 AuthTestFixtures.DEPARTMENT_IT,
                 passwordEncoder.encode("CorrectHorseBattery12!"),
                 true,
@@ -245,8 +325,44 @@ class IdentityAccessFlowIT extends PostgresIntegrationTestSupport {
                 null,
                 0);
         userRepository.create(user);
-        userRoleRepository.replaceUserRoles(id, List.of(ADMIN_ROLE_ID), id, now);
+        userRoleRepository.replaceUserRoles(id, List.of(roleId), id, now);
         return new TestUser(id, username);
+    }
+
+    private RoleDefinition createRole(String code, List<Permission> permissions) {
+        Instant now = Instant.now();
+        RoleDefinition role = new RoleDefinition(
+                UUID.randomUUID(),
+                code,
+                "Role " + code,
+                false,
+                now,
+                now,
+                null,
+                0);
+        roleRepository.create(role);
+        roleRepository.replacePermissions(role.id(), permissions);
+        return role;
+    }
+
+    private void deactivateOtherUsersUpdateHolders(UUID userIdToKeep) {
+        jdbc.sql(
+                        """
+                        UPDATE users
+                        SET active = FALSE,
+                            deleted_at = COALESCE(deleted_at, now()),
+                            updated_at = now()
+                        WHERE id <> :userIdToKeep
+                          AND id IN (
+                              SELECT ur.user_id
+                              FROM user_roles ur
+                              JOIN role_permissions rp ON rp.role_id = ur.role_id
+                              WHERE rp.permission_code = :permissionCode
+                          )
+                        """)
+                .param("userIdToKeep", userIdToKeep)
+                .param("permissionCode", Permission.USERS_UPDATE.value())
+                .update();
     }
 
     private String shortId() {
