@@ -60,7 +60,7 @@ Plans:
 - [x] 02-03-PLAN.md - Add identity schema, seed data, domain records, and repositories.
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-04-PLAN.md - Implement core auth, sessions, cookies, JWT, and security filters.
+- [x] 02-04-PLAN.md - Implement core auth, sessions, cookies, JWT, and security filters.
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-05-PLAN.md - Implement first-admin bootstrap, password lifecycle, and user management.
