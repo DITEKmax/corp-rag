@@ -487,9 +487,8 @@ components:
           type: array
           description: |
             Список отделов, документы которых доступны пользователю.
-            Пустой массив означает "только свой отдел и публичные".
-            Пометка `*` или специальное значение `ALL` зарезервированы для
-            admin-роли (будет добавлено в Phase 2).
+            Пустой массив означает wildcard/all departments; PUBLIC documents are
+            always visible in addition to the non-public filter.
           items:
             $ref: '#/components/schemas/Department'
           example: [HR, IT]

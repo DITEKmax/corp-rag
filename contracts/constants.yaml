@@ -104,12 +104,32 @@ error_codes:
     http_status: 400
     problem_type: "https://corp-rag.local/problems/invalid-query"
     default_title: "Некорректный запрос"
+  PASSWORD_POLICY_VIOLATION:
+    http_status: 400
+    problem_type: "https://corp-rag.local/problems/password-policy-violation"
+    default_title: "Пароль не соответствует политике безопасности"
+  INVALID_PERMISSION_CODE:
+    http_status: 400
+    problem_type: "https://corp-rag.local/problems/invalid-permission-code"
+    default_title: "Недопустимый код разрешения"
 
   # ---- 401 Unauthorized ----
   AUTHENTICATION_FAILED:
     http_status: 401
     problem_type: "https://corp-rag.local/problems/authentication-failed"
     default_title: "Не удалось аутентифицировать пользователя"
+  PASSWORD_CHANGE_REQUIRED:
+    http_status: 401
+    problem_type: "https://corp-rag.local/problems/password-change-required"
+    default_title: "Требуется смена пароля"
+  REFRESH_TOKEN_INVALID:
+    http_status: 401
+    problem_type: "https://corp-rag.local/problems/refresh-token-invalid"
+    default_title: "Refresh-токен недействителен"
+  REFRESH_TOKEN_REUSED:
+    http_status: 401
+    problem_type: "https://corp-rag.local/problems/refresh-token-reused"
+    default_title: "Обнаружено повторное использование refresh-токена"
   TOKEN_EXPIRED:
     http_status: 401
     problem_type: "https://corp-rag.local/problems/token-expired"
@@ -132,6 +152,14 @@ error_codes:
     http_status: 403
     problem_type: "https://corp-rag.local/problems/insufficient-permissions"
     default_title: "Недостаточно прав для выполнения операции"
+  SELF_MODIFICATION_FORBIDDEN:
+    http_status: 403
+    problem_type: "https://corp-rag.local/problems/self-modification-forbidden"
+    default_title: "Самостоятельное изменение этого поля запрещено"
+  ORIGIN_VALIDATION_FAILED:
+    http_status: 403
+    problem_type: "https://corp-rag.local/problems/origin-validation-failed"
+    default_title: "Origin или Referer не прошёл проверку"
 
   # ---- 404 Not Found ----
   USER_NOT_FOUND:
@@ -168,6 +196,28 @@ error_codes:
     http_status: 409
     problem_type: "https://corp-rag.local/problems/document-indexing-in-progress"
     default_title: "Документ в процессе индексации, операция недоступна"
+  SYSTEM_ROLE_PROTECTED:
+    http_status: 409
+    problem_type: "https://corp-rag.local/problems/system-role-protected"
+    default_title: "Системную роль нельзя изменить или удалить"
+  LAST_ADMIN_PROTECTED:
+    http_status: 409
+    problem_type: "https://corp-rag.local/problems/last-admin-protected"
+    default_title: "Нельзя удалить последнего администратора"
+  ROLE_POLICY_ALREADY_EXISTS:
+    http_status: 409
+    problem_type: "https://corp-rag.local/problems/role-policy-already-exists"
+    default_title: "Для роли уже существует политика доступа"
+  LAST_ADMIN_VISIBILITY_LOST:
+    http_status: 409
+    problem_type: "https://corp-rag.local/problems/last-admin-visibility-lost"
+    default_title: "Нельзя оставить систему без администратора с полной видимостью"
+
+  # ---- 412 Precondition Failed ----
+  PRECONDITION_FAILED:
+    http_status: 412
+    problem_type: "https://corp-rag.local/problems/precondition-failed"
+    default_title: "Условие If-Match не выполнено"
 
   # ---- 413 Payload Too Large ----
   FILE_TOO_LARGE:
@@ -180,6 +230,12 @@ error_codes:
     http_status: 422
     problem_type: "https://corp-rag.local/problems/query-blocked-by-guard"
     default_title: "Запрос заблокирован системой защиты"
+
+  # ---- 428 Precondition Required ----
+  PRECONDITION_REQUIRED:
+    http_status: 428
+    problem_type: "https://corp-rag.local/problems/precondition-required"
+    default_title: "Требуется заголовок If-Match"
 
   # ---- 429 Too Many Requests ----
   RATE_LIMIT_EXCEEDED:
@@ -204,6 +260,10 @@ error_codes:
     http_status: 500
     problem_type: "https://corp-rag.local/problems/llm-provider-error"
     default_title: "Ошибка обращения к языковой модели"
+  AUDIT_WRITE_FAILED:
+    http_status: 500
+    problem_type: "https://corp-rag.local/problems/audit-write-failed"
+    default_title: "Не удалось записать событие аудита"
 
   # ---- 503 Service Unavailable ----
   AI_SERVICE_UNAVAILABLE:
