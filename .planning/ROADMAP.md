@@ -63,7 +63,7 @@ Plans:
 - [x] 02-04-PLAN.md - Implement core auth, sessions, cookies, JWT, and security filters.
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-05-PLAN.md - Implement first-admin bootstrap, password lifecycle, and user management.
+- [x] 02-05-PLAN.md - Implement first-admin bootstrap, password lifecycle, and user management.
 - [ ] 02-06-PLAN.md - Implement roles, permissions, and user-role assignment.
 
 **Wave 6** *(blocked on Wave 5 completion)*
