@@ -123,6 +123,11 @@ class RolePermissionMatrixTest extends PostgresIntegrationTestSupport {
     }
 
     private String shortId() {
-        return UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase(Locale.ROOT);
+        return UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .replaceAll("[0-9]", "A")
+                .substring(0, 10)
+                .toUpperCase(Locale.ROOT);
     }
 }

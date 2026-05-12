@@ -77,7 +77,8 @@ public class RoleRepository {
         int updated = jdbc.sql(
                         """
                         UPDATE roles
-                        SET description = :description,
+                        SET code = :code,
+                            description = :description,
                             updated_at = now(),
                             version = version + 1
                         WHERE id = :id
@@ -86,6 +87,7 @@ public class RoleRepository {
                           AND deleted_at IS NULL
                         """)
                 .param("id", role.id())
+                .param("code", role.code())
                 .param("description", role.description())
                 .param("expectedVersion", expectedVersion)
                 .update();
@@ -134,6 +136,26 @@ public class RoleRepository {
                 .param("userId", userId)
                 .query((rs, rowNum) -> Permission.fromValue(rs.getString("permission_code")))
                 .list();
+    }
+
+    public long countActiveUsersWithPermissionExcludingRole(UUID excludedRoleId, Permission permission) {
+        return jdbc.sql(
+                        """
+                        SELECT COUNT(DISTINCT ur.user_id)
+                        FROM user_roles ur
+                        JOIN users u ON u.id = ur.user_id
+                        JOIN roles r ON r.id = ur.role_id
+                        JOIN role_permissions rp ON rp.role_id = r.id
+                        WHERE ur.role_id <> :excludedRoleId
+                          AND rp.permission_code = :permissionCode
+                          AND u.active = TRUE
+                          AND u.deleted_at IS NULL
+                          AND r.deleted_at IS NULL
+                        """)
+                .param("excludedRoleId", excludedRoleId)
+                .param("permissionCode", permission.value())
+                .query(Long.class)
+                .single();
     }
 
     @Transactional
