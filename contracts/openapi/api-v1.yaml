@@ -92,8 +92,11 @@ paths:
       summary: Войти и установить session cookie
       description: |
         При успехе устанавливает httpOnly cookie `corp_rag_session`.
-        Cookie защищён: `HttpOnly`, `Secure` (в production), `SameSite=Strict`,
-        `Path=/`. TTL — 30 минут (см. ARCHITECTURE.md).
+        При успехе устанавливает две httpOnly cookie:
+        - `corp_rag_session`: `HttpOnly`, `Secure` (по профилю), `SameSite=Strict`,
+          `Path=/api/v1`, TTL 15 минут.
+        - `corp_rag_refresh`: `HttpOnly`, `Secure` (по профилю), `SameSite=Strict`,
+          `Path=/api/v1/auth`, opaque refresh token с серверной ротацией.
       requestBody:
         required: true
         content:
@@ -110,7 +113,7 @@ paths:
             Set-Cookie:
               schema:
                 type: string
-                example: "corp_rag_session=eyJhbGc...; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=1800"
+                example: "corp_rag_session=eyJhbGc...; HttpOnly; Secure; SameSite=Strict; Path=/api/v1; Max-Age=900"
           content:
             application/json:
               schema:
@@ -128,11 +131,102 @@ paths:
                 _links:
                   self: { href: "/api/v1/auth/login" }
                   me: { href: "/api/v1/me" }
+                  refresh: { href: "/api/v1/auth/refresh" }
                   logout: { href: "/api/v1/auth/logout" }
         '401':
-          $ref: '#/components/responses/AuthenticationFailed'
+          description: Authentication failed or password change is required
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                authenticationFailed:
+                  value:
+                    type: "https://corp-rag.local/problems/authentication-failed"
+                    title: "Authentication failed"
+                    status: 401
+                    errorCode: "AUTHENTICATION_FAILED"
+                passwordChangeRequired:
+                  value:
+                    type: "https://corp-rag.local/problems/password-change-required"
+                    title: "Password change required"
+                    status: 401
+                    errorCode: "PASSWORD_CHANGE_REQUIRED"
         '400':
           $ref: '#/components/responses/ValidationFailed'
+
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      tags: [auth]
+      summary: Rotate refresh token and issue a new session cookie
+      description: |
+        Reads opaque refresh token cookie `corp_rag_refresh` at `Path=/api/v1/auth`,
+        detects reuse, revokes the token family on reuse, and writes replacement
+        `corp_rag_session` and `corp_rag_refresh` cookies. The access cookie path is
+        `/api/v1`; the refresh cookie path is `/api/v1/auth`. Both are `HttpOnly`,
+        `SameSite=Strict`, and `Secure` according to the active deployment profile.
+      security:
+        - refreshCookieAuth: []
+      responses:
+        '200':
+          description: Session refreshed and refresh token rotated
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: "corp_rag_session=eyJhbGc...; HttpOnly; Secure; SameSite=Strict; Path=/api/v1; Max-Age=900"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Refresh token is invalid, expired, revoked, or reused
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                invalid:
+                  value:
+                    type: "https://corp-rag.local/problems/refresh-token-invalid"
+                    title: "Refresh token invalid"
+                    status: 401
+                    errorCode: "REFRESH_TOKEN_INVALID"
+                reused:
+                  value:
+                    type: "https://corp-rag.local/problems/refresh-token-reused"
+                    title: "Refresh token reused"
+                    status: 401
+                    errorCode: "REFRESH_TOKEN_REUSED"
+
+  /auth/password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change current user's password
+      description: |
+        Changes the authenticated user's password. Used both for voluntary password
+        change and mandatory first-login/reset flows when `mustChangePassword=true`.
+        A successful change clears the mandatory-change flag and revokes existing
+        refresh-token sessions except the current flow.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '204':
+          description: Password changed
+        '400':
+          $ref: '#/components/responses/PasswordPolicyViolation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /auth/logout:
     post:
@@ -143,12 +237,12 @@ paths:
         - cookieAuth: []
       responses:
         '204':
-          description: Cookie удалён, сессия завершена
+          description: Session ended; session and refresh cookies cleared
           headers:
             Set-Cookie:
               schema:
                 type: string
-                example: "corp_rag_session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"
+                example: "corp_rag_session=; HttpOnly; Secure; SameSite=Strict; Path=/api/v1; Max-Age=0, corp_rag_refresh=; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=0"
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -230,18 +324,17 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
             example:
               username: "petrov"
-              password: "TempPass2026!"
               fullName: "Петров Пётр Петрович"
               email: "petrov@example.com"
               department: "IT"
               roles: ["EMPLOYEE"]
       responses:
         '201':
-          description: Пользователь создан
+          description: User created; temporary password is returned exactly once
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/CreateUserResponse'
         '400':
           $ref: '#/components/responses/ValidationFailed'
         '401':
@@ -258,6 +351,9 @@ paths:
       operationId: getUser
       tags: [users]
       summary: Детали пользователя
+      description: |
+        A user may read their own profile. Reading another user requires
+        `users.read`.
       x-required-permissions: ["users.read"]
       security:
         - cookieAuth: []
@@ -278,6 +374,11 @@ paths:
       operationId: updateUser
       tags: [users]
       summary: Обновить пользователя
+      description: |
+        Users may update allowed self-service profile fields on their own account.
+        Updating another user, changing active status, or changing administrative
+        fields requires `users.update`. Self-deactivation and other protected
+        self-modification attempts return `SELF_MODIFICATION_FORBIDDEN`.
       x-required-permissions: ["users.update"]
       security:
         - cookieAuth: []
@@ -305,13 +406,41 @@ paths:
     delete:
       operationId: deleteUser
       tags: [users]
-      summary: Удалить пользователя (soft delete — active=false)
+      summary: Удалить пользователя (soft delete - active=false)
       x-required-permissions: ["users.delete"]
       security:
         - cookieAuth: []
       responses:
         '204':
-          description: Удалено
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  /users/{userId}/reset-password:
+    parameters:
+      - $ref: '#/components/parameters/UserIdPath'
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Reset a user's password and return a one-time temporary password
+      description: |
+        Administrative password reset. The response contains the generated
+        temporary password exactly once; it is never exposed on normal user DTOs.
+        The target user is marked `mustChangePassword=true`.
+      x-required-permissions: ["users.update"]
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Temporary password generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemporaryPasswordResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -326,6 +455,12 @@ paths:
       operationId: assignUserRoles
       tags: [users, roles]
       summary: Назначить роли пользователю (replace-set)
+      description: |
+        Atomically replaces the user's full role set. The endpoint does not use
+        ETag/If-Match. Assigning seeded `ADMIN` additionally requires
+        `roles.update`; if the caller lacks it, return 403
+        `INSUFFICIENT_PERMISSIONS` with details
+        `{ "required_additional": "roles.update", "reason": "admin_grant" }`.
       x-required-permissions: ["users.update"]
       security:
         - cookieAuth: []
@@ -339,6 +474,7 @@ paths:
               properties:
                 roles:
                   type: array
+                  minItems: 1
                   items:
                     type: string
                   example: ["EMPLOYEE", "MANAGER"]
@@ -355,6 +491,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/LastAdminProtected'
 
   # ===========================================================================
   # Roles (admin)
@@ -431,6 +569,11 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            ETag:
+              schema:
+                type: string
+                example: '"role-v3"'
           content:
             application/json:
               schema:
@@ -441,13 +584,20 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/RoleNotFound'
-    patch:
+    put:
       operationId: updateRole
       tags: [roles]
-      summary: Обновить роль
+      summary: Replace a role
+      description: |
+        Full replacement update for custom roles. System roles cannot be updated.
+        Requires `If-Match`; missing header returns 428, stale value returns 412,
+        and success returns a new `ETag`. Custom roles may use only the seeded
+        permission codes.
       x-required-permissions: ["roles.update"]
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
       requestBody:
         required: true
         content:
@@ -457,6 +607,11 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            ETag:
+              schema:
+                type: string
+                example: '"role-v4"'
           content:
             application/json:
               schema:
@@ -469,6 +624,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/RoleNotFound'
+        '409':
+          $ref: '#/components/responses/SystemRoleProtected'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
     delete:
       operationId: deleteRole
       tags: [roles]
@@ -551,6 +712,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/RoleNotFound'
+        '409':
+          $ref: '#/components/responses/RolePolicyAlreadyExists'
 
   /access-policies/{policyId}:
     parameters:
@@ -570,6 +733,11 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            ETag:
+              schema:
+                type: string
+                example: '"access-policy-v2"'
           content:
             application/json:
               schema:
@@ -580,13 +748,19 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/AccessPolicyNotFound'
-    patch:
+    put:
       operationId: updateAccessPolicy
       tags: [access-policies]
-      summary: Обновить политику
+      summary: Replace an access policy
+      description: |
+        Full replacement update. Requires `If-Match`; missing header returns 428,
+        stale value returns 412, and success returns a new `ETag`. Mutations that
+        would leave no user with full visibility return `LAST_ADMIN_VISIBILITY_LOST`.
       x-required-permissions: ["access_policies.update"]
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
       requestBody:
         required: true
         content:
@@ -596,16 +770,29 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            ETag:
+              schema:
+                type: string
+                example: '"access-policy-v3"'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AccessPolicy'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/AccessPolicyNotFound'
+        '409':
+          $ref: '#/components/responses/LastAdminVisibilityLost'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
     delete:
       operationId: deleteAccessPolicy
       tags: [access-policies]
@@ -1110,7 +1297,14 @@ components:
       description: |
         JWT в httpOnly cookie `corp_rag_session`. Cookie устанавливается
         через `POST /auth/login` и удаляется через `POST /auth/logout`.
-        Cookie защищён: `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`.
+        Cookie защищён: `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/v1`.
+    refreshCookieAuth:
+      type: apiKey
+      in: cookie
+      name: corp_rag_refresh
+      description: |
+        Opaque refresh token cookie. Cookie is `HttpOnly`, `Secure` by active
+        profile, `SameSite=Strict`, and scoped to `Path=/api/v1/auth`.
 
   # ---------------------------------------------------------------------------
   # Reusable Parameters
@@ -1161,6 +1355,14 @@ components:
       schema:
         type: string
         format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Optimistic concurrency token returned as the resource ETag.
+      schema:
+        type: string
+        example: '"v3"'
 
   # ---------------------------------------------------------------------------
   # Reusable Responses
@@ -1214,6 +1416,116 @@ components:
             title: "Не удалось аутентифицировать пользователя"
             status: 401
             errorCode: "AUTHENTICATION_FAILED"
+    PasswordChangeRequired:
+      description: Password must be changed before continuing
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/password-change-required"
+            title: "Password change required"
+            status: 401
+            errorCode: "PASSWORD_CHANGE_REQUIRED"
+    PasswordPolicyViolation:
+      description: Password does not satisfy the active policy
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/password-policy-violation"
+            title: "Password policy violation"
+            status: 400
+            errorCode: "PASSWORD_POLICY_VIOLATION"
+    RefreshTokenInvalid:
+      description: Refresh token is missing, expired, revoked, or invalid
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/refresh-token-invalid"
+            title: "Refresh token invalid"
+            status: 401
+            errorCode: "REFRESH_TOKEN_INVALID"
+    RefreshTokenReused:
+      description: Refresh-token reuse detected; token family revoked
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/refresh-token-reused"
+            title: "Refresh token reused"
+            status: 401
+            errorCode: "REFRESH_TOKEN_REUSED"
+    SystemRoleProtected:
+      description: System role cannot be updated or deleted
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/system-role-protected"
+            title: "System role protected"
+            status: 409
+            errorCode: "SYSTEM_ROLE_PROTECTED"
+    LastAdminProtected:
+      description: Mutation would remove the last effective admin
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/last-admin-protected"
+            title: "Last admin protected"
+            status: 409
+            errorCode: "LAST_ADMIN_PROTECTED"
+    RolePolicyAlreadyExists:
+      description: Role already has an access policy
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/role-policy-already-exists"
+            title: "Role policy already exists"
+            status: 409
+            errorCode: "ROLE_POLICY_ALREADY_EXISTS"
+    LastAdminVisibilityLost:
+      description: Mutation would leave no admin with full document visibility
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/last-admin-visibility-lost"
+            title: "Last admin visibility lost"
+            status: 409
+            errorCode: "LAST_ADMIN_VISIBILITY_LOST"
+    PreconditionRequired:
+      description: If-Match header is required
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/precondition-required"
+            title: "Precondition required"
+            status: 428
+            errorCode: "PRECONDITION_REQUIRED"
+    PreconditionFailed:
+      description: If-Match does not match the current resource version
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: "https://corp-rag.local/problems/precondition-failed"
+            title: "Precondition failed"
+            status: 412
+            errorCode: "PRECONDITION_FAILED"
     Conflict:
       description: Ресурс уже существует
       content:
@@ -1293,6 +1605,7 @@ components:
       enum: [PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED]
     Department:
       type: string
+      pattern: '^[A-Z][A-Z0-9_]{0,63}$'
       minLength: 1
       maxLength: 64
       example: "HR"
@@ -1314,6 +1627,26 @@ components:
     ConversationRole:
       type: string
       enum: [user, assistant]
+    PermissionCode:
+      type: string
+      description: Phase 2 permission wire format; values are lower dotted strings.
+      enum:
+        - users.create
+        - users.read
+        - users.update
+        - users.delete
+        - roles.create
+        - roles.read
+        - roles.update
+        - roles.delete
+        - access_policies.create
+        - access_policies.read
+        - access_policies.update
+        - access_policies.delete
+        - documents.read
+        - documents.upload
+        - documents.delete
+        - chat.query
 
     # ===== HATEOAS =====
 
@@ -1327,7 +1660,7 @@ components:
           example: "/api/v1/documents"
         method:
           type: string
-          enum: [GET, POST, PATCH, DELETE]
+          enum: [GET, POST, PUT, PATCH, DELETE]
         title:
           type: string
 
@@ -1377,6 +1710,19 @@ components:
         _links:
           $ref: '#/components/schemas/HateoasLinks'
 
+    PasswordChangeRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          minLength: 1
+          maxLength: 200
+        newPassword:
+          type: string
+          minLength: 12
+          maxLength: 200
+
     CurrentUser:
       allOf:
         - $ref: '#/components/schemas/User'
@@ -1418,6 +1764,8 @@ components:
           example: ["EMPLOYEE"]
         active:
           type: boolean
+        mustChangePassword:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -1426,17 +1774,13 @@ components:
 
     CreateUserRequest:
       type: object
-      required: [username, password, fullName, email, department, roles]
+      required: [username, fullName, email, department]
       properties:
         username:
           type: string
           minLength: 3
           maxLength: 64
           pattern: '^[a-zA-Z0-9._-]+$'
-        password:
-          type: string
-          minLength: 8
-          maxLength: 200
         fullName:
           type: string
           minLength: 1
@@ -1448,10 +1792,34 @@ components:
           $ref: '#/components/schemas/Department'
         roles:
           type: array
+          description: Optional. Defaults to EMPLOYEE when omitted.
           items:
             type: string
           minItems: 1
           example: ["EMPLOYEE"]
+
+    CreateUserResponse:
+      type: object
+      required: [user, temporaryPassword]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        temporaryPassword:
+          type: string
+          description: Generated temporary password returned exactly once.
+          minLength: 12
+
+    TemporaryPasswordResponse:
+      type: object
+      required: [userId, temporaryPassword]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        temporaryPassword:
+          type: string
+          description: Generated temporary password returned exactly once.
+          minLength: 12
 
     UpdateUserRequest:
       type: object
@@ -1481,7 +1849,7 @@ components:
 
     Role:
       type: object
-      required: [id, name, permissions]
+      required: [id, name, system, permissions]
       properties:
         id:
           type: string
@@ -1496,8 +1864,15 @@ components:
         permissions:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/PermissionCode'
           example: ["chat.query", "documents.read"]
+        system:
+          type: boolean
+          description: Seeded system roles cannot be updated or deleted.
+        version:
+          type: integer
+          format: int64
+          minimum: 0
         _links:
           $ref: '#/components/schemas/HateoasLinks'
 
@@ -1516,19 +1891,26 @@ components:
         permissions:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/PermissionCode'
           minItems: 1
 
     UpdateRoleRequest:
       type: object
+      required: [name, permissions]
       properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Z_]+$'
         description:
           type: string
           maxLength: 500
         permissions:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/PermissionCode'
+          minItems: 1
 
     # ===== Access Policies =====
 
@@ -1553,6 +1935,7 @@ components:
           minItems: 1
         departments:
           type: array
+          description: Empty array means wildcard/all departments.
           items:
             $ref: '#/components/schemas/Department'
         docTypes:
@@ -1562,6 +1945,10 @@ components:
           minItems: 1
         _links:
           $ref: '#/components/schemas/HateoasLinks'
+        version:
+          type: integer
+          format: int64
+          minimum: 0
 
     CreateAccessPolicyRequest:
       type: object
@@ -1579,7 +1966,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Department'
-          description: Пустой массив = "только свой отдел и публичные".
+          description: Empty array means wildcard/all departments.
         docTypes:
           type: array
           items:
@@ -1588,19 +1975,23 @@ components:
 
     UpdateAccessPolicyRequest:
       type: object
+      required: [accessLevels, departments, docTypes]
       properties:
         accessLevels:
           type: array
           items:
             $ref: '#/components/schemas/AccessLevel'
+          minItems: 1
         departments:
           type: array
+          description: Empty array means wildcard/all departments.
           items:
             $ref: '#/components/schemas/Department'
         docTypes:
           type: array
           items:
             $ref: '#/components/schemas/DocType'
+          minItems: 1
 
     # ===== Documents =====
 
