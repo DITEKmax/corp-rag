@@ -5,11 +5,13 @@ import com.corprag.contracts.api.v1.model.CurrentUser;
 import com.corprag.contracts.api.v1.model.HateoasLink;
 import com.corprag.contracts.api.v1.model.LoginRequest;
 import com.corprag.contracts.api.v1.model.LoginResponse;
+import com.corprag.contracts.api.v1.model.PasswordChangeRequest;
 import com.corprag.contracts.api.v1.model.User;
 import com.corprag.service.auth.AuthService;
 import com.corprag.service.auth.AuthSession;
 import com.corprag.service.auth.AuthenticatedUser;
 import com.corprag.service.auth.RequestMetadata;
+import com.corprag.service.user.UserService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -34,10 +36,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
     private final AppSecurityProperties properties;
 
-    public AuthController(AuthService authService, AppSecurityProperties properties) {
+    public AuthController(AuthService authService, UserService userService, AppSecurityProperties properties) {
         this.authService = authService;
+        this.userService = userService;
         this.properties = properties;
     }
 
@@ -77,7 +81,32 @@ public class AuthController {
         return ResponseEntity.noContent().headers(headers).build();
     }
 
+    @PostMapping("/auth/password")
+    ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody PasswordChangeRequest request,
+            HttpServletRequest servletRequest) {
+        AuthSession session = userService.changePassword(
+                UUID.fromString(jwt.getSubject()),
+                request.getCurrentPassword(),
+                request.getNewPassword(),
+                metadata(servletRequest));
+        HttpHeaders headers = sessionHeaders(session);
+        return ResponseEntity.noContent().headers(headers).build();
+    }
+
     private ResponseEntity<LoginResponse> sessionResponse(AuthSession session, String selfHref) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.addAll(sessionHeaders(session));
+
+        LoginResponse response = new LoginResponse()
+                .user(toUser(session.user()))
+                .expiresAt(OffsetDateTime.ofInstant(session.accessTokenExpiresAt(), ZoneOffset.UTC))
+                .links(authLinks(selfHref));
+        return ResponseEntity.ok().headers(headers).body(response);
+    }
+
+    private HttpHeaders sessionHeaders(AuthSession session) {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, cookie(
                 properties.getCookies().getSessionName(),
@@ -89,12 +118,7 @@ public class AuthController {
                 session.refreshToken(),
                 properties.getCookies().getRefreshPath(),
                 Duration.ofDays(properties.getSessions().getRefreshTokenDays())));
-
-        LoginResponse response = new LoginResponse()
-                .user(toUser(session.user()))
-                .expiresAt(OffsetDateTime.ofInstant(session.accessTokenExpiresAt(), ZoneOffset.UTC))
-                .links(authLinks(selfHref));
-        return ResponseEntity.ok().headers(headers).body(response);
+        return headers;
     }
 
     private User toUser(AuthenticatedUser authenticatedUser) {

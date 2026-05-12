@@ -1,6 +1,7 @@
 package com.corprag.repository;
 
 import com.corprag.domain.UserAccount;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.RowMapper;
@@ -51,6 +52,20 @@ public class UserRepository {
                 .optional();
     }
 
+    public List<UserAccount> list(int limit, int offset) {
+        return jdbc.sql("SELECT * FROM users WHERE deleted_at IS NULL ORDER BY username LIMIT :limit OFFSET :offset")
+                .param("limit", limit)
+                .param("offset", offset)
+                .query(USER_MAPPER)
+                .list();
+    }
+
+    public long count() {
+        return jdbc.sql("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL")
+                .query(Long.class)
+                .single();
+    }
+
     public void create(UserAccount user) {
         jdbc.sql(
                         """
@@ -99,6 +114,22 @@ public class UserRepository {
                 .param("passwordHash", user.passwordHash())
                 .param("active", user.active())
                 .param("mustChangePassword", user.mustChangePassword())
+                .param("expectedVersion", expectedVersion)
+                .update();
+        return updated == 1;
+    }
+
+    public boolean softDelete(UUID userId, long expectedVersion) {
+        int updated = jdbc.sql(
+                        """
+                        UPDATE users
+                        SET active = FALSE,
+                            deleted_at = now(),
+                            updated_at = now(),
+                            version = version + 1
+                        WHERE id = :userId AND version = :expectedVersion AND deleted_at IS NULL
+                        """)
+                .param("userId", userId)
                 .param("expectedVersion", expectedVersion)
                 .update();
         return updated == 1;
