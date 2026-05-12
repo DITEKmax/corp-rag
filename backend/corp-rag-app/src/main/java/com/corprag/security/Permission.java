@@ -1,7 +1,11 @@
-package com.corprag.domain;
+package com.corprag.security;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public enum Permission {
     USERS_CREATE("users.create"),
@@ -32,10 +36,26 @@ public enum Permission {
         return value;
     }
 
-    public static Permission fromValue(String value) {
+    public static List<String> codes() {
+        return Arrays.stream(values())
+                .map(Permission::value)
+                .toList();
+    }
+
+    public static Set<String> codeSet() {
+        return Arrays.stream(values())
+                .map(Permission::value)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    public static Optional<Permission> findByValue(String value) {
         return Arrays.stream(values())
                 .filter(permission -> permission.value.equals(value))
-                .findFirst()
+                .findFirst();
+    }
+
+    public static Permission fromValue(String value) {
+        return findByValue(value)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown permission: " + value));
     }
 }

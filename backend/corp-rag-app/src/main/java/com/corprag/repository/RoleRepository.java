@@ -1,7 +1,7 @@
 package com.corprag.repository;
 
-import com.corprag.domain.Permission;
 import com.corprag.domain.RoleDefinition;
+import com.corprag.security.Permission;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
