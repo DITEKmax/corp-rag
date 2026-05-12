@@ -2,11 +2,13 @@ package com.corprag.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PasswordPolicyValidatorTest {
 
-    private final PasswordPolicyValidator validator = new PasswordPolicyValidator(new CompromisedPasswordChecker());
+    private final CompromisedPasswordChecker checker = new CompromisedPasswordChecker();
+    private final PasswordPolicyValidator validator = new PasswordPolicyValidator(checker);
 
     @Test
     void acceptsStrongPasswordUnrelatedToUser() {
@@ -32,5 +34,14 @@ class PasswordPolicyValidatorTest {
                         new PasswordPolicyValidator.Context("user", "user@example.com", "User Example")))
                 .extracting(PasswordPolicyValidator.Violation::code)
                 .contains("compromised");
+    }
+
+    @Test
+    void rejectsRepresentativeRockYouTopPasswords() {
+        for (String password : List.of("123456", "password", "qwerty", "welcome", "changeme")) {
+            assertThat(checker.isCompromised(password))
+                    .as("password: %s", password)
+                    .isTrue();
+        }
     }
 }
