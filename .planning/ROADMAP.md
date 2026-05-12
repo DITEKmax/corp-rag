@@ -11,7 +11,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Foundation & Contracts** - Local infrastructure and shared API/event contracts are ready.
-- [ ] **Phase 2: Identity, Users & Access Control** - Java authentication, users, roles, permissions, and access filters work.
+- [x] **Phase 2: Identity, Users & Access Control** - Java authentication, users, roles, permissions, and access filters work.
 - [ ] **Phase 3: Documents, Events & Audit** - Java can manage documents and exchange indexing events safely.
 - [ ] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status.
 - [ ] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers.
@@ -67,7 +67,7 @@ Plans:
 - [x] 02-06-PLAN.md - Implement roles, permissions, and user-role assignment.
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 02-07-PLAN.md - Implement access policies, access filters, audit integration, and full flow tests.
+- [x] 02-07-PLAN.md - Implement access policies, access filters, audit integration, and full flow tests.
 
 ### Phase 3: Documents, Events & Audit
 **Goal**: Java owns document metadata, object storage orchestration, document events, indexing status updates, and audit logging.
@@ -148,8 +148,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
-| 2. Identity, Users & Access Control | 0/7 | Planned | - |
-| 3. Documents, Events & Audit | 0/TBD | Not started | - |
+| 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
+| 3. Documents, Events & Audit | 0/TBD | Ready to plan | - |
 | 4. Python Ingestion & Indexing | 0/TBD | Not started | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |

@@ -2,41 +2,41 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-05-12T06:07:27.412Z"
+status: ready_to_plan
+stopped_at: Completed 02-07-PLAN.md and Phase 02
+last_updated: "2026-05-12T09:17:46.308Z"
 last_activity: 2026-05-12
 progress:
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 13
-  completed_plans: 12
-  percent: 92
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-11)
+See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 02 — Identity, Users & Access Control
+**Current focus:** Phase 03 - Documents, Events & Audit
 
 ## Current Position
 
-Phase: 02 (Identity, Users & Access Control) — EXECUTING
-Plan: 7 of 7
-Status: Ready to execute
+Phase: 03 (Documents, Events & Audit) - READY TO PLAN
+Plan: TBD
+Status: Phase 2 complete; ready to discuss or plan Phase 3
 Last activity: 2026-05-12
 
-Progress: [█████████░] 92%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
+- Total plans completed: 13
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -45,6 +45,7 @@ Progress: [█████████░] 92%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 6 | - | - |
+| 02 | 7 | - | - |
 
 **Recent Trend:**
 
@@ -63,6 +64,7 @@ Progress: [█████████░] 92%
 | Phase 02 P04 | 13 min | 3 tasks | 23 files |
 | Phase 02 P05 | 8 min | 3 tasks | 15 files |
 | Phase 02 P06 | 28 min | 3 tasks | 15 files |
+| Phase 02 P07 | 29 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -88,6 +90,10 @@ Recent locked decisions affecting current work:
 - [Phase 01]: Compose defines the nine Phase 1 services with healthchecks and service_healthy dependency gates. - Verification started postgres, minio, rabbitmq, qdrant, neo4j, langfuse, java-backend, python-ai, and frontend successfully.
 - [Phase 01]: Local Postgres creates separate corp_rag_java and corp_rag_ai databases/users for service ownership. - Langfuse uses a support database in the same local container and is not Java/Python-owned domain storage.
 - [Phase 01]: Root Makefile targets are thin wrappers over contract verification, Docker Compose, Flyway, and Alembic. - `make` is unavailable in this Windows runner, but the underlying commands were verified directly.
+- [Phase 02]: Java identity is complete for MVP auth, users, roles, permissions, access policies, access-filter resolution, and Phase 2 audit events. - Plans 02-01 through 02-07 passed contract verification and backend Maven verification.
+- [Phase 02]: Access policies attach to roles and are additive when resolving user visibility. - PUBLIC remains visible by default, while non-public access requires resolved policy coverage.
+- [Phase 02]: Generic mutation audit events join the caller transaction, while auth audit keeps independent transaction behavior where needed. - This avoids FK races during newly-created user flows.
+- [Phase 02]: PostgreSQL integration tests use a JVM-lifetime singleton Testcontainer to stay compatible with Spring context caching. - Final verify executed Failsafe ITs with skipped count 0.
 
 ### Pending Todos
 
@@ -108,6 +114,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-12T06:07:27.390Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-05-12T09:17:46.308Z
+Stopped at: Completed 02-07-PLAN.md and Phase 02
 Resume file: None
