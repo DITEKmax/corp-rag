@@ -64,7 +64,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [x] 02-05-PLAN.md - Implement first-admin bootstrap, password lifecycle, and user management.
-- [ ] 02-06-PLAN.md - Implement roles, permissions, and user-role assignment.
+- [x] 02-06-PLAN.md - Implement roles, permissions, and user-role assignment.
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 02-07-PLAN.md - Implement access policies, access filters, audit integration, and full flow tests.
