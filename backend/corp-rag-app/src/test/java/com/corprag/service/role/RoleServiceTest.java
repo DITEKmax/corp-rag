@@ -20,6 +20,7 @@ import com.corprag.repository.UserRepository;
 import com.corprag.repository.UserRoleRepository;
 import com.corprag.security.Permission;
 import com.corprag.security.PermissionEvaluator;
+import com.corprag.service.access.AccessFilterCacheInvalidator;
 import com.corprag.service.audit.AuditEventWriter;
 import java.time.Instant;
 import java.util.List;
@@ -54,13 +55,22 @@ class RoleServiceTest {
     private PermissionEvaluator permissionEvaluator;
 
     @Mock
+    private AccessFilterCacheInvalidator cacheInvalidator;
+
+    @Mock
     private AuditEventWriter auditEventWriter;
 
     private RoleService roleService;
 
     @BeforeEach
     void setUp() {
-        roleService = new RoleService(roleRepository, userRepository, userRoleRepository, permissionEvaluator, auditEventWriter);
+        roleService = new RoleService(
+                roleRepository,
+                userRepository,
+                userRoleRepository,
+                permissionEvaluator,
+                cacheInvalidator,
+                auditEventWriter);
     }
 
     @Test
@@ -86,6 +96,7 @@ class RoleServiceTest {
         assertThat(captor.getValue().code()).isEqualTo("RENAMED");
         assertThat(captor.getValue().description()).isEqualTo("Replacement");
         verify(roleRepository).replacePermissions(ROLE_ID, List.of(Permission.ROLES_READ));
+        verify(cacheInvalidator).invalidateForRole(ROLE_ID);
         assertThat(result.role().version()).isEqualTo(1);
         assertThat(result.permissions()).containsExactly(Permission.ROLES_READ);
     }
@@ -156,6 +167,7 @@ class RoleServiceTest {
 
         assertThat(result.roles()).containsExactly("EMPLOYEE");
         verify(userRoleRepository).replaceUserRoles(eq(USER_ID), eq(List.of(EMPLOYEE_ROLE_ID)), eq(ACTOR_ID), any(Instant.class));
+        verify(cacheInvalidator).invalidate(USER_ID);
         verify(auditEventWriter).writeEvent(
                 eq("AUTHZ"),
                 eq("USER_ROLES_REPLACED"),
