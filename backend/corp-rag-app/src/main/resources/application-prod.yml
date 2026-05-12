@@ -1,0 +1,4 @@
+app:
+  security:
+    cookies:
+      secure: true

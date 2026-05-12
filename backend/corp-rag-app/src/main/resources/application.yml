@@ -32,3 +32,22 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:}
+      issuer: ${JWT_ISSUER:corp-rag}
+      access-token-minutes: 15
+    cookies:
+      secure: ${COOKIES_SECURE:false}
+    cors:
+      allowed-origins:
+        - http://localhost
+        - http://localhost:80
+        - http://localhost:8080
+        - http://127.0.0.1
+        - http://127.0.0.1:8080
+    sessions:
+      max-active: ${MAX_ACTIVE_SESSIONS_PER_USER:5}
+      refresh-token-days: 7

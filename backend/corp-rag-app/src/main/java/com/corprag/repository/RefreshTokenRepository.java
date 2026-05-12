@@ -2,6 +2,7 @@ package com.corprag.repository;
 
 import com.corprag.domain.RefreshTokenSession;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.RowMapper;
@@ -35,6 +36,23 @@ public class RefreshTokenRepository {
                 .param("tokenHash", tokenHash)
                 .query(TOKEN_MAPPER)
                 .optional();
+    }
+
+    public List<RefreshTokenSession> findActiveTerminalTokensForUser(UUID userId, Instant now) {
+        return jdbc.sql(
+                        """
+                        SELECT *
+                        FROM refresh_tokens
+                        WHERE user_id = :userId
+                          AND revoked_at IS NULL
+                          AND rotated_to_token_id IS NULL
+                          AND expires_at > :now
+                        ORDER BY COALESCE(last_used_at, issued_at), issued_at
+                        """)
+                .param("userId", userId)
+                .param("now", JdbcRowSupport.timestamp(now))
+                .query(TOKEN_MAPPER)
+                .list();
     }
 
     public void save(RefreshTokenSession token) {
@@ -71,6 +89,19 @@ public class RefreshTokenRepository {
                         WHERE family_id = :familyId
                         """)
                 .param("familyId", familyId)
+                .param("revokedAt", JdbcRowSupport.timestamp(revokedAt))
+                .update();
+    }
+
+    public int revokeAllForUser(UUID userId, Instant revokedAt) {
+        return jdbc.sql(
+                        """
+                        UPDATE refresh_tokens
+                        SET revoked_at = COALESCE(revoked_at, :revokedAt)
+                        WHERE user_id = :userId
+                          AND revoked_at IS NULL
+                        """)
+                .param("userId", userId)
                 .param("revokedAt", JdbcRowSupport.timestamp(revokedAt))
                 .update();
     }

@@ -105,6 +105,37 @@ public class RoleRepository {
                 .list();
     }
 
+    public List<RoleDefinition> findRolesForUser(UUID userId) {
+        return jdbc.sql(
+                        """
+                        SELECT r.*
+                        FROM roles r
+                        JOIN user_roles ur ON ur.role_id = r.id
+                        WHERE ur.user_id = :userId
+                          AND r.deleted_at IS NULL
+                        ORDER BY r.code
+                        """)
+                .param("userId", userId)
+                .query(ROLE_MAPPER)
+                .list();
+    }
+
+    public List<Permission> findPermissionsForUser(UUID userId) {
+        return jdbc.sql(
+                        """
+                        SELECT DISTINCT rp.permission_code
+                        FROM user_roles ur
+                        JOIN roles r ON r.id = ur.role_id
+                        JOIN role_permissions rp ON rp.role_id = r.id
+                        WHERE ur.user_id = :userId
+                          AND r.deleted_at IS NULL
+                        ORDER BY rp.permission_code
+                        """)
+                .param("userId", userId)
+                .query((rs, rowNum) -> Permission.fromValue(rs.getString("permission_code")))
+                .list();
+    }
+
     @Transactional
     public void replacePermissions(UUID roleId, Collection<Permission> permissions) {
         jdbc.sql("DELETE FROM role_permissions WHERE role_id = :roleId")
