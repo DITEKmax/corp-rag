@@ -32,6 +32,24 @@ public class AccessFilterResolver {
         });
     }
 
+    /**
+     * Resolves an additive AccessFilter from role policies.
+     *
+     * <p>Fail-safe semantics for an empty policy list (D-57):</p>
+     * <ul>
+     *   <li>accessLevels = [PUBLIC] only; non-public visibility remains gated.</li>
+     *   <li>departments = wildcard (empty list), which is benign because only PUBLIC documents are visible.</li>
+     *   <li>docTypes = all enum values, using the same PUBLIC-only rationale.</li>
+     * </ul>
+     *
+     * <p>This lets a user with no roles still see PUBLIC documents regardless of department or type (D-62),
+     * while granting no INTERNAL, CONFIDENTIAL, or RESTRICTED access.</p>
+     *
+     * <p>For users with policies, access levels expand through the hierarchy. For example, RESTRICTED also
+     * includes CONFIDENTIAL, INTERNAL, and PUBLIC. Departments union with wildcard awareness: any empty
+     * policy department list makes the resolved department list empty. Doc types union directly and do not
+     * have wildcard semantics per D-58.</p>
+     */
     ResolvedAccessFilter resolve(List<AccessPolicyDefinition> policies) {
         EnumSet<AccessLevel> accessLevels = EnumSet.of(AccessLevel.PUBLIC);
         Set<String> departments = new LinkedHashSet<>();
