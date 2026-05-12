@@ -13,6 +13,7 @@ import com.corprag.repository.UserRepository;
 import com.corprag.repository.UserRoleRepository;
 import com.corprag.security.Permission;
 import com.corprag.security.PermissionEvaluator;
+import com.corprag.service.access.AccessFilterCacheInvalidator;
 import com.corprag.service.audit.AuditEventWriter;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ public class RoleService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final PermissionEvaluator permissionEvaluator;
+    private final AccessFilterCacheInvalidator cacheInvalidator;
     private final AuditEventWriter auditEventWriter;
 
     public RoleService(
@@ -43,11 +45,13 @@ public class RoleService {
             UserRepository userRepository,
             UserRoleRepository userRoleRepository,
             PermissionEvaluator permissionEvaluator,
+            AccessFilterCacheInvalidator cacheInvalidator,
             AuditEventWriter auditEventWriter) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.permissionEvaluator = permissionEvaluator;
+        this.cacheInvalidator = cacheInvalidator;
         this.auditEventWriter = auditEventWriter;
     }
 
@@ -59,6 +63,11 @@ public class RoleService {
 
     @Transactional
     public RoleView createRole(CreateRoleRequest request) {
+        return createRole(request, null);
+    }
+
+    @Transactional
+    public RoleView createRole(CreateRoleRequest request, UUID actorUserId) {
         List<Permission> permissions = permissions(request.getPermissions());
         Instant now = Instant.now();
         RoleDefinition role = new RoleDefinition(
@@ -76,6 +85,17 @@ public class RoleService {
         } catch (DataIntegrityViolationException exception) {
             throw new ApiProblemException(ErrorCodes.DUPLICATE_RESOURCE, "Role already exists");
         }
+        auditEventWriter.writeEvent(
+                "ROLE",
+                "ROLE_CREATED",
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                null,
+                "ROLE",
+                role.id(),
+                null,
+                null,
+                Map.of("role", role.code()));
         return getRole(role.id());
     }
 
@@ -85,6 +105,11 @@ public class RoleService {
 
     @Transactional
     public RoleView updateRole(UUID roleId, UpdateRoleRequest request, String ifMatch) {
+        return updateRole(roleId, request, ifMatch, null);
+    }
+
+    @Transactional
+    public RoleView updateRole(UUID roleId, UpdateRoleRequest request, String ifMatch, UUID actorUserId) {
         long expectedVersion = parseIfMatch(ifMatch);
         RoleDefinition existing = findRole(roleId);
         if (existing.system()) {
@@ -107,14 +132,31 @@ public class RoleService {
                 throw new ApiProblemException(ErrorCodes.PRECONDITION_FAILED, "Role ETag is stale");
             }
             roleRepository.replacePermissions(roleId, permissions);
+            cacheInvalidator.invalidateForRole(roleId);
         } catch (DataIntegrityViolationException exception) {
             throw new ApiProblemException(ErrorCodes.DUPLICATE_RESOURCE, "Role already exists");
         }
+        auditEventWriter.writeEvent(
+                "ROLE",
+                "ROLE_UPDATED",
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                null,
+                "ROLE",
+                roleId,
+                null,
+                null,
+                Map.of("previous_role", existing.code(), "role", request.getName()));
         return getRole(roleId);
     }
 
     @Transactional
     public void deleteRole(UUID roleId) {
+        deleteRole(roleId, null);
+    }
+
+    @Transactional
+    public void deleteRole(UUID roleId, UUID actorUserId) {
         RoleDefinition existing = findRole(roleId);
         if (existing.system()) {
             throw new ApiProblemException(ErrorCodes.SYSTEM_ROLE_PROTECTED, "System role cannot be deleted");
@@ -125,6 +167,18 @@ public class RoleService {
         if (!roleRepository.softDelete(roleId, existing.version())) {
             throw new ApiProblemException(ErrorCodes.PRECONDITION_FAILED, "Role version changed");
         }
+        cacheInvalidator.invalidateForRole(roleId);
+        auditEventWriter.writeEvent(
+                "ROLE",
+                "ROLE_DELETED",
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                null,
+                "ROLE",
+                roleId,
+                null,
+                null,
+                Map.of("role", existing.code()));
     }
 
     @Transactional
@@ -165,6 +219,7 @@ public class RoleService {
                 replacementRoles.stream().map(RoleDefinition::id).toList(),
                 actorUserId,
                 Instant.now());
+        cacheInvalidator.invalidate(userId);
         List<String> nextRoles = replacementRoles.stream().map(RoleDefinition::code).toList();
         auditEventWriter.writeEvent(
                 "AUTHZ",

@@ -48,6 +48,19 @@ public class AccessPolicyRepository {
                 .optional();
     }
 
+    public List<AccessPolicyDefinition> list() {
+        return jdbc.sql(
+                        """
+                        SELECT ap.*
+                        FROM access_policies ap
+                        JOIN roles r ON r.id = ap.role_id
+                        WHERE r.deleted_at IS NULL
+                        ORDER BY r.code
+                        """)
+                .query(POLICY_MAPPER)
+                .list();
+    }
+
     public Optional<AccessPolicyDefinition> findByRoleId(UUID roleId) {
         return jdbc.sql("SELECT * FROM access_policies WHERE role_id = :roleId")
                 .param("roleId", roleId)
@@ -140,6 +153,51 @@ public class AccessPolicyRepository {
                 .param("roleId", roleId)
                 .update();
         return updated == 1;
+    }
+
+    public boolean deleteById(UUID id) {
+        int updated = jdbc.sql("DELETE FROM access_policies WHERE id = :id")
+                .param("id", id)
+                .update();
+        return updated == 1;
+    }
+
+    public long countActiveUsersWithRole(UUID roleId) {
+        return jdbc.sql(
+                        """
+                        SELECT COUNT(DISTINCT ur.user_id)
+                        FROM user_roles ur
+                        JOIN users u ON u.id = ur.user_id
+                        JOIN roles r ON r.id = ur.role_id
+                        WHERE ur.role_id = :roleId
+                          AND u.active = TRUE
+                          AND u.deleted_at IS NULL
+                          AND r.deleted_at IS NULL
+                        """)
+                .param("roleId", roleId)
+                .query(Long.class)
+                .single();
+    }
+
+    public long countActiveUsersWithFullVisibilityExcludingRole(UUID excludedRoleId) {
+        return jdbc.sql(
+                        """
+                        SELECT COUNT(DISTINCT ur.user_id)
+                        FROM user_roles ur
+                        JOIN users u ON u.id = ur.user_id
+                        JOIN roles r ON r.id = ur.role_id
+                        JOIN access_policies ap ON ap.role_id = r.id
+                        WHERE ur.role_id <> :excludedRoleId
+                          AND u.active = TRUE
+                          AND u.deleted_at IS NULL
+                          AND r.deleted_at IS NULL
+                          AND 'RESTRICTED' = ANY(ap.access_levels)
+                          AND cardinality(ap.departments) = 0
+                          AND ap.doc_types @> ARRAY['POLICY', 'REGULATION', 'GUIDE', 'REPORT', 'MANUAL', 'OTHER']::TEXT[]
+                        """)
+                .param("excludedRoleId", excludedRoleId)
+                .query(Long.class)
+                .single();
     }
 
     private static String[] accessLevelNames(Collection<AccessLevel> accessLevels) {

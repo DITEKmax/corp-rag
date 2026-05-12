@@ -49,7 +49,7 @@ public class RoleController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CreateRoleRequest request) {
         JwtAuthorization.requirePermission(jwt, Permission.ROLES_CREATE.value());
-        RoleService.RoleView role = roleService.createRole(request);
+        RoleService.RoleView role = roleService.createRole(request, JwtAuthorization.userId(jwt));
         return ResponseEntity.created(URI.create("/api/v1/roles/" + role.role().id()))
                 .body(toRole(role));
     }
@@ -70,7 +70,7 @@ public class RoleController {
             @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
             @Valid @RequestBody UpdateRoleRequest request) {
         JwtAuthorization.requirePermission(jwt, Permission.ROLES_UPDATE.value());
-        RoleService.RoleView role = roleService.updateRole(roleId, request, ifMatch);
+        RoleService.RoleView role = roleService.updateRole(roleId, request, ifMatch, JwtAuthorization.userId(jwt));
         return ResponseEntity.ok()
                 .header(HttpHeaders.ETAG, roleService.etag(role))
                 .body(toRole(role));
@@ -79,7 +79,7 @@ public class RoleController {
     @DeleteMapping("/{roleId}")
     ResponseEntity<Void> deleteRole(@AuthenticationPrincipal Jwt jwt, @PathVariable("roleId") UUID roleId) {
         JwtAuthorization.requirePermission(jwt, Permission.ROLES_DELETE.value());
-        roleService.deleteRole(roleId);
+        roleService.deleteRole(roleId, JwtAuthorization.userId(jwt));
         return ResponseEntity.noContent().build();
     }
 

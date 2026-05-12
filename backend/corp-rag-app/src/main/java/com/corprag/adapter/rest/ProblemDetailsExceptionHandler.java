@@ -39,9 +39,12 @@ public class ProblemDetailsExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ProblemDetail> handleUnreadable(HttpMessageNotReadableException exception, HttpServletRequest request) {
-        ErrorCodes.ErrorCode errorCode = isInvalidPermissionCode(exception)
-                ? ErrorCodes.INVALID_PERMISSION_CODE
-                : ErrorCodes.VALIDATION_FAILED;
+        ErrorCodes.ErrorCode errorCode = ErrorCodes.VALIDATION_FAILED;
+        if (isInvalidPermissionCode(exception)) {
+            errorCode = ErrorCodes.INVALID_PERMISSION_CODE;
+        } else if (isInvalidAccessLevel(exception)) {
+            errorCode = ErrorCodes.INVALID_ACCESS_LEVEL;
+        }
         ProblemDetail problem = problemDetailsWriter.problem(
                 errorCode,
                 "Request body is invalid",
@@ -54,6 +57,18 @@ public class ProblemDetailsExceptionHandler {
         while (current != null) {
             String message = current.getMessage();
             if (message != null && message.contains("Unexpected value") && message.contains("PermissionCode")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean isInvalidAccessLevel(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.contains("Unexpected value") && message.contains("AccessLevel")) {
                 return true;
             }
             current = current.getCause();

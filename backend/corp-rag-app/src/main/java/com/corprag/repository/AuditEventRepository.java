@@ -23,7 +23,19 @@ public class AuditEventRepository {
                         )
                         VALUES (
                             :id, :occurredAt, :eventCategory, :eventType, :outcome,
-                            :actorUserId, :targetUserId, :entityType, :entityId,
+                            CASE
+                                WHEN CAST(:actorUserId AS UUID) IS NULL THEN NULL
+                                WHEN EXISTS (SELECT 1 FROM users WHERE id = CAST(:actorUserId AS UUID))
+                                    THEN CAST(:actorUserId AS UUID)
+                                ELSE NULL::UUID
+                            END,
+                            CASE
+                                WHEN CAST(:targetUserId AS UUID) IS NULL THEN NULL
+                                WHEN EXISTS (SELECT 1 FROM users WHERE id = CAST(:targetUserId AS UUID))
+                                    THEN CAST(:targetUserId AS UUID)
+                                ELSE NULL::UUID
+                            END,
+                            :entityType, :entityId,
                             :ipAddress, :userAgent, CAST(:detailsJson AS jsonb), :correlationId
                         )
                         """)

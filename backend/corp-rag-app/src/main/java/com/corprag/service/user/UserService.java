@@ -4,6 +4,7 @@ import com.corprag.adapter.rest.ApiProblemException;
 import com.corprag.contracts.api.v1.model.CreateUserRequest;
 import com.corprag.contracts.api.v1.model.UpdateUserRequest;
 import com.corprag.contracts.constants.ErrorCodes;
+import com.corprag.domain.AuditOutcome;
 import com.corprag.domain.RoleDefinition;
 import com.corprag.domain.UserAccount;
 import com.corprag.repository.RoleRepository;
@@ -16,8 +17,10 @@ import com.corprag.service.auth.AuthSession;
 import com.corprag.service.auth.AuthenticatedUser;
 import com.corprag.service.auth.RefreshTokenService;
 import com.corprag.service.auth.RequestMetadata;
+import com.corprag.service.audit.AuditEventWriter;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,6 +41,7 @@ public class UserService {
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
+    private final AuditEventWriter auditEventWriter;
 
     public UserService(
             UserRepository userRepository,
@@ -47,7 +51,8 @@ public class UserService {
             PasswordPolicyValidator passwordPolicyValidator,
             TemporaryPasswordGenerator temporaryPasswordGenerator,
             RefreshTokenService refreshTokenService,
-            JwtService jwtService) {
+            JwtService jwtService,
+            AuditEventWriter auditEventWriter) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.roleRepository = roleRepository;
@@ -56,6 +61,7 @@ public class UserService {
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
+        this.auditEventWriter = auditEventWriter;
     }
 
     public List<UserView> listUsers(int page, int size) {
@@ -96,11 +102,27 @@ public class UserService {
         } catch (DataIntegrityViolationException exception) {
             throw new ApiProblemException(ErrorCodes.DUPLICATE_RESOURCE, "User already exists");
         }
+        auditEventWriter.writeEvent(
+                "USER",
+                "USER_CREATED",
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                user.id(),
+                "USER",
+                user.id(),
+                null,
+                null,
+                Map.of("roles", roleIds));
         return new CreatedUser(toView(user), temporaryPassword);
     }
 
     @Transactional
     public UserView updateUser(UUID userId, UpdateUserRequest request) {
+        return updateUser(userId, request, null);
+    }
+
+    @Transactional
+    public UserView updateUser(UUID userId, UpdateUserRequest request, UUID actorUserId) {
         UserAccount existing = findUser(userId);
         UserAccount updated = new UserAccount(
                 existing.id(),
@@ -118,11 +140,30 @@ public class UserService {
         if (!userRepository.update(updated, existing.version())) {
             throw new ApiProblemException(ErrorCodes.PRECONDITION_FAILED, "User version changed");
         }
+        String eventType = existing.active() && Boolean.FALSE.equals(request.getActive())
+                ? "USER_DISABLED"
+                : "USER_UPDATED";
+        auditEventWriter.writeEvent(
+                "USER",
+                eventType,
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                userId,
+                "USER",
+                userId,
+                null,
+                null,
+                Map.of());
         return getUser(userId);
     }
 
     @Transactional
     public String resetPassword(UUID userId) {
+        return resetPassword(userId, null);
+    }
+
+    @Transactional
+    public String resetPassword(UUID userId, UUID actorUserId) {
         UserAccount existing = findUser(userId);
         String temporaryPassword = temporaryPasswordGenerator.generate();
         UserAccount updated = new UserAccount(
@@ -142,6 +183,17 @@ public class UserService {
             throw new ApiProblemException(ErrorCodes.PRECONDITION_FAILED, "User version changed");
         }
         refreshTokenService.revokeAllForUser(userId);
+        auditEventWriter.writeEvent(
+                "USER",
+                "PASSWORD_RESET",
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                userId,
+                "USER",
+                userId,
+                null,
+                null,
+                Map.of("must_change_password", true));
         return temporaryPassword;
     }
 
@@ -177,6 +229,17 @@ public class UserService {
                 authenticatedUser.roles(),
                 authenticatedUser.permissions(),
                 false);
+        auditEventWriter.writeEvent(
+                "USER",
+                "PASSWORD_CHANGED",
+                AuditOutcome.SUCCESS,
+                userId,
+                userId,
+                "USER",
+                userId,
+                metadata.ipAddress(),
+                metadata.userAgent(),
+                Map.of());
         return new AuthSession(authenticatedUser, accessToken.token(), accessToken.expiresAt(), refreshToken.rawToken());
     }
 

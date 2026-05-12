@@ -83,7 +83,7 @@ public class UserController {
         if (!self) {
             JwtAuthorization.requirePermission(jwt, "users.update");
         }
-        return toUser(userService.updateUser(userId, request));
+        return toUser(userService.updateUser(userId, request, JwtAuthorization.userId(jwt)));
     }
 
     @PostMapping("/{userId}/reset-password")
@@ -91,7 +91,7 @@ public class UserController {
         JwtAuthorization.requirePermission(jwt, "users.update");
         return new TemporaryPasswordResponse()
                 .userId(userId)
-                .temporaryPassword(userService.resetPassword(userId));
+                .temporaryPassword(userService.resetPassword(userId, JwtAuthorization.userId(jwt)));
     }
 
     private User toUser(UserService.UserView view) {

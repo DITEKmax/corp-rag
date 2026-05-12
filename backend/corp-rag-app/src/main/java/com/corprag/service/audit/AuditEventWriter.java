@@ -49,7 +49,7 @@ public class AuditEventWriter {
                 details);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void writeEvent(
             String eventCategory,
             String eventType,
