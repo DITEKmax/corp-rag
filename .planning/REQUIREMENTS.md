@@ -13,10 +13,10 @@
 
 ### Identity and Access
 
-- [ ] **AUTH-01**: User can log in, log out, and retrieve the current profile through secure Java endpoints.
-- [ ] **AUTH-02**: Admin can create users, roles, permissions, and access policies.
-- [ ] **AUTH-03**: Protected endpoints enforce role permissions and access policies.
-- [ ] **AUTH-04**: Java resolves each user's document access filter for downstream retrieval.
+- [x] **AUTH-01**: User can log in, log out, and retrieve the current profile through secure Java endpoints.
+- [x] **AUTH-02**: Admin can create users, roles, permissions, and access policies.
+- [x] **AUTH-03**: Protected endpoints enforce role permissions and access policies.
+- [x] **AUTH-04**: Java resolves each user's document access filter for downstream retrieval.
 
 ### Documents and Events
 
@@ -92,10 +92,10 @@
 | FND-01 | Phase 1 | Complete |
 | FND-02 | Phase 1 | Complete |
 | FND-03 | Phase 1 | Complete |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
+| AUTH-04 | Phase 2 | Complete |
 | DOC-01 | Phase 3 | Pending |
 | DOC-02 | Phase 3 | Pending |
 | DOC-03 | Phase 3 | Pending |

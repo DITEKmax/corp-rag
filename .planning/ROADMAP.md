@@ -51,7 +51,7 @@ Plans:
 **Plans:** 7 plans
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md - Extend Phase 2 contracts and constants.
+- [x] 02-01-PLAN.md - Extend Phase 2 contracts and constants.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-02-PLAN.md - Add backend security dependencies and validation harness.
