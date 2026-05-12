@@ -54,7 +54,7 @@ Plans:
 - [x] 02-01-PLAN.md - Extend Phase 2 contracts and constants.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md - Add backend security dependencies and validation harness.
+- [x] 02-02-PLAN.md - Add backend security dependencies and validation harness.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-03-PLAN.md - Add identity schema, seed data, domain records, and repositories.
