@@ -39,7 +39,7 @@ public class RefreshTokenService {
         return token;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiProblemException.class)
     public Rotation rotate(String rawRefreshToken, RequestMetadata metadata) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
             throw new ApiProblemException(ErrorCodes.REFRESH_TOKEN_INVALID, "Refresh token cookie is missing");

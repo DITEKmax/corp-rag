@@ -2,6 +2,7 @@ package com.corprag.security;
 
 import com.corprag.config.AppSecurityProperties;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -28,7 +29,7 @@ public class JwtService {
             List<String> roles,
             List<String> permissions,
             boolean mustChangePassword) {
-        Instant issuedAt = Instant.now();
+        Instant issuedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS);
         Instant expiresAt = issuedAt.plusSeconds(properties.getJwt().getAccessTokenMinutes() * 60L);
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.getJwt().getIssuer())

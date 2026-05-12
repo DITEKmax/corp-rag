@@ -73,7 +73,7 @@ public class AuthService {
         return new AuthSession(authenticatedUser, accessToken.token(), accessToken.expiresAt(), refreshToken.rawToken());
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ApiProblemException.class)
     public AuthSession refresh(String rawRefreshToken, RequestMetadata metadata) {
         try {
             RefreshTokenService.Rotation rotation = refreshTokenService.rotate(rawRefreshToken, metadata);

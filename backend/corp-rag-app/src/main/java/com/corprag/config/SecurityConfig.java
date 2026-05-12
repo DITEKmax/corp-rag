@@ -79,7 +79,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecretKey jwtSecretKey(AppSecurityProperties properties, Environment environment) {
+    public SecretKey jwtSecretKey(AppSecurityProperties properties, Environment environment) {
         String configuredSecret = properties.getJwt().getSecret();
         byte[] secretBytes;
         if (configuredSecret == null || configuredSecret.isBlank()) {
