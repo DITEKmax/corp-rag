@@ -36,23 +36,48 @@ public class AuditEventWriter {
             String ipAddress,
             String userAgent,
             Map<String, ?> details) {
+        writeEvent(
+                "AUTH",
+                eventType,
+                outcome,
+                actorUserId,
+                targetUserId,
+                "USER",
+                targetUserId,
+                ipAddress,
+                userAgent,
+                details);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void writeEvent(
+            String eventCategory,
+            String eventType,
+            AuditOutcome outcome,
+            UUID actorUserId,
+            UUID targetUserId,
+            String entityType,
+            UUID entityId,
+            String ipAddress,
+            String userAgent,
+            Map<String, ?> details) {
         try {
             auditEventRepository.insert(new AuditEventEntry(
                     UUID.randomUUID(),
                     Instant.now(),
-                    "AUTH",
+                    eventCategory,
                     eventType,
                     outcome,
                     actorUserId,
                     targetUserId,
-                    "USER",
-                    targetUserId,
+                    entityType,
+                    entityId,
                     ipAddress,
                     userAgent,
                     detailsJson(details),
                     UUID.randomUUID()));
         } catch (RuntimeException exception) {
-            LOGGER.warn("Failed to write auth audit event {}", eventType, exception);
+            LOGGER.warn("Failed to write audit event {}", eventType, exception);
         }
     }
 

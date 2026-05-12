@@ -5,14 +5,21 @@ import com.corprag.contracts.api.v1.model.CreateRoleRequest;
 import com.corprag.contracts.api.v1.model.PermissionCode;
 import com.corprag.contracts.api.v1.model.UpdateRoleRequest;
 import com.corprag.contracts.constants.ErrorCodes;
+import com.corprag.domain.AuditOutcome;
 import com.corprag.domain.RoleDefinition;
+import com.corprag.domain.UserAccount;
 import com.corprag.repository.RoleRepository;
+import com.corprag.repository.UserRepository;
 import com.corprag.repository.UserRoleRepository;
 import com.corprag.security.Permission;
 import com.corprag.security.PermissionEvaluator;
+import com.corprag.service.audit.AuditEventWriter;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,16 +33,22 @@ public class RoleService {
     private static final Pattern ROLE_ETAG = Pattern.compile("\"?role-v(\\d+)\"?");
 
     private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final PermissionEvaluator permissionEvaluator;
+    private final AuditEventWriter auditEventWriter;
 
     public RoleService(
             RoleRepository roleRepository,
+            UserRepository userRepository,
             UserRoleRepository userRoleRepository,
-            PermissionEvaluator permissionEvaluator) {
+            PermissionEvaluator permissionEvaluator,
+            AuditEventWriter auditEventWriter) {
         this.roleRepository = roleRepository;
+        this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.permissionEvaluator = permissionEvaluator;
+        this.auditEventWriter = auditEventWriter;
     }
 
     public List<RoleView> listRoles() {
@@ -114,6 +127,59 @@ public class RoleService {
         }
     }
 
+    @Transactional
+    public UserRoleView replaceUserRoles(
+            UUID userId,
+            List<String> requestedRoleCodes,
+            UUID actorUserId,
+            boolean actorCanUpdateRoles) {
+        if (actorUserId.equals(userId)) {
+            throw new ApiProblemException(ErrorCodes.SELF_MODIFICATION_FORBIDDEN, "Users cannot change their own roles");
+        }
+        UserAccount user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiProblemException(ErrorCodes.USER_NOT_FOUND, "User not found"));
+        if (requestedRoleCodes == null || requestedRoleCodes.isEmpty()) {
+            throw new ApiProblemException(ErrorCodes.VALIDATION_FAILED, "At least one role is required");
+        }
+
+        List<RoleDefinition> replacementRoles = resolveRoles(requestedRoleCodes);
+        if (replacementRoles.stream().anyMatch(role -> "ADMIN".equals(role.code())) && !actorCanUpdateRoles) {
+            throw new ApiProblemException(
+                    ErrorCodes.INSUFFICIENT_PERMISSIONS,
+                    "Assigning ADMIN also requires roles.update");
+        }
+
+        List<Permission> currentPermissions = roleRepository.findPermissionsForUser(userId);
+        List<Permission> replacementPermissions = permissionsForRoles(replacementRoles);
+        if (currentPermissions.contains(Permission.USERS_UPDATE)
+                && !replacementPermissions.contains(Permission.USERS_UPDATE)
+                && roleRepository.countActiveUsersWithPermissionExcludingUser(userId, Permission.USERS_UPDATE) == 0) {
+            throw new ApiProblemException(ErrorCodes.LAST_ADMIN_PROTECTED, "Mutation would remove the last users.update authority");
+        }
+
+        List<String> previousRoles = roleRepository.findRolesForUser(userId).stream()
+                .map(RoleDefinition::code)
+                .toList();
+        userRoleRepository.replaceUserRoles(
+                userId,
+                replacementRoles.stream().map(RoleDefinition::id).toList(),
+                actorUserId,
+                Instant.now());
+        List<String> nextRoles = replacementRoles.stream().map(RoleDefinition::code).toList();
+        auditEventWriter.writeEvent(
+                "AUTHZ",
+                "USER_ROLES_REPLACED",
+                AuditOutcome.SUCCESS,
+                actorUserId,
+                userId,
+                "USER",
+                userId,
+                null,
+                null,
+                Map.of("previous_roles", previousRoles, "roles", nextRoles));
+        return new UserRoleView(user, nextRoles);
+    }
+
     public String etag(RoleView role) {
         return "\"role-v" + role.role().version() + "\"";
     }
@@ -134,6 +200,22 @@ public class RoleService {
         return permissionEvaluator.requireKnown(permissionCodes.stream()
                 .map(PermissionCode::getValue)
                 .toList());
+    }
+
+    private List<RoleDefinition> resolveRoles(List<String> roleCodes) {
+        List<RoleDefinition> roles = new ArrayList<>();
+        for (String code : new LinkedHashSet<>(roleCodes)) {
+            roles.add(roleRepository.findByCode(code)
+                    .orElseThrow(() -> new ApiProblemException(ErrorCodes.ROLE_NOT_FOUND, "Role not found: " + code)));
+        }
+        return roles;
+    }
+
+    private List<Permission> permissionsForRoles(List<RoleDefinition> roles) {
+        return roles.stream()
+                .flatMap(role -> roleRepository.findPermissions(role.id()).stream())
+                .distinct()
+                .toList();
     }
 
     private long parseIfMatch(String ifMatch) {
@@ -158,5 +240,8 @@ public class RoleService {
     }
 
     public record RoleView(RoleDefinition role, List<Permission> permissions) {
+    }
+
+    public record UserRoleView(UserAccount user, List<String> roles) {
     }
 }

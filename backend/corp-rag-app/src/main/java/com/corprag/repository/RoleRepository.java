@@ -158,6 +158,26 @@ public class RoleRepository {
                 .single();
     }
 
+    public long countActiveUsersWithPermissionExcludingUser(UUID excludedUserId, Permission permission) {
+        return jdbc.sql(
+                        """
+                        SELECT COUNT(DISTINCT ur.user_id)
+                        FROM user_roles ur
+                        JOIN users u ON u.id = ur.user_id
+                        JOIN roles r ON r.id = ur.role_id
+                        JOIN role_permissions rp ON rp.role_id = r.id
+                        WHERE ur.user_id <> :excludedUserId
+                          AND rp.permission_code = :permissionCode
+                          AND u.active = TRUE
+                          AND u.deleted_at IS NULL
+                          AND r.deleted_at IS NULL
+                        """)
+                .param("excludedUserId", excludedUserId)
+                .param("permissionCode", permission.value())
+                .query(Long.class)
+                .single();
+    }
+
     @Transactional
     public void replacePermissions(UUID roleId, Collection<Permission> permissions) {
         jdbc.sql("DELETE FROM role_permissions WHERE role_id = :roleId")
