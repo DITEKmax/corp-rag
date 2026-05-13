@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-05-13T19:13:51.654Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-05-13T19:50:28.395Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 19
-  completed_plans: 15
-  percent: 79
+  completed_plans: 16
+  percent: 84
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 03 (documents-events-audit) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-05-13
 
-Progress: [████████░░] 79%
+Progress: [████████░░] 84%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -46,7 +46,7 @@ Progress: [████████░░] 79%
 |-------|-------|-------|----------|
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
-| 03 | 2 | - | - |
+| 03 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -68,6 +68,7 @@ Progress: [████████░░] 79%
 | Phase 02 P07 | 29 min | 3 tasks | 22 files |
 | Phase 03 P01 | 31 min | 3 tasks | 3 files |
 | Phase 03 P02 | 12 min | 3 tasks | 18 files |
+| Phase 03 P03 | 28 min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent locked decisions affecting current work:
 - [Phase 03]: Document visibility predicates are owned by DocumentRepository and built from ResolvedAccessFilter. - Plan 03-02 keeps active-row, doc type, department wildcard, and access-level filtering in SQL before pagination/counting.
 - [Phase 03]: Request correlation uses MDC key correlationId populated by CorrelationIdFilter. - ProblemDetails and AuditEventWriter reuse the same UUID, while absent or invalid incoming headers are replaced with generated UUIDs.
 - [Phase 03]: Outbox payload and headers are persisted as JSONB at the repository boundary. - Later services own typed document event envelope construction and AMQP publication behavior.
+- [Phase 03]: Document upload writes MinIO objects before the metadata/outbox/audit transaction. - This prevents `document.uploaded` publication for missing objects; orphan cleanup after DB failure is deferred to Phase 7+ housekeeping.
+- [Phase 03]: Java MinIO bucket initialization is compose-enabled and default-disabled. - `JAVA_MINIO_INITIALIZE_BUCKET=true` gives local runtime startup initialization while unit/app-context tests avoid requiring MinIO.
+- [Phase 03]: ProblemDetails now supports structured `details`. - Upload duplicate failures return `details.existingDocumentId` for contract-aligned client handling.
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-13T19:13:51.621Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-05-13T19:50:28.358Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None

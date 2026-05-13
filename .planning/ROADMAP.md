@@ -88,7 +88,7 @@ Plans:
 - [x] 03-02-PLAN.md - Add document/outbox/processed-event schema, repositories, and correlation foundation.
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 03-03-PLAN.md - Implement MinIO/Tika document upload and document.uploaded outbox creation.
+- [x] 03-03-PLAN.md - Implement MinIO/Tika document upload and document.uploaded outbox creation.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 03-04-PLAN.md - Implement visible document list/detail/raw/delete APIs and document.deleted outbox creation.
