@@ -79,7 +79,25 @@ Plans:
   3. Document upload/delete events are persisted through the outbox and published to RabbitMQ.
   4. Java idempotently consumes indexed/failed events and updates document status.
   5. Significant auth, document, role, chat, indexing, and guard events are auditable.
-**Plans**: TBD
+**Plans:** 6 plans
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md - Align Phase 3 REST, event, and constants contracts.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md - Add document/outbox/processed-event schema, repositories, and correlation foundation.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-03-PLAN.md - Implement MinIO/Tika document upload and document.uploaded outbox creation.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-04-PLAN.md - Implement visible document list/detail/raw/delete APIs and document.deleted outbox creation.
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 03-05-PLAN.md - Add RabbitMQ topology and scheduled outbox publisher.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 03-06-PLAN.md - Implement idempotent indexing-result consumers and full lifecycle verification.
 
 ### Phase 4: Python Ingestion & Indexing
 **Goal**: Python turns uploaded documents into sanitized chunks, Qdrant vectors, Neo4j graph data, and completion/failure events.
@@ -149,7 +167,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
-| 3. Documents, Events & Audit | 0/TBD | Ready to plan | - |
+| 3. Documents, Events & Audit | 0/6 | Ready to execute | - |
 | 4. Python Ingestion & Indexing | 0/TBD | Not started | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
