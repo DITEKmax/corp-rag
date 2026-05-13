@@ -127,6 +127,12 @@ services:
       JAVA_DB_URL: ${JAVA_DB_URL:-jdbc:postgresql://postgres:5432/corp_rag_java}
       JAVA_DB_USER: ${JAVA_DB_USER:-corp_rag_java}
       JAVA_DB_PASSWORD: ${JAVA_DB_PASSWORD:-corp_rag_java_password}
+      JAVA_MINIO_ENDPOINT: ${JAVA_MINIO_ENDPOINT:-http://minio:9000}
+      JAVA_MINIO_ACCESS_KEY: ${JAVA_MINIO_ACCESS_KEY:-local-minio-root}
+      JAVA_MINIO_SECRET_KEY: ${JAVA_MINIO_SECRET_KEY:-local-minio-password}
+      JAVA_MINIO_SECURE: ${JAVA_MINIO_SECURE:-false}
+      JAVA_MINIO_BUCKET: ${JAVA_MINIO_BUCKET:-corp-rag-documents}
+      JAVA_MINIO_RAW_URL_TTL: ${JAVA_MINIO_RAW_URL_TTL:-5m}
     ports:
       - "${JAVA_BACKEND_PORT:-8080}:8080"
     depends_on:

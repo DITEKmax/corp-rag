@@ -16,6 +16,10 @@ spring:
   sql:
     init:
       mode: never
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
 management:
   endpoints:
@@ -56,3 +60,10 @@ app:
     sessions:
       max-active: ${MAX_ACTIVE_SESSIONS_PER_USER:5}
       refresh-token-days: 7
+  document-storage:
+    endpoint: ${JAVA_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${JAVA_MINIO_ACCESS_KEY:local-minio-root}
+    secret-key: ${JAVA_MINIO_SECRET_KEY:local-minio-password}
+    secure: ${JAVA_MINIO_SECURE:false}
+    bucket: ${JAVA_MINIO_BUCKET:corp-rag-documents}
+    raw-url-ttl: ${JAVA_MINIO_RAW_URL_TTL:5m}
