@@ -295,7 +295,9 @@ components:
               sourceService: "corp-rag-backend"
             payload:
               documentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
+              title: "Регламент отпусков 2026"
               ownerUserId: "a1b2c3d4-e89b-12d3-a456-426614174000"
+              contentSha256: "1c8f2f5f3b8f9d1a7c4b7c5a4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70"
               accessLevel: "INTERNAL"
               department: "HR"
               docType: "POLICY"
@@ -488,7 +490,9 @@ components:
       description: Полезная нагрузка события `document.uploaded`.
       required:
         - documentId
+        - title
         - ownerUserId
+        - contentSha256
         - accessLevel
         - department
         - docType
@@ -504,10 +508,20 @@ components:
           type: string
           format: uuid
           description: Идентификатор документа из Java-схемы `documents.id`.
+        title:
+          type: string
+          description: Display title supplied at upload time.
+          maxLength: 512
+          example: "Регламент отпусков 2026"
         ownerUserId:
           type: string
           format: uuid
           description: Пользователь, загрузивший документ.
+        contentSha256:
+          type: string
+          description: Hex-encoded SHA-256 digest of the uploaded source file.
+          pattern: '^[a-fA-F0-9]{64}$'
+          example: "1c8f2f5f3b8f9d1a7c4b7c5a4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70"
         accessLevel:
           type: string
           description: Уровень доступа документа. Используется для RBAC-фильтрации при поиске.
