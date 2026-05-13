@@ -124,6 +124,24 @@ class OutboxPublisherTest {
         verify(repository).pollReadyUnpublished(NOW, 7);
     }
 
+    @Test
+    void cleanupDeletesPublishedRowsPastRetentionCutoff() {
+        properties.setRetention(Duration.ofDays(7));
+
+        publisher.cleanupPublished();
+
+        verify(repository).cleanupPublishedBefore(NOW.minus(Duration.ofDays(7)));
+    }
+
+    @Test
+    void cleanupCanBeDisabled() {
+        properties.setCleanupEnabled(false);
+
+        publisher.cleanupPublished();
+
+        verify(repository, never()).cleanupPublishedBefore(any());
+    }
+
     private static OutboxPublisherProperties properties() {
         OutboxPublisherProperties properties = new OutboxPublisherProperties();
         properties.setEnabled(true);
