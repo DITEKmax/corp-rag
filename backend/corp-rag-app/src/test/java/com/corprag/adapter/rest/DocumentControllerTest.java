@@ -22,9 +22,12 @@ import com.corprag.domain.DocumentRecord;
 import com.corprag.domain.DocumentSearchCriteria;
 import com.corprag.domain.DocumentStatus;
 import com.corprag.service.document.DocumentQueryService;
+import com.corprag.service.document.DocumentRawUrl;
+import com.corprag.service.document.DocumentRawUrlService;
 import com.corprag.service.document.DocumentUploadCommand;
 import com.corprag.service.document.DocumentUploadService;
 import com.corprag.testsupport.AuthTestFixtures;
+import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -60,6 +63,9 @@ class DocumentControllerTest {
 
     @MockBean
     private DocumentQueryService queryService;
+
+    @MockBean
+    private DocumentRawUrlService rawUrlService;
 
     @Test
     void listRequiresDocumentsReadPermission() throws Exception {
@@ -130,6 +136,31 @@ class DocumentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$._links.raw.href").value("/api/v1/documents/" + DOCUMENT_ID + "/raw"))
                 .andExpect(jsonPath("$._links.delete").doesNotExist());
+    }
+
+    @Test
+    void rawEndpointReturnsPresignedUrlResponse() throws Exception {
+        when(rawUrlService.issueRawUrl(any(), any(), any(), any())).thenReturn(new DocumentRawUrl(
+                URI.create("https://minio.local/corp-rag-documents/2026/05/file.txt?signature=test"),
+                Instant.parse("2026-05-13T12:05:00Z")));
+
+        mockMvc.perform(get("/api/v1/documents/{documentId}/raw", DOCUMENT_ID)
+                        .with(jwtWith(AuthTestFixtures.PERMISSION_DOCUMENTS_READ)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").value("https://minio.local/corp-rag-documents/2026/05/file.txt?signature=test"))
+                .andExpect(jsonPath("$.expiresAt").value("2026-05-13T12:05:00Z"));
+    }
+
+    @Test
+    void rawEndpointReturnsDocumentNotFoundForInvisibleDocuments() throws Exception {
+        when(rawUrlService.issueRawUrl(any(), any(), any(), any())).thenThrow(new ApiProblemException(
+                ErrorCodes.DOCUMENT_NOT_FOUND,
+                "Document not found"));
+
+        mockMvc.perform(get("/api/v1/documents/{documentId}/raw", DOCUMENT_ID)
+                        .with(jwtWith(AuthTestFixtures.PERMISSION_DOCUMENTS_READ)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("DOCUMENT_NOT_FOUND"));
     }
 
     @Test

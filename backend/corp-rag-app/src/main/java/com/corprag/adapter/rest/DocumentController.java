@@ -1,6 +1,7 @@
 package com.corprag.adapter.rest;
 
 import com.corprag.contracts.api.v1.model.Document;
+import com.corprag.contracts.api.v1.model.GetDocumentRaw200Response;
 import com.corprag.contracts.api.v1.model.PagedDocuments;
 import com.corprag.contracts.constants.ErrorCodes;
 import com.corprag.domain.AccessLevel;
@@ -11,10 +12,14 @@ import com.corprag.domain.DocumentSearchCriteria;
 import com.corprag.domain.DocumentStatus;
 import com.corprag.security.Permission;
 import com.corprag.service.document.DocumentQueryService;
+import com.corprag.service.document.DocumentRawUrl;
+import com.corprag.service.document.DocumentRawUrlService;
 import com.corprag.service.document.DocumentUploadCommand;
 import com.corprag.service.document.DocumentUploadService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.http.MediaType;
@@ -37,14 +42,17 @@ public class DocumentController {
 
     private final DocumentUploadService uploadService;
     private final DocumentQueryService queryService;
+    private final DocumentRawUrlService rawUrlService;
     private final DocumentAssembler documentAssembler;
 
     public DocumentController(
             DocumentUploadService uploadService,
             DocumentQueryService queryService,
+            DocumentRawUrlService rawUrlService,
             DocumentAssembler documentAssembler) {
         this.uploadService = uploadService;
         this.queryService = queryService;
+        this.rawUrlService = rawUrlService;
         this.documentAssembler = documentAssembler;
     }
 
@@ -84,6 +92,22 @@ public class DocumentController {
         DocumentRecord document = queryService.getVisible(JwtAuthorization.userId(jwt), documentId);
         boolean canDelete = JwtAuthorization.hasPermission(jwt, Permission.DOCUMENTS_DELETE.value());
         return ResponseEntity.ok(documentAssembler.toContract(document, true, canDelete));
+    }
+
+    @GetMapping("/{documentId}/raw")
+    ResponseEntity<GetDocumentRaw200Response> getDocumentRaw(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("documentId") UUID documentId,
+            HttpServletRequest request) {
+        JwtAuthorization.requirePermission(jwt, Permission.DOCUMENTS_READ.value());
+        DocumentRawUrl rawUrl = rawUrlService.issueRawUrl(
+                JwtAuthorization.userId(jwt),
+                documentId,
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent"));
+        return ResponseEntity.ok(new GetDocumentRaw200Response()
+                .url(rawUrl.url())
+                .expiresAt(OffsetDateTime.ofInstant(rawUrl.expiresAt(), ZoneOffset.UTC)));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
