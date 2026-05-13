@@ -928,11 +928,58 @@ paths:
                   raw: { href: "/api/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000/raw" }
                   delete: { href: "/api/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000" }
         '400':
-          $ref: '#/components/responses/ValidationFailed'
+          description: Validation failed or sniffed MIME type is unsupported
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                validationFailed:
+                  value:
+                    type: "https://corp-rag.local/problems/validation-failed"
+                    title: "Validation failed"
+                    status: 400
+                    errorCode: "VALIDATION_FAILED"
+                unsupportedFileType:
+                  value:
+                    type: "https://corp-rag.local/problems/unsupported-file-type"
+                    title: "Unsupported file type"
+                    status: 400
+                    errorCode: "UNSUPPORTED_FILE_TYPE"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Missing upload permission or requested access level exceeds caller cap
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                forbidden:
+                  value:
+                    type: "https://corp-rag.local/problems/access-denied"
+                    title: "Access denied"
+                    status: 403
+                    errorCode: "ACCESS_DENIED"
+                insufficientAccessLevel:
+                  value:
+                    type: "https://corp-rag.local/problems/insufficient-access-level"
+                    title: "Insufficient access level"
+                    status: 403
+                    errorCode: "INSUFFICIENT_ACCESS_LEVEL"
+        '409':
+          description: Active duplicate document exists in the same department
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              example:
+                type: "https://corp-rag.local/problems/duplicate-document"
+                title: "Duplicate document"
+                status: 409
+                errorCode: "DUPLICATE_DOCUMENT"
+                details:
+                  existingDocumentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
         '413':
           description: Файл слишком большой
           content:

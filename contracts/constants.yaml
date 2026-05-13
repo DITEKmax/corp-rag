@@ -100,6 +100,10 @@ error_codes:
     http_status: 400
     problem_type: "https://corp-rag.local/problems/invalid-file-format"
     default_title: "Неподдерживаемый формат файла"
+  UNSUPPORTED_FILE_TYPE:
+    http_status: 400
+    problem_type: "https://corp-rag.local/problems/unsupported-file-type"
+    default_title: "Неподдерживаемый тип файла"
   INVALID_QUERY:
     http_status: 400
     problem_type: "https://corp-rag.local/problems/invalid-query"
@@ -148,6 +152,10 @@ error_codes:
     http_status: 403
     problem_type: "https://corp-rag.local/problems/invalid-access-level"
     default_title: "Недостаточный уровень доступа"
+  INSUFFICIENT_ACCESS_LEVEL:
+    http_status: 403
+    problem_type: "https://corp-rag.local/problems/insufficient-access-level"
+    default_title: "Недостаточный уровень доступа для документа"
   INSUFFICIENT_PERMISSIONS:
     http_status: 403
     problem_type: "https://corp-rag.local/problems/insufficient-permissions"
@@ -192,6 +200,10 @@ error_codes:
     http_status: 409
     problem_type: "https://corp-rag.local/problems/duplicate-resource"
     default_title: "Ресурс уже существует"
+  DUPLICATE_DOCUMENT:
+    http_status: 409
+    problem_type: "https://corp-rag.local/problems/duplicate-document"
+    default_title: "Документ с таким содержимым уже существует"
   DOCUMENT_INDEXING_IN_PROGRESS:
     http_status: 409
     problem_type: "https://corp-rag.local/problems/document-indexing-in-progress"
