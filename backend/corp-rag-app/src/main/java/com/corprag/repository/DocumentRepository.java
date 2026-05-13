@@ -4,11 +4,13 @@ import com.corprag.domain.AccessLevel;
 import com.corprag.domain.DocType;
 import com.corprag.domain.DocumentPage;
 import com.corprag.domain.DocumentRecord;
+import com.corprag.domain.DocumentSearchCriteria;
 import com.corprag.domain.DocumentStatus;
 import com.corprag.domain.ResolvedAccessFilter;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.RowMapper;
@@ -122,8 +124,16 @@ public class DocumentRepository {
     }
 
     public DocumentPage pageVisibleDocuments(ResolvedAccessFilter filter, int limit, int offset) {
-        String where = visibleWhere(filter);
-        List<DocumentRecord> documents = bindVisibility(
+        return pageVisibleDocuments(filter, DocumentSearchCriteria.empty(), limit, offset);
+    }
+
+    public DocumentPage pageVisibleDocuments(
+            ResolvedAccessFilter filter,
+            DocumentSearchCriteria criteria,
+            int limit,
+            int offset) {
+        String where = visibleWhere(filter) + criteriaWhere(criteria);
+        List<DocumentRecord> documents = bindCriteria(bindVisibility(
                         jdbc.sql(
                                         """
                                         SELECT *
@@ -135,10 +145,11 @@ public class DocumentRepository {
                                                 .formatted(where))
                                 .param("limit", limit)
                                 .param("offset", offset),
-                        filter)
+                        filter),
+                        criteria)
                 .query(DOCUMENT_MAPPER)
                 .list();
-        Long total = bindVisibility(jdbc.sql("SELECT COUNT(*) FROM documents WHERE " + where), filter)
+        Long total = bindCriteria(bindVisibility(jdbc.sql("SELECT COUNT(*) FROM documents WHERE " + where), filter), criteria)
                 .query(Long.class)
                 .single();
         return new DocumentPage(documents, total);
@@ -260,6 +271,52 @@ public class DocumentRepository {
                 .param("docTypes", names(filter.docTypes()));
         if (!filter.departments().isEmpty()) {
             bound = bound.param("departments", filter.departments());
+        }
+        return bound;
+    }
+
+    private static String criteriaWhere(DocumentSearchCriteria criteria) {
+        if (criteria == null) {
+            return "";
+        }
+        StringBuilder where = new StringBuilder();
+        if (criteria.status() != null) {
+            where.append(" AND status = :status");
+        }
+        if (criteria.department() != null) {
+            where.append(" AND department = :department");
+        }
+        if (criteria.docType() != null) {
+            where.append(" AND doc_type = :criteriaDocType");
+        }
+        if (criteria.language() != null) {
+            where.append(" AND language = :language");
+        }
+        if (criteria.search() != null) {
+            where.append(" AND (LOWER(title) LIKE :search OR LOWER(original_filename) LIKE :search)");
+        }
+        return where.toString();
+    }
+
+    private static StatementSpec bindCriteria(StatementSpec spec, DocumentSearchCriteria criteria) {
+        if (criteria == null) {
+            return spec;
+        }
+        StatementSpec bound = spec;
+        if (criteria.status() != null) {
+            bound = bound.param("status", criteria.status().name());
+        }
+        if (criteria.department() != null) {
+            bound = bound.param("department", criteria.department());
+        }
+        if (criteria.docType() != null) {
+            bound = bound.param("criteriaDocType", criteria.docType().name());
+        }
+        if (criteria.language() != null) {
+            bound = bound.param("language", criteria.language());
+        }
+        if (criteria.search() != null) {
+            bound = bound.param("search", "%" + criteria.search().toLowerCase(Locale.ROOT) + "%");
         }
         return bound;
     }

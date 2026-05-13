@@ -1,10 +1,16 @@
 package com.corprag.adapter.rest;
 
 import com.corprag.contracts.api.v1.model.Document;
+import com.corprag.contracts.api.v1.model.PagedDocuments;
 import com.corprag.contracts.constants.ErrorCodes;
 import com.corprag.domain.AccessLevel;
 import com.corprag.domain.DocType;
+import com.corprag.domain.DocumentPage;
+import com.corprag.domain.DocumentRecord;
+import com.corprag.domain.DocumentSearchCriteria;
+import com.corprag.domain.DocumentStatus;
 import com.corprag.security.Permission;
+import com.corprag.service.document.DocumentQueryService;
 import com.corprag.service.document.DocumentUploadCommand;
 import com.corprag.service.document.DocumentUploadService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +21,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,11 +36,54 @@ public class DocumentController {
     private static final Pattern DEPARTMENT_PATTERN = Pattern.compile("^[A-Z][A-Z0-9_]{0,63}$");
 
     private final DocumentUploadService uploadService;
+    private final DocumentQueryService queryService;
     private final DocumentAssembler documentAssembler;
 
-    public DocumentController(DocumentUploadService uploadService, DocumentAssembler documentAssembler) {
+    public DocumentController(
+            DocumentUploadService uploadService,
+            DocumentQueryService queryService,
+            DocumentAssembler documentAssembler) {
         this.uploadService = uploadService;
+        this.queryService = queryService;
         this.documentAssembler = documentAssembler;
+    }
+
+    @GetMapping
+    ResponseEntity<PagedDocuments> listDocuments(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "department", required = false) String department,
+            @RequestParam(value = "docType", required = false) String docType,
+            @RequestParam(value = "language", required = false) String language,
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        JwtAuthorization.requirePermission(jwt, Permission.DOCUMENTS_READ.value());
+        int validatedPage = validatePage(page);
+        int validatedSize = validateSize(size);
+        DocumentSearchCriteria criteria = new DocumentSearchCriteria(
+                parseOptionalStatus(status),
+                department == null ? null : validateDepartment(department),
+                parseOptionalDocType(docType),
+                parseOptionalLanguage(language),
+                validateSearch(search));
+        boolean canDelete = JwtAuthorization.hasPermission(jwt, Permission.DOCUMENTS_DELETE.value());
+        DocumentPage documentPage = queryService.listVisible(
+                JwtAuthorization.userId(jwt),
+                criteria,
+                validatedPage,
+                validatedSize);
+        return ResponseEntity.ok(documentAssembler.toPaged(documentPage, validatedPage, validatedSize, true, canDelete));
+    }
+
+    @GetMapping("/{documentId}")
+    ResponseEntity<Document> getDocument(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("documentId") UUID documentId) {
+        JwtAuthorization.requirePermission(jwt, Permission.DOCUMENTS_READ.value());
+        DocumentRecord document = queryService.getVisible(JwtAuthorization.userId(jwt), documentId);
+        boolean canDelete = JwtAuthorization.hasPermission(jwt, Permission.DOCUMENTS_DELETE.value());
+        return ResponseEntity.ok(documentAssembler.toContract(document, true, canDelete));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -58,7 +109,10 @@ public class DocumentController {
                 file,
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent"));
-        Document document = documentAssembler.toContract(uploadService.upload(command));
+        Document document = documentAssembler.toContract(
+                uploadService.upload(command),
+                JwtAuthorization.hasPermission(jwt, Permission.DOCUMENTS_READ.value()),
+                JwtAuthorization.hasPermission(jwt, Permission.DOCUMENTS_DELETE.value()));
         return ResponseEntity.created(URI.create("/api/v1/documents/" + document.getId())).body(document);
     }
 
@@ -99,10 +153,59 @@ public class DocumentController {
         }
     }
 
+    private static DocumentStatus parseOptionalStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return DocumentStatus.valueOf(value);
+        } catch (RuntimeException exception) {
+            throw new ApiProblemException(ErrorCodes.VALIDATION_FAILED, "Document status is invalid");
+        }
+    }
+
+    private static DocType parseOptionalDocType(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return parseDocType(value);
+    }
+
     private static String parseLanguage(String value) {
         if ("ru".equals(value) || "en".equals(value)) {
             return value;
         }
         throw new ApiProblemException(ErrorCodes.VALIDATION_FAILED, "Document language is invalid");
+    }
+
+    private static String parseOptionalLanguage(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return parseLanguage(value);
+    }
+
+    private static String validateSearch(String search) {
+        if (search == null || search.isBlank()) {
+            return null;
+        }
+        if (search.length() > 200) {
+            throw new ApiProblemException(ErrorCodes.VALIDATION_FAILED, "Document search query is invalid");
+        }
+        return search;
+    }
+
+    private static int validatePage(int page) {
+        if (page < 0) {
+            throw new ApiProblemException(ErrorCodes.VALIDATION_FAILED, "Page must be non-negative");
+        }
+        return page;
+    }
+
+    private static int validateSize(int size) {
+        if (size < 1 || size > 100) {
+            throw new ApiProblemException(ErrorCodes.VALIDATION_FAILED, "Size must be between 1 and 100");
+        }
+        return size;
     }
 }
