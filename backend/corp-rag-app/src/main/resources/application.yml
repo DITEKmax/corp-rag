@@ -86,3 +86,7 @@ app:
     cleanup-initial-delay-ms: ${JAVA_OUTBOX_CLEANUP_INITIAL_DELAY_MS:60000}
     cleanup-delay-ms: ${JAVA_OUTBOX_CLEANUP_DELAY_MS:3600000}
     retention: ${JAVA_OUTBOX_RETENTION:7d}
+  processed-events:
+    retention-days: ${JAVA_PROCESSED_EVENTS_RETENTION_DAYS:30}
+    cleanup-initial-delay-ms: ${JAVA_PROCESSED_EVENTS_CLEANUP_INITIAL_DELAY_MS:60000}
+    cleanup-delay-ms: ${JAVA_PROCESSED_EVENTS_CLEANUP_DELAY_MS:3600000}
