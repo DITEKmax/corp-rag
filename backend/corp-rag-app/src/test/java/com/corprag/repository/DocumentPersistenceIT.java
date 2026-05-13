@@ -121,6 +121,57 @@ class DocumentPersistenceIT extends PostgresIntegrationTestSupport {
                 .hasValueSatisfying(found -> assertThat(found.correlationId()).isEqualTo(correlationId));
     }
 
+    @Test
+    void indexingResultUpdatesOnlyActiveUploadedDocuments() {
+        Instant now = Instant.parse("2026-05-13T13:00:00Z");
+        DocumentRecord uploaded = document("Uploaded", sha256(), "HR", DocType.POLICY, AccessLevel.INTERNAL, now);
+        DocumentRecord deleted = document("Deleted", sha256(), "HR", DocType.POLICY, AccessLevel.INTERNAL, now.plusSeconds(1));
+        DocumentRecord alreadyIndexed = document(
+                "Indexed",
+                sha256(),
+                "HR",
+                DocType.POLICY,
+                AccessLevel.INTERNAL,
+                now.plusSeconds(2),
+                DocumentStatus.INDEXED);
+        documentRepository.insert(uploaded);
+        documentRepository.insert(deleted);
+        documentRepository.insert(alreadyIndexed);
+        assertThat(documentRepository.softDeleteVisible(deleted.id(), fullFilter(), null, now.plusSeconds(3))).isTrue();
+
+        assertThat(documentRepository.markIndexed(
+                uploaded.id(),
+                now.plusSeconds(10),
+                42,
+                "documents_chunks",
+                18,
+                87520L)).isTrue();
+        assertThat(documentRepository.markIndexed(
+                deleted.id(),
+                now.plusSeconds(10),
+                42,
+                "documents_chunks",
+                18,
+                87520L)).isFalse();
+        assertThat(documentRepository.markIndexingFailed(
+                alreadyIndexed.id(),
+                "PARSING",
+                "INVALID_FILE_FORMAT",
+                "No extractable text",
+                false,
+                0)).isFalse();
+
+        assertThat(documentRepository.findById(uploaded.id()))
+                .hasValueSatisfying(document -> {
+                    assertThat(document.status()).isEqualTo(DocumentStatus.INDEXED);
+                    assertThat(document.chunkCount()).isEqualTo(42);
+                });
+        assertThat(documentRepository.findById(deleted.id()))
+                .hasValueSatisfying(document -> assertThat(document.status()).isEqualTo(DocumentStatus.UPLOADED));
+        assertThat(documentRepository.findById(alreadyIndexed.id()))
+                .hasValueSatisfying(document -> assertThat(document.status()).isEqualTo(DocumentStatus.INDEXED));
+    }
+
     private static ResolvedAccessFilter fullFilter() {
         return new ResolvedAccessFilter(
                 Arrays.asList(AccessLevel.values()),
@@ -155,6 +206,46 @@ class DocumentPersistenceIT extends PostgresIntegrationTestSupport {
                 uploadedAt,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private static DocumentRecord document(
+            String title,
+            String contentSha256,
+            String department,
+            DocType docType,
+            AccessLevel accessLevel,
+            Instant uploadedAt,
+            DocumentStatus status) {
+        UUID id = UUID.randomUUID();
+        return new DocumentRecord(
+                id,
+                title,
+                null,
+                title + ".txt",
+                "text/plain",
+                128,
+                accessLevel,
+                department,
+                docType,
+                "en",
+                status,
+                null,
+                "corp-rag-documents",
+                "2026/05/" + id + ".txt",
+                contentSha256,
+                uploadedAt,
+                null,
+                status == DocumentStatus.INDEXED ? 3 : null,
                 null,
                 null,
                 null,

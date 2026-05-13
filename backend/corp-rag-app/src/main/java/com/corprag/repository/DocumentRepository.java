@@ -214,6 +214,7 @@ public class DocumentRepository {
                             indexing_duration_ms = :indexingDurationMs
                         WHERE id = :id
                           AND deleted_at IS NULL
+                          AND status = 'UPLOADED'
                         """)
                 .param("id", id)
                 .param("indexedAt", JdbcRowSupport.timestamp(indexedAt))
@@ -243,6 +244,7 @@ public class DocumentRepository {
                             failure_retry_count = :retryCount
                         WHERE id = :id
                           AND deleted_at IS NULL
+                          AND status = 'UPLOADED'
                         """)
                 .param("id", id)
                 .param("failureStage", failureStage)
