@@ -16,6 +16,11 @@ spring:
   sql:
     init:
       mode: never
+  rabbitmq:
+    host: ${JAVA_RABBITMQ_HOST:localhost}
+    port: ${JAVA_RABBITMQ_PORT:5672}
+    username: ${JAVA_RABBITMQ_USERNAME:corp_rag}
+    password: ${JAVA_RABBITMQ_PASSWORD:corp_rag_password}
   servlet:
     multipart:
       max-file-size: 50MB
@@ -32,6 +37,8 @@ management:
         enabled: true
       show-details: when-authorized
   health:
+    rabbit:
+      enabled: ${JAVA_RABBITMQ_HEALTH_ENABLED:false}
     livenessstate:
       enabled: true
     readinessstate:
