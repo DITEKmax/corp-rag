@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-05-13T20:37:44.396Z"
-last_activity: 2026-05-13
+status: completed
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-05-13T21:07:46.680Z"
+last_activity: 2026-05-13 -- Phase 03 marked complete
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 19
-  completed_plans: 18
-  percent: 95
+  completed_plans: 19
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 
 ## Current Position
 
-Phase: 03 (documents-events-audit) — EXECUTING
+Phase: 03 — COMPLETE
 Plan: 6 of 6
-Status: Ready to execute
-Last activity: 2026-05-13
+Status: Phase 03 complete
+Last activity: 2026-05-13 -- Phase 03 marked complete
 
-Progress: [██████████] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Progress: [██████████] 95%
 | Phase 03 P03 | 28 min | 3 tasks | 26 files |
 | Phase 03 P04 | 21 min | 3 tasks | 14 files |
 | Phase 03 P05 | 15 min | 3 tasks | 13 files |
+| Phase 03 P06 | 26 min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,10 @@ Recent locked decisions affecting current work:
 - [Phase 03]: ProblemDetails now supports structured `details`. - Upload duplicate failures return `details.existingDocumentId` for contract-aligned client handling.
 - [Phase 03]: Document list/detail/raw/delete share repository SQL visibility; raw URL issuance is audited at presign time, and delete is status-agnostic soft delete with `document.deleted` outbox. - Plan 03-04 verified hidden documents return 404 and soft-deleted rows disappear immediately.
 - [Phase 03]: RabbitMQ document lifecycle publishing uses generated constants, config-gated outbox scheduling, and persistent AMQP headers. - Plan 03-05 verified publish success/failure backoff, seven-day cleanup, and topology declarations without requiring live RabbitMQ in tests.
+- [Phase 03]: Indexing-result consumers are disabled by default and enabled in compose. — Plan 03-06 added inbound RabbitMQ listeners; default-off listener wiring keeps tests broker-independent while compose enables runtime consumption.
+- [Phase 03]: Consumer idempotency inserts processed_events before business handling and rolls back that insert on handler failure. — This implements duplicate ACK safety while allowing RabbitMQ retry or DLQ behavior when business processing fails.
+- [Phase 03]: Late terminal events for soft-deleted documents are recorded as processed without changing document status or audit details. — Plan 03-06 keeps delete semantics authoritative and prevents Python result events from resurrecting rows.
+- [Phase 03]: Correlation prefers a valid x-correlation-id AMQP header, then envelope metadata, then a generated UUID. — This preserves the HTTP to outbox to Python to Java audit chain while handling malformed or missing inbound headers.
 
 ### Pending Todos
 
@@ -128,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-13T20:37:44.362Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-05-13T21:06:49.174Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None

@@ -97,7 +97,7 @@ Plans:
 - [x] 03-05-PLAN.md - Add RabbitMQ topology and scheduled outbox publisher.
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 03-06-PLAN.md - Implement idempotent indexing-result consumers and full lifecycle verification.
+- [x] 03-06-PLAN.md - Implement idempotent indexing-result consumers and full lifecycle verification.
 
 ### Phase 4: Python Ingestion & Indexing
 **Goal**: Python turns uploaded documents into sanitized chunks, Qdrant vectors, Neo4j graph data, and completion/failure events.
