@@ -79,7 +79,7 @@ Plans:
   3. Document upload/delete events are persisted through the outbox and published to RabbitMQ.
   4. Java idempotently consumes indexed/failed events and updates document status.
   5. Significant auth, document, role, chat, indexing, and guard events are auditable.
-**Plans:** 2/6 plans executed
+**Plans:** 4/6 plans executed
 Plans:
 **Wave 1**
 - [x] 03-01-PLAN.md - Align Phase 3 REST, event, and constants contracts.
@@ -91,7 +91,7 @@ Plans:
 - [x] 03-03-PLAN.md - Implement MinIO/Tika document upload and document.uploaded outbox creation.
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 03-04-PLAN.md - Implement visible document list/detail/raw/delete APIs and document.deleted outbox creation.
+- [x] 03-04-PLAN.md - Implement visible document list/detail/raw/delete APIs and document.deleted outbox creation.
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 03-05-PLAN.md - Add RabbitMQ topology and scheduled outbox publisher.

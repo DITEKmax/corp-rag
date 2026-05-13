@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-05-13T19:50:28.395Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-05-13T20:15:28.848Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 19
-  completed_plans: 16
-  percent: 84
+  completed_plans: 17
+  percent: 89
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 03 (documents-events-audit) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-05-13
 
-Progress: [████████░░] 84%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -46,7 +46,7 @@ Progress: [████████░░] 84%
 |-------|-------|-------|----------|
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
-| 03 | 3 | - | - |
+| 03 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -69,6 +69,7 @@ Progress: [████████░░] 84%
 | Phase 03 P01 | 31 min | 3 tasks | 3 files |
 | Phase 03 P02 | 12 min | 3 tasks | 18 files |
 | Phase 03 P03 | 28 min | 3 tasks | 26 files |
+| Phase 03 P04 | 21 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,7 @@ Recent locked decisions affecting current work:
 - [Phase 03]: Document upload writes MinIO objects before the metadata/outbox/audit transaction. - This prevents `document.uploaded` publication for missing objects; orphan cleanup after DB failure is deferred to Phase 7+ housekeeping.
 - [Phase 03]: Java MinIO bucket initialization is compose-enabled and default-disabled. - `JAVA_MINIO_INITIALIZE_BUCKET=true` gives local runtime startup initialization while unit/app-context tests avoid requiring MinIO.
 - [Phase 03]: ProblemDetails now supports structured `details`. - Upload duplicate failures return `details.existingDocumentId` for contract-aligned client handling.
+- [Phase 03]: Document list/detail/raw/delete share repository SQL visibility; raw URL issuance is audited at presign time, and delete is status-agnostic soft delete with `document.deleted` outbox. - Plan 03-04 verified hidden documents return 404 and soft-deleted rows disappear immediately.
 
 ### Pending Todos
 
@@ -124,6 +126,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-13T19:50:28.358Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-05-13T20:15:10.855Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
