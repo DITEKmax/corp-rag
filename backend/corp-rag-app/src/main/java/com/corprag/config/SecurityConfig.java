@@ -3,6 +3,7 @@ package com.corprag.config;
 import com.corprag.adapter.rest.ProblemDetailsWriter;
 import com.corprag.contracts.constants.ErrorCodes;
 import com.corprag.security.CookieBearerTokenResolver;
+import com.corprag.security.CorrelationIdFilter;
 import com.corprag.security.MustChangePasswordFilter;
 import com.corprag.security.OriginRefererValidationFilter;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
@@ -47,6 +48,7 @@ public class SecurityConfig {
             AppSecurityProperties properties,
             ProblemDetailsWriter problemDetailsWriter) throws Exception {
         CookieBearerTokenResolver tokenResolver = new CookieBearerTokenResolver(properties);
+        CorrelationIdFilter correlationIdFilter = new CorrelationIdFilter();
         OriginRefererValidationFilter originFilter = new OriginRefererValidationFilter(properties, problemDetailsWriter);
         MustChangePasswordFilter mustChangePasswordFilter = new MustChangePasswordFilter(problemDetailsWriter);
 
@@ -71,7 +73,8 @@ public class SecurityConfig {
                         .requestMatchers("/", "/api/v1/", "/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(originFilter, BearerTokenAuthenticationFilter.class)
+                .addFilterBefore(correlationIdFilter, BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(originFilter, CorrelationIdFilter.class)
                 .addFilterAfter(mustChangePasswordFilter, BearerTokenAuthenticationFilter.class)
                 .build();
     }

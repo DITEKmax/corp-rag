@@ -11,9 +11,11 @@ import com.corprag.repository.AuditEventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.MDC;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,6 +34,11 @@ class AuditEventWriterTest {
     @BeforeEach
     void setUp() {
         writer = new AuditEventWriter(auditEventRepository, new ObjectMapper());
+    }
+
+    @AfterEach
+    void tearDown() {
+        MDC.clear();
     }
 
     @Test
@@ -57,6 +64,28 @@ class AuditEventWriterTest {
         assertThat(event.actorUserId()).isEqualTo(ACTOR_ID);
         assertThat(event.detailsJson()).contains("\"role\":\"ADMIN\"");
         assertThat(event.correlationId()).isNotNull();
+    }
+
+    @Test
+    void usesMdcCorrelationIdWhenPresent() {
+        UUID correlationId = UUID.fromString("550e8400-e29b-41d4-a716-446655440099");
+        MDC.put("correlationId", correlationId.toString());
+
+        writer.writeEvent(
+                "DOCUMENT",
+                "DOCUMENT_UPLOADED",
+                AuditOutcome.SUCCESS,
+                ACTOR_ID,
+                null,
+                "DOCUMENT",
+                UUID.randomUUID(),
+                "127.0.0.1",
+                "JUnit",
+                Map.of());
+
+        ArgumentCaptor<AuditEventEntry> captor = ArgumentCaptor.forClass(AuditEventEntry.class);
+        verify(auditEventRepository).insert(captor.capture());
+        assertThat(captor.getValue().correlationId()).isEqualTo(correlationId);
     }
 
     @Test

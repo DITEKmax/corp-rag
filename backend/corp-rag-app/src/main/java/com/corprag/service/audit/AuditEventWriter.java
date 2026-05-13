@@ -3,6 +3,7 @@ package com.corprag.service.audit;
 import com.corprag.domain.AuditEventEntry;
 import com.corprag.domain.AuditOutcome;
 import com.corprag.repository.AuditEventRepository;
+import com.corprag.security.CorrelationIdFilter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -10,6 +11,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,7 +77,7 @@ public class AuditEventWriter {
                     ipAddress,
                     userAgent,
                     detailsJson(details),
-                    UUID.randomUUID()));
+                    correlationId()));
         } catch (RuntimeException exception) {
             LOGGER.warn("Failed to write audit event {}", eventType, exception);
         }
@@ -87,5 +89,17 @@ public class AuditEventWriter {
         } catch (JsonProcessingException exception) {
             return "{}";
         }
+    }
+
+    private static UUID correlationId() {
+        String value = MDC.get(CorrelationIdFilter.MDC_KEY);
+        if (value != null && !value.isBlank()) {
+            try {
+                return UUID.fromString(value);
+            } catch (IllegalArgumentException ignored) {
+                // Fall through to background-job fallback.
+            }
+        }
+        return UUID.randomUUID();
     }
 }
