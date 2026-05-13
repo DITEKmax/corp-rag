@@ -20,12 +20,12 @@
 
 ### Documents and Events
 
-- [ ] **DOC-01**: Authorized user can upload a document file with metadata and store the file in MinIO.
-- [ ] **DOC-02**: User can list, filter, inspect, delete, and open raw documents according to permissions.
-- [ ] **DOC-03**: Java tracks document indexing status, failure reason, chunk count, and indexed timestamp.
-- [ ] **EVT-01**: Java publishes document upload/delete events through an outbox-backed RabbitMQ topology.
-- [ ] **EVT-02**: Java consumes document indexed/failed events idempotently and updates document status.
-- [ ] **AUD-01**: Java records audit events for login, document, chat, user, role, indexing, and guard actions.
+- [x] **DOC-01**: Authorized user can upload a document file with metadata and store the file in MinIO.
+- [x] **DOC-02**: User can list, filter, inspect, delete, and open raw documents according to permissions.
+- [x] **DOC-03**: Java tracks document indexing status, failure reason, chunk count, and indexed timestamp.
+- [x] **EVT-01**: Java publishes document upload/delete events through an outbox-backed RabbitMQ topology.
+- [x] **EVT-02**: Java consumes document indexed/failed events idempotently and updates document status.
+- [x] **AUD-01**: Java records audit events for login, document, chat, user, role, indexing, and guard actions.
 
 ### Python Ingestion
 
@@ -96,12 +96,12 @@
 | AUTH-02 | Phase 2 | Complete |
 | AUTH-03 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Complete |
-| DOC-01 | Phase 3 | Pending |
-| DOC-02 | Phase 3 | Pending |
-| DOC-03 | Phase 3 | Pending |
-| EVT-01 | Phase 3 | Pending |
-| EVT-02 | Phase 3 | Pending |
-| AUD-01 | Phase 3 | Pending |
+| DOC-01 | Phase 3 | Complete |
+| DOC-02 | Phase 3 | Complete |
+| DOC-03 | Phase 3 | Complete |
+| EVT-01 | Phase 3 | Complete |
+| EVT-02 | Phase 3 | Complete |
+| AUD-01 | Phase 3 | Complete |
 | ING-01 | Phase 4 | Pending |
 | ING-02 | Phase 4 | Pending |
 | ING-03 | Phase 4 | Pending |

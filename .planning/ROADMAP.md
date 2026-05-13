@@ -79,10 +79,10 @@ Plans:
   3. Document upload/delete events are persisted through the outbox and published to RabbitMQ.
   4. Java idempotently consumes indexed/failed events and updates document status.
   5. Significant auth, document, role, chat, indexing, and guard events are auditable.
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 Plans:
 **Wave 1**
-- [ ] 03-01-PLAN.md - Align Phase 3 REST, event, and constants contracts.
+- [x] 03-01-PLAN.md - Align Phase 3 REST, event, and constants contracts.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 03-02-PLAN.md - Add document/outbox/processed-event schema, repositories, and correlation foundation.
@@ -167,7 +167,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
-| 3. Documents, Events & Audit | 0/6 | Ready to execute | - |
+| 3. Documents, Events & Audit | 1/6 | In Progress | - |
 | 4. Python Ingestion & Indexing | 0/TBD | Not started | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
