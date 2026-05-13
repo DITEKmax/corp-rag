@@ -262,8 +262,10 @@ operations:
     summary: Java потребляет события об ошибке индексации
     description: |
       Идемпотентный consumer. Обновляет статус документа на `INDEXING_FAILED`,
-      записывает `failureReason` и `stage`. Если `retryable=true` — может
-      инициировать повторную публикацию через Outbox.
+      записывает `failureReason`, `stage`, `retryable` и `retryCount` в строку
+      `documents` и audit details. Поле `retryable` читается информационно и
+      НЕ инициирует автоматический retry в Phase 3 (D-34/D-35); manual reindex
+      deferred to Phase 7+.
     tags:
       - name: lifecycle
 
@@ -520,7 +522,7 @@ components:
         contentSha256:
           type: string
           description: Hex-encoded SHA-256 digest of the uploaded source file.
-          pattern: '^[a-fA-F0-9]{64}$'
+          pattern: '^[a-f0-9]{64}$'
           example: "1c8f2f5f3b8f9d1a7c4b7c5a4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70"
         accessLevel:
           type: string

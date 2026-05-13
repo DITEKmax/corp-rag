@@ -128,6 +128,10 @@ completed: "2026-05-13"
 - Maven test output still logs Docker/Testcontainers discovery errors for Docker-disabled integration tests, but the suite exits successfully.
 - Known limitation from the plan: if MinIO `putObject` succeeds and the later metadata/outbox/audit transaction fails, the object remains orphaned. Cleanup is deferred to a Phase 7+ housekeeping job.
 
+## Deferred Concerns
+
+- **Upload buffering:** `DocumentUploadPreparer` buffers full file content in memory for SHA-256 and MIME sniffing, bounded by the current 50 MB upload limit. This is acceptable for the MVP path, but concurrent production uploads can double memory pressure. For Phase 7+ optimization, switch to `TikaInputStream` over `DigestInputStream` with a marked header buffer so MIME detection does not require an additional full-byte-array pass.
+
 ## Verification
 
 - **Passed:** `$env:MAVEN_CMD='C:\dev\apache-maven-3.9.15\bin\mvn.cmd'; uv run --project ai-service python scripts\verify-contracts.py`

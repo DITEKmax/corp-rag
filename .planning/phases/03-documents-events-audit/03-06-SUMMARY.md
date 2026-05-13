@@ -147,6 +147,11 @@ Each task was committed atomically:
 - Plain `python.exe` is not available in this Windows runner, so the contract verifier was run through the repository Python environment with `uv run --project ai-service python scripts\verify-contracts.py`.
 - Docker is unavailable to Testcontainers in this runner. Docker-gated integration tests are compiled and wired with `@Testcontainers(disabledWithoutDocker = true)`; they will execute when Docker is available and are not silently skipped in that environment.
 
+## Deferred Concerns
+
+- **Publisher confirms:** Spring AMQP publisher confirms are not implemented in Phase 3. `OutboxPublisher` calls `markPublished` after `RabbitTemplate.convertAndSend` returns, without waiting for broker persistence acknowledgment. For Phase 7+ production hardening, wire `CorrelationData` plus `ConfirmCallback` and only mark rows published on positive confirms; mark failures with backoff on negative ack or timeout.
+- **Outbox batch transaction scope:** `OutboxPublisher.publishReady` processes the ready batch in one transaction. This is acceptable under the Phase 3 at-least-once delivery contract because idempotent consumers absorb duplicate delivery, but a later failure can roll back already-marked siblings and cause re-publication on the next tick. For Phase 7+, split each event into a `REQUIRES_NEW` transaction so partial batch failures do not re-publish already-confirmed rows.
+
 ## Verification
 
 - `C:\dev\apache-maven-3.9.15\bin\mvn.cmd --% -q -pl corp-rag-app -am test` passed.
