@@ -818,6 +818,10 @@ paths:
       operationId: listDocuments
       tags: [documents]
       summary: Список документов с фильтрами и пагинацией
+      description: |
+        Lists only active documents visible to the caller after RBAC access-level,
+        department, and document-type filtering. Additional query parameters filter
+        inside that visible active set.
       x-required-permissions: ["documents.read"]
       security:
         - cookieAuth: []
@@ -862,10 +866,10 @@ paths:
       tags: [documents]
       summary: Загрузить документ
       description: |
-        Загрузка файла + метаданные через `multipart/form-data`.
-        Файл сохраняется в MinIO, метаданные в Postgres,
-        событие `document.uploaded` публикуется в RabbitMQ (см. events-v1.yaml).
-        Лимит размера: 50 МБ.
+        Uploads one source document plus metadata through `multipart/form-data`.
+        The backend stores the file in MinIO, persists metadata in PostgreSQL with
+        status `UPLOADED`, and publishes `document.uploaded` through the outbox
+        contract in events-v1.yaml. The file size limit is 50 MB.
       x-required-permissions: ["documents.upload"]
       security:
         - cookieAuth: []
@@ -943,6 +947,10 @@ paths:
       operationId: getDocument
       tags: [documents]
       summary: Детали документа
+      description: |
+        Returns metadata only for active documents visible to the caller. Existing
+        documents outside the caller's visibility, and soft-deleted documents, are
+        returned as `404 DOCUMENT_NOT_FOUND`.
       x-required-permissions: ["documents.read"]
       security:
         - cookieAuth: []
@@ -964,8 +972,9 @@ paths:
       tags: [documents]
       summary: Удалить документ
       description: |
-        Soft delete документа. Публикует событие `document.deleted` — Python
-        очистит индексы (Qdrant + Neo4j).
+        Soft-deletes any visible active document immediately, regardless of current
+        document status. The backend publishes `document.deleted`; Python cleanup
+        of Qdrant and Neo4j indexes is asynchronous.
       x-required-permissions: ["documents.delete"]
       security:
         - cookieAuth: []
@@ -978,12 +987,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/DocumentNotFound'
-        '409':
-          description: Документ в процессе индексации
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
 
   /documents/{documentId}/raw:
     parameters:
@@ -993,9 +996,10 @@ paths:
       tags: [documents]
       summary: Получить presigned URL для скачивания файла
       description: |
-        Возвращает временный URL к файлу в MinIO. URL действителен 5 минут.
-        Frontend использует его для open-in-tab / download. Java не проксирует
-        бинарные данные.
+        Returns a temporary MinIO URL for an active document visible to the caller.
+        Existing documents outside the caller's visibility, and soft-deleted
+        documents, are returned as `404 DOCUMENT_NOT_FOUND`. The URL is valid for
+        5 minutes. Java never proxies file bytes.
       x-required-permissions: ["documents.read"]
       security:
         - cookieAuth: []
@@ -1618,11 +1622,11 @@ components:
     DocumentStatus:
       type: string
       description: |
-        Статус документа в pipeline индексации:
-        - `UPLOADED` — файл сохранён, событие отправлено
-        - `INDEXING` — Python обрабатывает
-        - `INDEXED` — индексация успешно завершена
-        - `INDEXING_FAILED` — невосстановимая ошибка
+        Document indexing lifecycle status.
+        - `UPLOADED` is set by Java after the source file and metadata are stored.
+        - `INDEXING` is reserved for later phases and is not set by Java in Phase 3.
+        - `INDEXED` is set by Java after a Python `document.indexed` event.
+        - `INDEXING_FAILED` is terminal in Phase 3 after a Python failure event.
       enum: [UPLOADED, INDEXING, INDEXED, INDEXING_FAILED]
     ConversationRole:
       type: string
@@ -2316,6 +2320,10 @@ components:
         correlationId:
           type: string
           format: uuid
+        details:
+          type: object
+          description: Optional machine-readable context, for example `existingDocumentId` on duplicate document uploads.
+          additionalProperties: true
         validationErrors:
           type: array
           items:
