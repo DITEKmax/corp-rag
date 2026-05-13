@@ -36,8 +36,8 @@ public class OutboxService {
                 EventRoutingKeys.DOCUMENT_UPLOADED,
                 EventRoutingKeys.DOCUMENT_UPLOADED,
                 ExchangeNames.DOCUMENTS_TOPIC,
-                json(envelope(eventId, correlationId, occurredAt, document)),
-                json(headers(correlationId)),
+                json(uploadedEnvelope(eventId, correlationId, occurredAt, document)),
+                json(headers(correlationId, EventRoutingKeys.DOCUMENT_UPLOADED)),
                 correlationId,
                 occurredAt,
                 null,
@@ -48,7 +48,32 @@ public class OutboxService {
         return event;
     }
 
-    private static Map<String, Object> envelope(
+    public OutboxEventRecord createDocumentDeleted(
+            DocumentRecord document,
+            UUID deletedBy,
+            UUID correlationId,
+            Instant deletedAt) {
+        UUID eventId = UUID.randomUUID();
+        OutboxEventRecord event = new OutboxEventRecord(
+                eventId,
+                "DOCUMENT",
+                document.id(),
+                EventRoutingKeys.DOCUMENT_DELETED,
+                EventRoutingKeys.DOCUMENT_DELETED,
+                ExchangeNames.DOCUMENTS_TOPIC,
+                json(deletedEnvelope(eventId, correlationId, deletedAt, document.id(), deletedBy)),
+                json(headers(correlationId, EventRoutingKeys.DOCUMENT_DELETED)),
+                correlationId,
+                deletedAt,
+                null,
+                0,
+                null,
+                deletedAt);
+        outboxEventRepository.insert(event);
+        return event;
+    }
+
+    private static Map<String, Object> uploadedEnvelope(
             UUID eventId,
             UUID correlationId,
             Instant occurredAt,
@@ -80,10 +105,32 @@ public class OutboxService {
                 "payload", payload);
     }
 
-    private static Map<String, Object> headers(UUID correlationId) {
+    private static Map<String, Object> deletedEnvelope(
+            UUID eventId,
+            UUID correlationId,
+            Instant occurredAt,
+            UUID documentId,
+            UUID deletedBy) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("documentId", documentId);
+        payload.put("deletedBy", deletedBy);
+        payload.put("deletedAt", occurredAt);
+
+        return Map.of(
+                "metadata", Map.of(
+                        "eventId", eventId,
+                        "eventType", EventRoutingKeys.DOCUMENT_DELETED,
+                        "eventVersion", EVENT_VERSION,
+                        "occurredAt", occurredAt,
+                        "correlationId", correlationId,
+                        "sourceService", SOURCE_SERVICE),
+                "payload", payload);
+    }
+
+    private static Map<String, Object> headers(UUID correlationId, String eventType) {
         return Map.of(
                 "x-correlation-id", correlationId,
-                "x-event-type", EventRoutingKeys.DOCUMENT_UPLOADED,
+                "x-event-type", eventType,
                 "x-event-version", EVENT_VERSION);
     }
 

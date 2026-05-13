@@ -87,6 +87,45 @@ class OutboxServiceTest {
                 .containsEntry("x-event-version", "1.0.0");
     }
 
+    @Test
+    void createDocumentDeletedPersistsAsyncApiEnvelopeAndCorrelationHeaders() throws Exception {
+        OutboxEventRecord returned = service.createDocumentDeleted(document(), OWNER_ID, CORRELATION_ID, UPLOADED_AT);
+
+        ArgumentCaptor<OutboxEventRecord> captor = ArgumentCaptor.forClass(OutboxEventRecord.class);
+        verify(repository).insert(captor.capture());
+        OutboxEventRecord event = captor.getValue();
+        assertThat(returned).isEqualTo(event);
+        assertThat(event.aggregateType()).isEqualTo("DOCUMENT");
+        assertThat(event.aggregateId()).isEqualTo(DOCUMENT_ID);
+        assertThat(event.eventType()).isEqualTo(EventRoutingKeys.DOCUMENT_DELETED);
+        assertThat(event.routingKey()).isEqualTo(EventRoutingKeys.DOCUMENT_DELETED);
+        assertThat(event.exchangeName()).isEqualTo(ExchangeNames.DOCUMENTS_TOPIC);
+        assertThat(event.correlationId()).isEqualTo(CORRELATION_ID);
+        assertThat(event.createdAt()).isEqualTo(UPLOADED_AT);
+        assertThat(event.nextAttemptAt()).isEqualTo(UPLOADED_AT);
+
+        Map<String, Object> envelope = read(event.payloadJson());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> metadata = (Map<String, Object>) envelope.get("metadata");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) envelope.get("payload");
+        assertThat(metadata)
+                .containsEntry("eventId", event.id().toString())
+                .containsEntry("eventType", EventRoutingKeys.DOCUMENT_DELETED)
+                .containsEntry("eventVersion", "1.0.0")
+                .containsEntry("occurredAt", UPLOADED_AT.toString())
+                .containsEntry("correlationId", CORRELATION_ID.toString())
+                .containsEntry("sourceService", "corp-rag-backend");
+        assertThat(payload)
+                .containsEntry("documentId", DOCUMENT_ID.toString())
+                .containsEntry("deletedBy", OWNER_ID.toString())
+                .containsEntry("deletedAt", UPLOADED_AT.toString());
+        assertThat(read(event.headersJson()))
+                .containsEntry("x-correlation-id", CORRELATION_ID.toString())
+                .containsEntry("x-event-type", EventRoutingKeys.DOCUMENT_DELETED)
+                .containsEntry("x-event-version", "1.0.0");
+    }
+
     private Map<String, Object> read(String json) throws Exception {
         return objectMapper.readValue(json, new TypeReference<>() {
         });

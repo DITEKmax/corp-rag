@@ -12,6 +12,7 @@ import com.corprag.domain.DocumentSearchCriteria;
 import com.corprag.domain.DocumentStatus;
 import com.corprag.security.Permission;
 import com.corprag.service.document.DocumentQueryService;
+import com.corprag.service.document.DocumentDeletionService;
 import com.corprag.service.document.DocumentRawUrl;
 import com.corprag.service.document.DocumentRawUrlService;
 import com.corprag.service.document.DocumentUploadCommand;
@@ -26,6 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,16 +45,19 @@ public class DocumentController {
     private final DocumentUploadService uploadService;
     private final DocumentQueryService queryService;
     private final DocumentRawUrlService rawUrlService;
+    private final DocumentDeletionService deletionService;
     private final DocumentAssembler documentAssembler;
 
     public DocumentController(
             DocumentUploadService uploadService,
             DocumentQueryService queryService,
             DocumentRawUrlService rawUrlService,
+            DocumentDeletionService deletionService,
             DocumentAssembler documentAssembler) {
         this.uploadService = uploadService;
         this.queryService = queryService;
         this.rawUrlService = rawUrlService;
+        this.deletionService = deletionService;
         this.documentAssembler = documentAssembler;
     }
 
@@ -108,6 +113,20 @@ public class DocumentController {
         return ResponseEntity.ok(new GetDocumentRaw200Response()
                 .url(rawUrl.url())
                 .expiresAt(OffsetDateTime.ofInstant(rawUrl.expiresAt(), ZoneOffset.UTC)));
+    }
+
+    @DeleteMapping("/{documentId}")
+    ResponseEntity<Void> deleteDocument(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("documentId") UUID documentId,
+            HttpServletRequest request) {
+        JwtAuthorization.requirePermission(jwt, Permission.DOCUMENTS_DELETE.value());
+        deletionService.deleteVisible(
+                JwtAuthorization.userId(jwt),
+                documentId,
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent"));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

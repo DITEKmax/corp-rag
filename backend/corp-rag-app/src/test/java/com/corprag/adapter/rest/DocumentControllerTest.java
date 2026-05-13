@@ -2,10 +2,12 @@ package com.corprag.adapter.rest;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -21,6 +23,7 @@ import com.corprag.domain.DocumentPage;
 import com.corprag.domain.DocumentRecord;
 import com.corprag.domain.DocumentSearchCriteria;
 import com.corprag.domain.DocumentStatus;
+import com.corprag.service.document.DocumentDeletionService;
 import com.corprag.service.document.DocumentQueryService;
 import com.corprag.service.document.DocumentRawUrl;
 import com.corprag.service.document.DocumentRawUrlService;
@@ -66,6 +69,9 @@ class DocumentControllerTest {
 
     @MockBean
     private DocumentRawUrlService rawUrlService;
+
+    @MockBean
+    private DocumentDeletionService deletionService;
 
     @Test
     void listRequiresDocumentsReadPermission() throws Exception {
@@ -159,6 +165,41 @@ class DocumentControllerTest {
 
         mockMvc.perform(get("/api/v1/documents/{documentId}/raw", DOCUMENT_ID)
                         .with(jwtWith(AuthTestFixtures.PERMISSION_DOCUMENTS_READ)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("DOCUMENT_NOT_FOUND"));
+    }
+
+    @Test
+    void deleteRequiresDocumentsDeletePermission() throws Exception {
+        mockMvc.perform(delete("/api/v1/documents/{documentId}", DOCUMENT_ID)
+                        .with(jwtWith(AuthTestFixtures.PERMISSION_DOCUMENTS_READ)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("INSUFFICIENT_PERMISSIONS"));
+
+        verifyNoInteractions(deletionService);
+    }
+
+    @Test
+    void deleteVisibleDocumentReturnsNoContent() throws Exception {
+        mockMvc.perform(delete("/api/v1/documents/{documentId}", DOCUMENT_ID)
+                        .with(jwtWith(AuthTestFixtures.PERMISSION_DOCUMENTS_DELETE)))
+                .andExpect(status().isNoContent());
+
+        verify(deletionService).deleteVisible(
+                org.mockito.ArgumentMatchers.eq(AuthTestFixtures.ADMIN_USER_ID),
+                org.mockito.ArgumentMatchers.eq(DOCUMENT_ID),
+                any(),
+                any());
+    }
+
+    @Test
+    void deleteInvisibleDocumentReturnsDocumentNotFound() throws Exception {
+        doThrow(new ApiProblemException(ErrorCodes.DOCUMENT_NOT_FOUND, "Document not found"))
+                .when(deletionService)
+                .deleteVisible(any(), any(), any(), any());
+
+        mockMvc.perform(delete("/api/v1/documents/{documentId}", DOCUMENT_ID)
+                        .with(jwtWith(AuthTestFixtures.PERMISSION_DOCUMENTS_DELETE)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENT_NOT_FOUND"));
     }
