@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.MDC;
 import org.springframework.http.MediaType;
@@ -23,6 +24,14 @@ public class ProblemDetailsWriter {
     }
 
     public ProblemDetail problem(ErrorCodes.ErrorCode errorCode, String detail, HttpServletRequest request) {
+        return problem(errorCode, detail, request, Map.of());
+    }
+
+    public ProblemDetail problem(
+            ErrorCodes.ErrorCode errorCode,
+            String detail,
+            HttpServletRequest request,
+            Map<String, Object> details) {
         return new ProblemDetail()
                 .type(URI.create(errorCode.problemType()))
                 .title(errorCode.defaultTitle())
@@ -30,7 +39,8 @@ public class ProblemDetailsWriter {
                 .detail(detail)
                 .instance(request == null ? null : request.getRequestURI())
                 .errorCode(errorCode.code())
-                .correlationId(correlationId());
+                .correlationId(correlationId())
+                .details(details == null ? Map.of() : details);
     }
 
     public void write(

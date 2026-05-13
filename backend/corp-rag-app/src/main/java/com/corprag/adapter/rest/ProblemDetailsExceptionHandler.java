@@ -24,7 +24,8 @@ public class ProblemDetailsExceptionHandler {
         ProblemDetail problem = problemDetailsWriter.problem(
                 exception.errorCode(),
                 exception.getMessage(),
-                request);
+                request,
+                exception.details());
         return ResponseEntity.status(exception.errorCode().httpStatus()).body(problem);
     }
 
