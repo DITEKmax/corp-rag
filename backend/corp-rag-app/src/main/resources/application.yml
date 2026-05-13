@@ -75,3 +75,14 @@ app:
     bucket: ${JAVA_MINIO_BUCKET:corp-rag-documents}
     raw-url-ttl: ${JAVA_MINIO_RAW_URL_TTL:5m}
     initialize-bucket: ${JAVA_MINIO_INITIALIZE_BUCKET:false}
+  outbox-publisher:
+    enabled: ${JAVA_OUTBOX_PUBLISHER_ENABLED:false}
+    batch-size: ${JAVA_OUTBOX_PUBLISHER_BATCH_SIZE:50}
+    initial-delay-ms: ${JAVA_OUTBOX_PUBLISHER_INITIAL_DELAY_MS:5000}
+    poll-delay-ms: ${JAVA_OUTBOX_PUBLISHER_POLL_DELAY_MS:5000}
+    initial-backoff: ${JAVA_OUTBOX_PUBLISHER_INITIAL_BACKOFF:1s}
+    max-backoff: ${JAVA_OUTBOX_PUBLISHER_MAX_BACKOFF:5m}
+    cleanup-enabled: ${JAVA_OUTBOX_CLEANUP_ENABLED:true}
+    cleanup-initial-delay-ms: ${JAVA_OUTBOX_CLEANUP_INITIAL_DELAY_MS:60000}
+    cleanup-delay-ms: ${JAVA_OUTBOX_CLEANUP_DELAY_MS:3600000}
+    retention: ${JAVA_OUTBOX_RETENTION:7d}

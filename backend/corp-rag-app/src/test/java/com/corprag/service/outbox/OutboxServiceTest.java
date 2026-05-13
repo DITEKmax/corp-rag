@@ -33,7 +33,8 @@ class OutboxServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    private final OutboxService service = new OutboxService(repository, objectMapper);
+    private final EventEnvelopeFactory eventEnvelopeFactory = new EventEnvelopeFactory(objectMapper);
+    private final OutboxService service = new OutboxService(repository, eventEnvelopeFactory);
 
     @Test
     void createDocumentUploadedPersistsAsyncApiEnvelopeAndCorrelationHeaders() throws Exception {
