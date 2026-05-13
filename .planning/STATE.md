@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready for 03-02-PLAN.md
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-05-13T18:50:50.707Z"
+status: executing
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-05-13T19:13:51.654Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 19
-  completed_plans: 14
-  percent: 74
+  completed_plans: 15
+  percent: 79
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 03 — Documents, Events & Audit
+**Current focus:** Phase 03 — documents-events-audit
 
 ## Current Position
 
-Phase: 03 (Documents, Events & Audit) — EXECUTING
-Plan: 2 of 6
-Status: Ready for 03-02-PLAN.md
+Phase: 03 (documents-events-audit) — EXECUTING
+Plan: 3 of 6
+Status: Ready to execute
 Last activity: 2026-05-13
 
-Progress: [███████░░░] 74%
+Progress: [████████░░] 79%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 13
+- Total plans completed: 15
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -46,6 +46,7 @@ Progress: [███████░░░] 74%
 |-------|-------|-------|----------|
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
+| 03 | 2 | - | - |
 
 **Recent Trend:**
 
@@ -66,6 +67,7 @@ Progress: [███████░░░] 74%
 | Phase 02 P06 | 28 min | 3 tasks | 15 files |
 | Phase 02 P07 | 29 min | 3 tasks | 22 files |
 | Phase 03 P01 | 31 min | 3 tasks | 3 files |
+| Phase 03 P02 | 12 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -95,6 +97,9 @@ Recent locked decisions affecting current work:
 - [Phase 02]: Access policies attach to roles and are additive when resolving user visibility. - PUBLIC remains visible by default, while non-public access requires resolved policy coverage.
 - [Phase 02]: Generic mutation audit events join the caller transaction, while auth audit keeps independent transaction behavior where needed. - This avoids FK races during newly-created user flows.
 - [Phase 02]: PostgreSQL integration tests use a JVM-lifetime singleton Testcontainer to stay compatible with Spring context caching. - Final verify executed Failsafe ITs with skipped count 0.
+- [Phase 03]: Document visibility predicates are owned by DocumentRepository and built from ResolvedAccessFilter. - Plan 03-02 keeps active-row, doc type, department wildcard, and access-level filtering in SQL before pagination/counting.
+- [Phase 03]: Request correlation uses MDC key correlationId populated by CorrelationIdFilter. - ProblemDetails and AuditEventWriter reuse the same UUID, while absent or invalid incoming headers are replaced with generated UUIDs.
+- [Phase 03]: Outbox payload and headers are persisted as JSONB at the repository boundary. - Later services own typed document event envelope construction and AMQP publication behavior.
 
 ### Pending Todos
 
@@ -115,6 +120,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-13T18:49:31.321Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-05-13T19:13:51.621Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
