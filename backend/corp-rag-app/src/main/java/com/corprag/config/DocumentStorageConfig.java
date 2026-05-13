@@ -11,8 +11,12 @@ public class DocumentStorageConfig {
 
     @Bean
     MinioClient minioClient(DocumentStorageProperties properties) {
+        String endpoint = properties.getEndpoint();
+        if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+            endpoint = (properties.isSecure() ? "https://" : "http://") + endpoint;
+        }
         return MinioClient.builder()
-                .endpoint(properties.getEndpoint())
+                .endpoint(endpoint)
                 .credentials(properties.getAccessKey(), properties.getSecretKey())
                 .build();
     }

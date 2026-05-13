@@ -12,6 +12,7 @@ public class DocumentStorageProperties {
     private boolean secure;
     private String bucket = "corp-rag-documents";
     private Duration rawUrlTtl = Duration.ofMinutes(5);
+    private boolean initializeBucket;
 
     public String getEndpoint() {
         return endpoint;
@@ -59,5 +60,13 @@ public class DocumentStorageProperties {
 
     public void setRawUrlTtl(Duration rawUrlTtl) {
         this.rawUrlTtl = rawUrlTtl;
+    }
+
+    public boolean isInitializeBucket() {
+        return initializeBucket;
+    }
+
+    public void setInitializeBucket(boolean initializeBucket) {
+        this.initializeBucket = initializeBucket;
     }
 }

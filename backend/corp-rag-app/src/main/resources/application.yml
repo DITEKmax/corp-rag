@@ -67,3 +67,4 @@ app:
     secure: ${JAVA_MINIO_SECURE:false}
     bucket: ${JAVA_MINIO_BUCKET:corp-rag-documents}
     raw-url-ttl: ${JAVA_MINIO_RAW_URL_TTL:5m}
+    initialize-bucket: ${JAVA_MINIO_INITIALIZE_BUCKET:false}

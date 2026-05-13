@@ -133,6 +133,7 @@ services:
       JAVA_MINIO_SECURE: ${JAVA_MINIO_SECURE:-false}
       JAVA_MINIO_BUCKET: ${JAVA_MINIO_BUCKET:-corp-rag-documents}
       JAVA_MINIO_RAW_URL_TTL: ${JAVA_MINIO_RAW_URL_TTL:-5m}
+      JAVA_MINIO_INITIALIZE_BUCKET: ${JAVA_MINIO_INITIALIZE_BUCKET:-true}
     ports:
       - "${JAVA_BACKEND_PORT:-8080}:8080"
     depends_on:
