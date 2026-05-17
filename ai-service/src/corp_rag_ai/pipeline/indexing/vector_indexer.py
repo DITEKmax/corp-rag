@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Protocol
 from uuid import UUID
 
 from qdrant_client import AsyncQdrantClient, models
 
+from corp_rag_ai.domain.chunks import ChildChunk
 from corp_rag_ai.pipeline.indexing.embedding import BGE_M3_DENSE_DIMENSION
+from corp_rag_ai.pipeline.indexing.embedding import EmbeddingVector
 
 COLLECTION_NAME = "documents_chunks"
 DENSE_VECTOR_NAME = "dense"
@@ -18,19 +21,56 @@ class QdrantSchemaError(RuntimeError):
     """Raised when an existing Qdrant collection violates the locked schema."""
 
 
+class EmbeddingProvider(Protocol):
+    def embed_texts(self, texts: Sequence[str]) -> tuple[EmbeddingVector, ...]:
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class VectorIndexChunk:
+    child: ChildChunk
+    document_title: str
+    language: str
+    doc_type: str
+    department: str
+    access_level: str
+    is_sanitized: bool = True
+    sanitizer_flags: tuple[str, ...] = ()
+    content_for_embedding: str | None = None
+
+    @property
+    def embedding_text(self) -> str:
+        if self.content_for_embedding is not None:
+            return self.content_for_embedding
+        return self.child.content_for_embedding
+
+    def to_payload(self) -> dict[str, object]:
+        return self.child.to_qdrant_payload(
+            document_title=self.document_title,
+            language=self.language,
+            doc_type=self.doc_type,
+            department=self.department,
+            access_level=self.access_level,
+            is_sanitized=self.is_sanitized,
+            sanitizer_flags=self.sanitizer_flags,
+        )
+
+
 class QdrantVectorIndex:
     def __init__(
         self,
         client: AsyncQdrantClient,
+        embedder: EmbeddingProvider | None = None,
         *,
         collection_name: str = COLLECTION_NAME,
     ) -> None:
         self._client = client
+        self._embedder = embedder
         self._collection_name = collection_name
 
     @classmethod
-    def from_url(cls, url: str) -> QdrantVectorIndex:
-        return cls(AsyncQdrantClient(url=url))
+    def from_url(cls, url: str, embedder: EmbeddingProvider | None = None) -> QdrantVectorIndex:
+        return cls(AsyncQdrantClient(url=url), embedder=embedder)
 
     async def close(self) -> None:
         close = getattr(self._client, "close", None)
@@ -69,6 +109,38 @@ class QdrantVectorIndex:
                 field_name=field,
                 field_schema=models.PayloadSchemaType.KEYWORD,
             )
+
+    async def replace_document_chunks(self, document_id: UUID | str, chunks: Sequence[VectorIndexChunk]) -> None:
+        if self._embedder is None:
+            raise ValueError("embedder is required to replace document chunks")
+
+        await self.delete_document(document_id)
+        if not chunks:
+            return
+
+        embeddings = self._embedder.embed_texts([chunk.embedding_text for chunk in chunks])
+        if len(embeddings) != len(chunks):
+            raise ValueError("embedding count must match chunk count")
+
+        points = [
+            point_struct(
+                point_id=chunk.child.chunk_id,
+                dense=embedding.dense,
+                sparse=embedding.sparse,
+                payload=chunk.to_payload(),
+            )
+            for chunk, embedding in zip(chunks, embeddings, strict=True)
+        ]
+        await self._client.upsert(
+            collection_name=self._collection_name,
+            points=points,
+        )
+
+    async def delete_document(self, document_id: UUID | str) -> None:
+        await self._client.delete(
+            collection_name=self._collection_name,
+            points_selector=document_filter(document_id),
+        )
 
 
 def document_filter(document_id: UUID | str) -> models.Filter:
