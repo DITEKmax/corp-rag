@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 in progress; plan 04-04 completed
-stopped_at: 04-04-SUMMARY.md created
-last_updated: "2026-05-17T15:49:31.160Z"
-last_activity: "2026-05-17 -- Phase 04 plan 04 completed: deterministic parent/child chunking and Tier-0 sanitizer"
+status: Phase 4 in progress; plan 04-05 completed
+stopped_at: Completed 04-05-PLAN.md
+last_updated: "2026-05-17T16:05:04.290Z"
+last_activity: "2026-05-17 -- Phase 04 plan 05 completed: local bge-m3 embeddings and Qdrant vector indexing"
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 23
-  percent: 85
+  completed_plans: 24
+  percent: 89
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 04 -- python-ingestion-indexing
+**Current focus:** Phase 04 — python-ingestion-indexing
 
 ## Current Position
 
 Phase: 04 -- IN_PROGRESS
-Plan: 04-05-PLAN.md ready to execute
-Status: Phase 4 in progress; plan 04-04 completed
-Last activity: 2026-05-17 -- Phase 04 plan 04 completed: deterministic parent/child chunking and Tier-0 sanitizer
+Plan: 04-06-PLAN.md ready to execute
+Status: Phase 4 in progress; plan 04-05 completed
+Last activity: 2026-05-17 -- Phase 04 plan 05 completed: local bge-m3 embeddings and Qdrant vector indexing
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 23
+- Total plans completed: 24
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -47,36 +47,9 @@ Progress: [█████████░] 85%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 4/8 | ~1h 36m | ~24m |
+| 04 | 5/8 | ~1h 50m | ~22m |
 
-**Recent Trend:**
-
-- Last 5 plans: N/A
-- Trend: N/A
-
-| Phase 01 P01 | 2 min | 2 tasks | 4 files |
-| Phase 01 P05 | 8 min | 2 tasks | 5 files |
-| Phase 01 P02 | 22 min | 2 tasks | 9 files |
-| Phase 01 P03 | 10 min | 2 tasks | 8 files |
-| Phase 01 P04 | 9 min | 2 tasks | 10 files |
-| Phase 01 P06 | 49 min | 2 tasks | 7 files |
-| Phase 02 P01 | 31 min | 2 tasks | 3 files |
-| Phase 02 P02 | 5 min | 2 tasks | 5 files |
-| Phase 02 P03 | 13 min | 3 tasks | 30 files |
-| Phase 02 P04 | 13 min | 3 tasks | 23 files |
-| Phase 02 P05 | 8 min | 3 tasks | 15 files |
-| Phase 02 P06 | 28 min | 3 tasks | 15 files |
-| Phase 02 P07 | 29 min | 3 tasks | 22 files |
-| Phase 03 P01 | 31 min | 3 tasks | 3 files |
-| Phase 03 P02 | 12 min | 3 tasks | 18 files |
-| Phase 03 P03 | 28 min | 3 tasks | 26 files |
-| Phase 03 P04 | 21 min | 3 tasks | 14 files |
-| Phase 03 P05 | 15 min | 3 tasks | 13 files |
-| Phase 03 P06 | 26 min | 3 tasks | 22 files |
-| Phase 04 P01 | ~1h | 3 tasks | 6 files |
-| Phase 04 P02 | 12 min | 3 tasks | 23 files |
-| Phase 04 P03 | 8 min | 3 tasks | 16 files |
-| Phase 04 P04 | 16 min | 3 tasks | 9 files |
+**Recent completed plans:** Phase 04 P01-P05 complete; latest P05 took 14 min, 3 tasks, 10 files.
 
 ## Accumulated Context
 
@@ -131,7 +104,7 @@ Recent locked decisions affecting current work:
 
 ### Pending Todos
 
-- Continue with 04-05-PLAN.md: local bge-m3 embedding and Qdrant vector indexing.
+- Continue with 04-06-PLAN.md: Gemini entity extraction and provenance-first Neo4j graph indexing.
 
 ### Blockers/Concerns
 
@@ -148,6 +121,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-17T15:49:31.160Z
-Stopped at: 04-04-SUMMARY.md created
-Resume file: .planning/phases/04-python-ingestion-indexing/04-05-PLAN.md
+Last session: 2026-05-17T16:05:04.276Z
+Stopped at: Completed 04-05-PLAN.md
+Resume file: .planning/phases/04-python-ingestion-indexing/04-06-PLAN.md

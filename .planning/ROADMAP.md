@@ -126,7 +126,7 @@ Plans:
 - [x] 04-04-PLAN.md - Implement deterministic parent/child chunking and Tier-0 sanitizer.
 
 **Wave 5** *(blocked on Waves 1 and 4 completion)*
-- [ ] 04-05-PLAN.md - Implement local FlagEmbedding bge-m3 embeddings and Qdrant vector indexing.
+- [x] 04-05-PLAN.md - Implement local FlagEmbedding bge-m3 embeddings and Qdrant vector indexing.
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 04-06-PLAN.md - Implement Gemini entity extraction and provenance-first Neo4j graph indexing.
