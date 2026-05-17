@@ -1,0 +1,401 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+from corp_rag_ai.domain.exceptions import (
+    DEPENDENCY_UNAVAILABLE,
+    INDEXING_PIPELINE_ERROR,
+    IndexingStage,
+    StageFailure,
+    stage_failure,
+)
+from corp_rag_ai.pipeline.indexing.graph_indexer import (
+    GraphEvidence,
+    deterministic_entity_id,
+    deterministic_relation_mention_id,
+    normalize_entity_name,
+    normalize_entity_type,
+    normalize_relation_type,
+)
+
+logger = logging.getLogger(__name__)
+
+ENTITY_EXTRACTION_PROMPT_VERSION = "entity_extraction_v1"
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+DEFAULT_MAX_OUTPUT_TOKENS = 2000
+DEFAULT_TEMPERATURE = 0.1
+DEFAULT_GEMINI_ATTEMPTS = 3
+PROMPT_PATH = Path(__file__).with_name("prompts") / f"{ENTITY_EXTRACTION_PROMPT_VERSION}.md"
+
+
+@dataclass(frozen=True, slots=True)
+class EntityExtractionPrompt:
+    system_prompt: str
+    user_template: str
+
+    def render_user(
+        self,
+        *,
+        document_title: str,
+        language: str,
+        source: EntityExtractionSource,
+    ) -> str:
+        section_path = " > ".join(source.section_path) if source.section_path else "(root)"
+        return (
+            self.user_template.replace("{document_title}", document_title)
+            .replace("{language}", language)
+            .replace("{section_path}", section_path)
+            .replace("{parent_chunk_id}", str(source.parent_chunk_id))
+            .replace("{chunk_id}", str(source.chunk_id))
+            .replace("{text}", source.text)
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EntityExtractionSource:
+    text: str
+    chunk_id: UUID
+    parent_chunk_id: UUID
+    section_path: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractedEntityCandidate:
+    entity_id: UUID
+    name: str
+    normalized_name: str
+    entity_type: str
+    description: str
+    evidence: GraphEvidence
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractedRelationCandidate:
+    relation_id: UUID
+    relation_type: str
+    source_entity_id: UUID
+    target_entity_id: UUID
+    description: str
+    evidence: GraphEvidence
+
+
+@dataclass(frozen=True, slots=True)
+class ParentEntityExtraction:
+    entities: tuple[ExtractedEntityCandidate, ...]
+    relations: tuple[ExtractedRelationCandidate, ...]
+    warnings: tuple[str, ...] = ()
+
+
+class GeminiEntity(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    name: str = Field(min_length=1)
+    type: str = Field(min_length=1)
+    description: str = Field(default="", max_length=500)
+
+    @field_validator("type")
+    @classmethod
+    def _type_is_plain_text(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class GeminiRelation(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, str_strip_whitespace=True)
+
+    source_entity_name: str = Field(alias="sourceEntityName", min_length=1)
+    target_entity_name: str = Field(alias="targetEntityName", min_length=1)
+    type: str = Field(min_length=1)
+    description: str = Field(default="", max_length=500)
+
+
+class GeminiExtractionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entities: list[GeminiEntity] = Field(default_factory=list)
+    relations: list[GeminiRelation] = Field(default_factory=list)
+
+
+SleepFn = Callable[[float], Awaitable[None]]
+
+
+class GeminiEntityExtractor:
+    def __init__(
+        self,
+        *,
+        client: Any | None = None,
+        api_key: str | None = None,
+        model: str = DEFAULT_GEMINI_MODEL,
+        prompt: EntityExtractionPrompt | None = None,
+        max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_dependency_attempts: int = DEFAULT_GEMINI_ATTEMPTS,
+        sleep: SleepFn = asyncio.sleep,
+    ) -> None:
+        self._client = client
+        self._api_key = api_key
+        self._model = model
+        self._prompt = prompt or load_entity_extraction_prompt()
+        self._max_output_tokens = max_output_tokens
+        self._temperature = temperature
+        self._max_dependency_attempts = max_dependency_attempts
+        self._sleep = sleep
+
+    async def extract_parent(
+        self,
+        source: EntityExtractionSource,
+        *,
+        document_title: str,
+        language: str,
+    ) -> ParentEntityExtraction:
+        contents = self._render_contents(source, document_title=document_title, language=language)
+        malformed_retry_used = False
+        dependency_attempt = 0
+
+        while True:
+            dependency_attempt += 1
+            try:
+                response = await self._generate_content(contents)
+            except Exception as exc:
+                if _is_auth_error(exc):
+                    raise _dependency_failure(exc, retryable=False) from exc
+                if _is_retryable_dependency_error(exc) and dependency_attempt < self._max_dependency_attempts:
+                    await self._sleep(_backoff_seconds(dependency_attempt))
+                    continue
+                if _is_retryable_dependency_error(exc):
+                    raise _dependency_failure(exc, retryable=True) from exc
+                raise _malformed_or_sdk_failure(exc) from exc
+
+            try:
+                parsed = _parse_response(response)
+            except (ValidationError, ValueError) as exc:
+                logger.warning(
+                    "Malformed Gemini structured entity extraction response",
+                    extra={"raw_gemini_response": _raw_response_text(response)},
+                )
+                if malformed_retry_used:
+                    raise _malformed_output_failure() from exc
+                malformed_retry_used = True
+                await self._sleep(_backoff_seconds(1))
+                continue
+
+            return _map_parent_extraction(parsed, source)
+
+    def _render_contents(self, source: EntityExtractionSource, *, document_title: str, language: str) -> str:
+        return "\n\n".join(
+            (
+                self._prompt.system_prompt,
+                self._prompt.render_user(
+                    document_title=document_title,
+                    language=language,
+                    source=source,
+                ),
+            )
+        )
+
+    async def _generate_content(self, contents: str) -> Any:
+        client = self._get_client()
+        config = _generate_content_config(
+            temperature=self._temperature,
+            max_output_tokens=self._max_output_tokens,
+        )
+
+        def _call() -> Any:
+            return client.models.generate_content(
+                model=self._model,
+                contents=contents,
+                config=config,
+            )
+
+        return await asyncio.to_thread(_call)
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            from google import genai
+
+            self._client = genai.Client(api_key=self._api_key) if self._api_key else genai.Client()
+        return self._client
+
+
+def load_entity_extraction_prompt(prompt_path: str | Path | None = None) -> EntityExtractionPrompt:
+    return _parse_prompt(_read_prompt(str(prompt_path or PROMPT_PATH)))
+
+
+@lru_cache(maxsize=8)
+def _read_prompt(prompt_path: str) -> str:
+    return Path(prompt_path).read_text(encoding="utf-8")
+
+
+def _parse_prompt(text: str) -> EntityExtractionPrompt:
+    system_marker = "## System prompt"
+    user_marker = "## User template"
+    if system_marker not in text or user_marker not in text:
+        raise ValueError("entity extraction prompt must include system and user template sections")
+    _before, system_and_after = text.split(system_marker, 1)
+    system_text, user_text = system_and_after.split(user_marker, 1)
+    return EntityExtractionPrompt(
+        system_prompt=system_text.strip(),
+        user_template=user_text.strip(),
+    )
+
+
+def _generate_content_config(*, temperature: float, max_output_tokens: int) -> Any:
+    try:
+        from google.genai import types
+
+        return types.GenerateContentConfig(
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            response_mime_type="application/json",
+            response_schema=GeminiExtractionResponse,
+        )
+    except Exception:
+        return {
+            "temperature": temperature,
+            "max_output_tokens": max_output_tokens,
+            "response_mime_type": "application/json",
+            "response_schema": GeminiExtractionResponse,
+        }
+
+
+def _parse_response(response: Any) -> GeminiExtractionResponse:
+    parsed = getattr(response, "parsed", None)
+    if isinstance(parsed, GeminiExtractionResponse):
+        return parsed
+    if parsed is not None:
+        return GeminiExtractionResponse.model_validate(parsed)
+    text = getattr(response, "text", None)
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("Gemini response text is empty")
+    return GeminiExtractionResponse.model_validate_json(text)
+
+
+def _map_parent_extraction(
+    response: GeminiExtractionResponse,
+    source: EntityExtractionSource,
+) -> ParentEntityExtraction:
+    evidence = GraphEvidence(
+        chunk_id=source.chunk_id,
+        parent_chunk_id=source.parent_chunk_id,
+        section_path=source.section_path,
+    )
+    warnings: list[str] = []
+    entities: list[ExtractedEntityCandidate] = []
+    entity_by_name: dict[str, ExtractedEntityCandidate] = {}
+
+    for raw_entity in response.entities:
+        try:
+            entity_type = normalize_entity_type(raw_entity.type)
+        except ValueError:
+            message = f"dropped unknown entity type '{raw_entity.type}' for entity '{raw_entity.name}'"
+            warnings.append(message)
+            logger.warning(message)
+            continue
+        normalized_name = normalize_entity_name(raw_entity.name)
+        if not normalized_name:
+            continue
+        entity = ExtractedEntityCandidate(
+            entity_id=deterministic_entity_id(normalized_name, entity_type),
+            name=raw_entity.name.strip(),
+            normalized_name=normalized_name,
+            entity_type=entity_type,
+            description=raw_entity.description.strip(),
+            evidence=evidence,
+        )
+        entities.append(entity)
+        entity_by_name.setdefault(normalized_name, entity)
+
+    relations: list[ExtractedRelationCandidate] = []
+    for raw_relation in response.relations:
+        source_entity = entity_by_name.get(normalize_entity_name(raw_relation.source_entity_name))
+        target_entity = entity_by_name.get(normalize_entity_name(raw_relation.target_entity_name))
+        if source_entity is None or target_entity is None:
+            warnings.append(f"dropped relation '{raw_relation.type}' because source or target entity was not extracted")
+            continue
+        relation_type = normalize_relation_type(raw_relation.type)
+        relations.append(
+            ExtractedRelationCandidate(
+                relation_id=deterministic_relation_mention_id(
+                    source_entity.entity_id,
+                    target_entity.entity_id,
+                    relation_type,
+                ),
+                relation_type=relation_type,
+                source_entity_id=source_entity.entity_id,
+                target_entity_id=target_entity.entity_id,
+                description=raw_relation.description.strip(),
+                evidence=evidence,
+            )
+        )
+
+    return ParentEntityExtraction(
+        entities=tuple(entities),
+        relations=tuple(relations),
+        warnings=tuple(warnings),
+    )
+
+
+def _raw_response_text(response: Any) -> str:
+    text = getattr(response, "text", "")
+    return text if isinstance(text, str) else repr(response)
+
+
+def _status_code(exc: Exception) -> int | None:
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status
+    response = getattr(exc, "response", None)
+    response_status = getattr(response, "status_code", None)
+    return response_status if isinstance(response_status, int) else None
+
+
+def _is_auth_error(exc: Exception) -> bool:
+    return _status_code(exc) in {401, 403}
+
+
+def _is_retryable_dependency_error(exc: Exception) -> bool:
+    status = _status_code(exc)
+    if status == 429 or (status is not None and 500 <= status <= 599):
+        return True
+    return "timeout" in exc.__class__.__name__.lower()
+
+
+def _dependency_failure(exc: Exception, *, retryable: bool) -> StageFailure:
+    status = _status_code(exc)
+    detail = f"status_{status}" if status is not None else exc.__class__.__name__
+    return stage_failure(
+        stage=IndexingStage.ENTITY_EXTRACTION,
+        error_code=DEPENDENCY_UNAVAILABLE,
+        retryable=retryable,
+        detail=detail,
+    )
+
+
+def _malformed_or_sdk_failure(exc: Exception) -> StageFailure:
+    return stage_failure(
+        stage=IndexingStage.ENTITY_EXTRACTION,
+        error_code=INDEXING_PIPELINE_ERROR,
+        retryable=False,
+        detail=exc.__class__.__name__,
+    )
+
+
+def _malformed_output_failure() -> StageFailure:
+    return stage_failure(
+        stage=IndexingStage.ENTITY_EXTRACTION,
+        error_code=INDEXING_PIPELINE_ERROR,
+        retryable=False,
+        detail="malformed_structured_output",
+    )
+
+
+def _backoff_seconds(attempt: int) -> float:
+    return min(2.0, 0.25 * (2 ** max(0, attempt - 1)))
