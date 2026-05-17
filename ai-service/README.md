@@ -28,3 +28,22 @@ uv sync
 uv run uvicorn corp_rag_ai.main:app --reload
 uv run pytest
 ```
+
+## Live Gemini Entity Extraction Smoke
+
+Entity extraction unit tests mock `google-genai` and do not need credentials. The live integration smoke is skipped unless `GEMINI_API_KEY` is set.
+
+PowerShell:
+
+```powershell
+cd ai-service
+$env:GEMINI_API_KEY = "your-google-ai-studio-key"
+uv run pytest tests/test_entity_extraction_live.py -m integration
+```
+
+Bash:
+
+```bash
+cd ai-service
+GEMINI_API_KEY=your-google-ai-studio-key uv run pytest tests/test_entity_extraction_live.py -m integration
+```

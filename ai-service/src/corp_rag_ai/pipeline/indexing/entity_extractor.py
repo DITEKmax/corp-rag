@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -19,13 +19,18 @@ from corp_rag_ai.domain.exceptions import (
     stage_failure,
 )
 from corp_rag_ai.pipeline.indexing.graph_indexer import (
+    GraphDocument,
+    GraphDocumentIndex,
+    GraphEntity,
     GraphEvidence,
+    GraphRelationMention,
     deterministic_entity_id,
     deterministic_relation_mention_id,
     normalize_entity_name,
     normalize_entity_type,
     normalize_relation_type,
 )
+from corp_rag_ai.pipeline.indexing.embedding import EmbeddingVector
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +130,11 @@ class GeminiExtractionResponse(BaseModel):
 
 
 SleepFn = Callable[[float], Awaitable[None]]
+
+
+class EntityEmbeddingProvider(Protocol):
+    def embed_texts(self, texts: Sequence[str]) -> tuple[EmbeddingVector, ...]:
+        ...
 
 
 class GeminiEntityExtractor:
@@ -340,6 +350,144 @@ def _map_parent_extraction(
         entities=tuple(entities),
         relations=tuple(relations),
         warnings=tuple(warnings),
+    )
+
+
+def build_graph_document_index(
+    *,
+    document: GraphDocument,
+    parent_extractions: Sequence[ParentEntityExtraction],
+    embedder: EntityEmbeddingProvider,
+) -> GraphDocumentIndex:
+    entity_builders: dict[UUID, _EntityCandidateBuilder] = {}
+    relation_builders: dict[UUID, _RelationCandidateBuilder] = {}
+    warnings: list[str] = []
+
+    for parent in parent_extractions:
+        warnings.extend(parent.warnings)
+        for entity in parent.entities:
+            builder = entity_builders.setdefault(
+                entity.entity_id,
+                _EntityCandidateBuilder(
+                    entity_id=entity.entity_id,
+                    name=entity.name,
+                    normalized_name=entity.normalized_name,
+                    entity_type=entity.entity_type,
+                    description=entity.description,
+                ),
+            )
+            _append_unique_evidence(builder.evidence, entity.evidence)
+
+        for relation in parent.relations:
+            builder = relation_builders.setdefault(
+                relation.relation_id,
+                _RelationCandidateBuilder(
+                    relation_id=relation.relation_id,
+                    relation_type=relation.relation_type,
+                    source_entity_id=relation.source_entity_id,
+                    target_entity_id=relation.target_entity_id,
+                    description=relation.description,
+                ),
+            )
+            _append_unique_evidence(builder.evidence, relation.evidence)
+
+    entity_values = tuple(entity_builders.values())
+    embeddings = _embed_unique_entities(embedder, entity_values)
+    graph_entities = tuple(
+        GraphEntity(
+            entity_id=builder.entity_id,
+            name=builder.name,
+            normalized_name=builder.normalized_name,
+            entity_type=builder.entity_type,
+            description=builder.description,
+            embedding=embedding.dense,
+            mentions=tuple(builder.evidence),
+        )
+        for builder, embedding in zip(entity_values, embeddings, strict=True)
+    )
+    graph_relations = tuple(
+        GraphRelationMention(
+            relation_id=builder.relation_id,
+            relation_type=builder.relation_type,
+            source_entity_id=builder.source_entity_id,
+            target_entity_id=builder.target_entity_id,
+            description=builder.description,
+            evidence=tuple(builder.evidence),
+        )
+        for builder in relation_builders.values()
+    )
+    return GraphDocumentIndex(
+        document=document,
+        entities=graph_entities,
+        relations=graph_relations,
+        warnings=tuple(warnings),
+    )
+
+
+@dataclass(slots=True)
+class _EntityCandidateBuilder:
+    entity_id: UUID
+    name: str
+    normalized_name: str
+    entity_type: str
+    description: str
+    evidence: list[GraphEvidence] = dataclass_field(default_factory=list)
+
+
+@dataclass(slots=True)
+class _RelationCandidateBuilder:
+    relation_id: UUID
+    relation_type: str
+    source_entity_id: UUID
+    target_entity_id: UUID
+    description: str
+    evidence: list[GraphEvidence] = dataclass_field(default_factory=list)
+
+
+def entity_embedding_text(*, name: str, entity_type: str, description: str) -> str:
+    parts = [name.strip(), f"type: {entity_type.strip()}"]
+    if description.strip():
+        parts.append(description.strip())
+    return "\n".join(parts)
+
+
+def _embed_unique_entities(
+    embedder: EntityEmbeddingProvider,
+    entities: Sequence[_EntityCandidateBuilder],
+) -> tuple[EmbeddingVector, ...]:
+    if not entities:
+        return ()
+    texts = [
+        entity_embedding_text(
+            name=entity.name,
+            entity_type=entity.entity_type,
+            description=entity.description,
+        )
+        for entity in entities
+    ]
+    try:
+        embeddings = embedder.embed_texts(texts)
+    except StageFailure as exc:
+        raise _entity_embedding_failure(exc) from exc
+    except Exception as exc:
+        raise _entity_embedding_failure(exc) from exc
+    if len(embeddings) != len(entities):
+        raise _entity_embedding_failure(ValueError("entity embedding count mismatch"))
+    return embeddings
+
+
+def _append_unique_evidence(target: list[GraphEvidence], evidence: GraphEvidence) -> None:
+    identity = (evidence.chunk_id, evidence.parent_chunk_id)
+    if all((item.chunk_id, item.parent_chunk_id) != identity for item in target):
+        target.append(evidence)
+
+
+def _entity_embedding_failure(exc: Exception) -> StageFailure:
+    return stage_failure(
+        stage=IndexingStage.ENTITY_EXTRACTION,
+        error_code=INDEXING_PIPELINE_ERROR,
+        retryable=False,
+        detail=exc.__class__.__name__,
     )
 
 

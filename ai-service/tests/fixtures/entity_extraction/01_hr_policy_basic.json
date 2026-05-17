@@ -1,0 +1,76 @@
+{
+  "document": {
+    "documentId": "11111111-1111-1111-1111-111111111111",
+    "title": "HR Remote Work Policy",
+    "accessLevel": "INTERNAL",
+    "department": "HR",
+    "docType": "POLICY",
+    "language": "en"
+  },
+  "sources": [
+    {
+      "chunkId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "parentChunkId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "sectionPath": ["Remote Work", "Requests"],
+      "text": "The HR Department owns the Remote Work Policy. Employees submit remote work requests in Workday. The policy is effective on January 1, 2026."
+    }
+  ],
+  "mockGeminiResponse": {
+    "entities": [
+      {
+        "name": "HR Department",
+        "type": "department",
+        "description": "Department that owns the remote work policy."
+      },
+      {
+        "name": "Remote Work Policy",
+        "type": "policy",
+        "description": "Policy governing remote work requests."
+      },
+      {
+        "name": "Employees",
+        "type": "role",
+        "description": "People who submit remote work requests."
+      },
+      {
+        "name": "Workday",
+        "type": "system",
+        "description": "System used for remote work request submission."
+      },
+      {
+        "name": "HR Department",
+        "type": "department",
+        "description": "This duplicate description must not overwrite the first."
+      }
+    ],
+    "relations": [
+      {
+        "sourceEntityName": "HR Department",
+        "targetEntityName": "Remote Work Policy",
+        "type": "OWNS",
+        "description": "HR owns the policy."
+      },
+      {
+        "sourceEntityName": "Employees",
+        "targetEntityName": "Workday",
+        "type": "USES_SYSTEM",
+        "description": "Employees submit requests in Workday."
+      },
+      {
+        "sourceEntityName": "HR Department",
+        "targetEntityName": "Remote Work Policy",
+        "type": "OWNS",
+        "description": "Duplicate relation should deduplicate."
+      }
+    ]
+  },
+  "expected": {
+    "entityKeys": [
+      ["hr department", "department"],
+      ["remote work policy", "policy"],
+      ["employees", "role"],
+      ["workday", "system"]
+    ],
+    "relationTypes": ["OWNS", "USES_SYSTEM"]
+  }
+}

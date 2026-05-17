@@ -40,3 +40,6 @@ packages = ["src/corp_rag_ai"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: tests that call external services and are skipped unless credentials are present",
+]
