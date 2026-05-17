@@ -7,6 +7,7 @@ from corp_rag_ai.adapters.amqp.connection import AmqpConnectionManager
 from corp_rag_ai.adapters.amqp.consumer import DocumentEventConsumerRuntime, InfrastructureRetry
 from corp_rag_ai.adapters.amqp.messages import InboundEvent
 from corp_rag_ai.config import get_settings
+from corp_rag_ai.pipeline.indexing.vector_indexer import QdrantVectorIndex
 
 settings = get_settings()
 
@@ -15,6 +16,11 @@ settings = get_settings()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     amqp_connection: AmqpConnectionManager | None = None
     amqp_runtime: DocumentEventConsumerRuntime | None = None
+    qdrant_index: QdrantVectorIndex | None = None
+    if settings.qdrant_initialize_collection:
+        qdrant_index = QdrantVectorIndex.from_url(str(settings.qdrant_url))
+        await qdrant_index.ensure_collection_exists()
+        app.state.qdrant_index = qdrant_index
     if settings.amqp_consumers_enabled:
         amqp_connection = AmqpConnectionManager(
             settings.rabbitmq_url,
@@ -36,6 +42,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await amqp_runtime.close()
         if amqp_connection is not None:
             await amqp_connection.close()
+        if qdrant_index is not None:
+            await qdrant_index.close()
 
 
 async def _ingestion_handler_not_wired(_event: InboundEvent) -> None:
