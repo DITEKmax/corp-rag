@@ -72,7 +72,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - **D-47:** Overlap never crosses a parent boundary. The first child in a parent has zero overlap.
 - **D-48:** `parent_chunk_id` is deterministic UUID v5 with namespace `document_id` and name `parent:{position}`.
 - **D-49:** `chunk_id` is deterministic UUID v5 with namespace `parent_chunk_id` and name `child:{position_in_parent}`.
-- **D-50:** Parent chunks are stored in AI Postgres table `document_chunks_parent` with `parent_chunk_id`, `document_id`, `section_path TEXT[]`, `content TEXT`, `position`, `token_count`, `created_at`, and index on `document_id`.
+- **D-50:** Parent chunks are stored in AI Postgres table `document_chunks_parent` with `parent_chunk_id`, `document_id`, `section_path TEXT[]`, `content TEXT`, `position`, `token_count`, `created_at`, and a plain non-unique B-tree index on `document_id`. Do not make `document_id` unique because one document maps to many parent rows.
 - **D-51:** Parent chunks are not embedded in MVP. Phase 5 parent resolver fetches parent content from AI Postgres by `parentChunkId`.
 - **D-52:** Qdrant stores one point per child chunk only.
 
@@ -131,7 +131,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - **D-92:** Use parent-level extraction: one Gemini 2.0 Flash structured-output call per parent chunk, sequentially. Do not run extraction per child and do not parallelize parent calls in MVP.
 - **D-147:** Use the current `google-genai` SDK for Gemini API integration. Do not use legacy `google-generativeai` in Phase 4.
 - **D-93:** If graph extraction or graph upsert fails, the whole document indexing fails. Do not emit `document.indexed` for hybrid-only partial state.
-- **D-94:** On `ENTITY_EXTRACTION` or `GRAPH_UPSERT` failure after Qdrant upsert, rollback Qdrant by delete-by-filter `documentId`, then publish failed event and set `document_index_state.status=FAILED`.
+- **D-94:** On any failure after Qdrant upsert has started, including a suspected partial `VECTOR_UPSERT`, rollback Qdrant by delete-by-filter `documentId`, then publish failed event and set `document_index_state.status=FAILED`.
 - **D-95:** If rollback cleanup itself fails, log critical error and still publish the original failed event. A later retry/reindex starts with delete-by-filter and can repair stale Qdrant state.
 - **D-96:** Entity extraction malformed JSON gets one local retry, then fails `ENTITY_EXTRACTION` with retryable false.
 - **D-97:** After collecting unique entities for a document, embed entity texts as dense-only vectors through the same local `FlagEmbedding` bge-m3 adapter and store them on `Entity.embedding`.
@@ -173,7 +173,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 | SANITIZATION | internal logic error | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
 | EMBEDDING | FlagEmbedding model load failed | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
 | EMBEDDING | FlagEmbedding inference exception, OOM, torch/transformers runtime error | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
-| VECTOR_UPSERT | Qdrant connection refused / timeout | DEPENDENCY_UNAVAILABLE | true | None | publish failed; status=FAILED |
+| VECTOR_UPSERT | Qdrant connection refused / timeout | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId if upsert started or partial success is possible | publish failed; status=FAILED |
 | VECTOR_UPSERT | Qdrant 4xx bad schema / missing collection | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
 | ENTITY_EXTRACTION | Gemini 429 after 3 attempts | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | ENTITY_EXTRACTION | Gemini 5xx / timeout after backoff | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
