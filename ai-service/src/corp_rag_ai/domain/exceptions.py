@@ -65,7 +65,7 @@ STAGE_MESSAGE_TEMPLATES: dict[IndexingStage, str] = {
 
 
 @dataclass(frozen=True, slots=True)
-class StageFailure:
+class StageFailure(Exception):
     stage: IndexingStage
     error_code: str
     retryable: bool
