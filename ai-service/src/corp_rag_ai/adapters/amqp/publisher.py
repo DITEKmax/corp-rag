@@ -14,6 +14,7 @@ from corp_rag_ai.adapters.amqp.messages import (
     encode_json_bytes,
 )
 from corp_rag_ai.adapters.amqp.topology import AmqpTopology, load_generated_topology
+from corp_rag_ai.domain.exceptions import StageFailure, build_document_indexing_failed_payload
 
 
 class DocumentResultPublisher:
@@ -87,6 +88,27 @@ class DocumentResultPublisher:
             correlation_id=correlation_id,
         )
 
+    async def publish_stage_failure(
+        self,
+        *,
+        document_id: UUID,
+        failure: StageFailure,
+        correlation_id: UUID,
+        failed_at: datetime | None = None,
+        retry_count: int = 0,
+    ) -> None:
+        await self._publish(
+            event_type=self._topology.document_indexing_failed_routing_key,
+            routing_key=self._topology.document_indexing_failed_routing_key,
+            payload=build_document_indexing_failed_payload(
+                document_id=document_id,
+                failure=failure,
+                failed_at=failed_at,
+                retry_count=retry_count,
+            ),
+            correlation_id=correlation_id,
+        )
+
     async def _publish(
         self,
         *,
@@ -125,4 +147,3 @@ class DocumentResultPublisher:
                 passive=True,
             )
         return self._exchange
-

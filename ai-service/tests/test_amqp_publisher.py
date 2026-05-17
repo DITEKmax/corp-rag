@@ -9,6 +9,7 @@ import pytest
 from corp_rag_ai.adapters.amqp.messages import CORRELATION_ID_HEADER, resolve_correlation_id
 from corp_rag_ai.adapters.amqp.publisher import DocumentResultPublisher
 from corp_rag_ai.adapters.amqp.topology import AmqpTopology
+from corp_rag_ai.domain.exceptions import INDEXING_PIPELINE_ERROR, IndexingStage, stage_failure
 
 
 TOPOLOGY = AmqpTopology(
@@ -117,3 +118,28 @@ def test_correlation_id_resolution_prefers_header_then_metadata_then_generated()
     assert resolve_correlation_id({}, {"correlationId": str(metadata_id)}) == metadata_id
     assert isinstance(resolve_correlation_id({}, None), UUID)
 
+
+@pytest.mark.asyncio
+async def test_stage_failure_publisher_uses_failed_payload_builder() -> None:
+    channel = _Channel()
+    publisher = DocumentResultPublisher(channel, topology=TOPOLOGY)
+    correlation_id = uuid4()
+
+    await publisher.publish_stage_failure(
+        document_id=uuid4(),
+        failure=stage_failure(
+            stage=IndexingStage.EMBEDDING,
+            error_code=INDEXING_PIPELINE_ERROR,
+            retryable=False,
+            exception_class=RuntimeError("secret model path"),
+        ),
+        correlation_id=correlation_id,
+    )
+
+    message, routing_key = channel.exchange.published[0]
+    envelope = json.loads(message.body.decode("utf-8"))
+
+    assert routing_key == "document.indexing.failed"
+    assert envelope["payload"]["retryCount"] == 0
+    assert "FlagEmbedding" in envelope["payload"]["errorMessage"]
+    assert "secret model path" not in envelope["payload"]["errorMessage"]
