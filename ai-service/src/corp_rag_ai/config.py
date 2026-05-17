@@ -57,6 +57,10 @@ class Settings(BaseSettings):
         default="local-neo4j-password",
         validation_alias="NEO4J_PASSWORD",
     )
+    neo4j_initialize_schema: bool = Field(
+        default=False,
+        validation_alias="AI_NEO4J_INITIALIZE_SCHEMA",
+    )
 
     minio_endpoint: str = Field(default="localhost:9000", validation_alias="MINIO_ENDPOINT")
     minio_access_key: str = Field(

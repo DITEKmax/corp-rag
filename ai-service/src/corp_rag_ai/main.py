@@ -7,6 +7,7 @@ from corp_rag_ai.adapters.amqp.connection import AmqpConnectionManager
 from corp_rag_ai.adapters.amqp.consumer import DocumentEventConsumerRuntime, InfrastructureRetry
 from corp_rag_ai.adapters.amqp.messages import InboundEvent
 from corp_rag_ai.config import get_settings
+from corp_rag_ai.pipeline.indexing.graph_indexer import Neo4jGraphIndex
 from corp_rag_ai.pipeline.indexing.vector_indexer import QdrantVectorIndex
 
 settings = get_settings()
@@ -16,7 +17,16 @@ settings = get_settings()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     amqp_connection: AmqpConnectionManager | None = None
     amqp_runtime: DocumentEventConsumerRuntime | None = None
+    graph_index: Neo4jGraphIndex | None = None
     qdrant_index: QdrantVectorIndex | None = None
+    if settings.neo4j_initialize_schema:
+        graph_index = Neo4jGraphIndex.from_uri(
+            settings.neo4j_uri,
+            user=settings.neo4j_user,
+            password=settings.neo4j_password.get_secret_value(),
+        )
+        await graph_index.ensure_graph_schema()
+        app.state.graph_index = graph_index
     if settings.qdrant_initialize_collection:
         qdrant_index = QdrantVectorIndex.from_url(str(settings.qdrant_url))
         await qdrant_index.ensure_collection_exists()
@@ -44,6 +54,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await amqp_connection.close()
         if qdrant_index is not None:
             await qdrant_index.close()
+        if graph_index is not None:
+            await graph_index.close()
 
 
 async def _ingestion_handler_not_wired(_event: InboundEvent) -> None:
