@@ -22,7 +22,7 @@ This script validates the completed Python ingestion and indexing path against t
 Run from the repository root.
 
 ```powershell
-$Compose = @("compose", "-f", "infra/docker-compose.yml")
+$Compose = @("compose", "--env-file", "infra/.env", "-f", "infra/docker-compose.yml")
 $RabbitUser = "corp_rag"
 $RabbitPassword = "corp_rag_password"
 $RabbitAuth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("${RabbitUser}:${RabbitPassword}"))
@@ -33,12 +33,19 @@ $Neo4jPassword = "local-neo4j-password"
 New-Item -ItemType Directory -Force .tmp | Out-Null
 ```
 
-If you need an admin account for uploads, set these before the first stack start:
+Create an ignored local env file before the first stack start:
 
 ```powershell
-$env:ADMIN_USERNAME = "admin"
-$env:ADMIN_EMAIL = "admin@example.com"
-$env:ADMIN_PASSWORD = "CorrectHorseBattery12!"
+if (!(Test-Path infra/.env)) { Copy-Item infra/.env.example infra/.env }
+```
+
+Edit `infra/.env` and set:
+
+```text
+GEMINI_API_KEY=<google-ai-studio-key>
+ADMIN_USERNAME=admin
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=<strong-local-password>
 ```
 
 ## P1 FlagEmbedding Smoke
@@ -170,7 +177,7 @@ Log in and keep a cookie jar:
 ```powershell
 curl.exe -s -c .tmp\phase4-cookies.txt `
   -H "Content-Type: application/json" `
-  -d "{`"username`":`"$env:ADMIN_USERNAME`",`"password`":`"$env:ADMIN_PASSWORD`"}" `
+  -d "{`"username`":`"admin`",`"password`":`"<strong-local-password>`"}" `
   http://localhost:8080/api/v1/auth/login | ConvertFrom-Json
 ```
 

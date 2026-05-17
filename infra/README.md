@@ -54,8 +54,9 @@ Prometheus/Grafana добавляются в Phase 7 (Evaluation & Observability
 For Phase 4 ingestion UAT, start the stack from the repository root and keep existing Docker volumes:
 
 ```powershell
-docker compose -f infra/docker-compose.yml up -d --build
-docker compose -f infra/docker-compose.yml ps
+if (!(Test-Path infra/.env)) { Copy-Item infra/.env.example infra/.env }
+docker compose --env-file infra/.env -f infra/docker-compose.yml up -d --build
+docker compose --env-file infra/.env -f infra/docker-compose.yml ps
 ```
 
 Do not run `docker compose down -v` or data reset scripts before Scenario 1 in `.planning/phases/04-python-ingestion-indexing/04-UAT.md`. Retained RabbitMQ messages from Phase 3 are intentionally consumed by `python-ai` as the first end-to-end smoke.
@@ -65,8 +66,8 @@ Do not run `docker compose down -v` or data reset scripts before Scenario 1 in `
 Live graph extraction requires `GEMINI_API_KEY` in the environment used by Compose:
 
 ```powershell
-$env:GEMINI_API_KEY = "your-google-ai-studio-key"
-docker compose -f infra/docker-compose.yml up -d --build python-ai
+# Put GEMINI_API_KEY in ignored infra/.env first.
+docker compose --env-file infra/.env -f infra/docker-compose.yml up -d --build python-ai
 ```
 
 Core live checks:
@@ -76,5 +77,5 @@ Invoke-RestMethod http://localhost:8000/health
 Invoke-RestMethod http://localhost:8000/ready
 Invoke-RestMethod http://localhost:8080/actuator/health
 Invoke-RestMethod http://localhost:6333/collections/documents_chunks
-docker compose -f infra/docker-compose.yml exec neo4j cypher-shell -u neo4j -p local-neo4j-password "RETURN 1;"
+docker compose --env-file infra/.env -f infra/docker-compose.yml exec neo4j cypher-shell -u neo4j -p local-neo4j-password "RETURN 1;"
 ```
