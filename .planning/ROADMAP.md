@@ -120,7 +120,7 @@ Plans:
 - [x] 04-02-PLAN.md - Add AI ingestion state, AMQP foundation, and stage-aware failure reporting.
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 04-03-PLAN.md - Implement normalized parsing for PDF, DOCX, HTML, Markdown, and plain text.
+- [x] 04-03-PLAN.md - Implement normalized parsing for PDF, DOCX, HTML, Markdown, and plain text.
 
 **Wave 4** *(blocked on Waves 2 and 3 completion)*
 - [ ] 04-04-PLAN.md - Implement deterministic parent/child chunking and Tier-0 sanitizer.

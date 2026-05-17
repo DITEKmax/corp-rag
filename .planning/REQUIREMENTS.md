@@ -30,7 +30,7 @@
 ### Python Ingestion
 
 - [x] **ING-01**: Python consumes document upload/delete events idempotently.
-- [ ] **ING-02**: Python fetches source files from MinIO and parses PDF, DOCX, HTML, Markdown, and plain text into a normalized document representation.
+- [x] **ING-02**: Python fetches source files from MinIO and parses PDF, DOCX, HTML, Markdown, and plain text into a normalized document representation.
 - [ ] **ING-03**: Python chunks parsed documents into parent and child chunks with inherited document metadata.
 - [ ] **ING-04**: Python sanitizes chunks and excludes unsafe chunks from retrieval.
 - [ ] **ING-05**: Python creates bge-m3 dense+sparse embeddings and writes chunk points to Qdrant.
@@ -103,7 +103,7 @@
 | EVT-02 | Phase 3 | Complete |
 | AUD-01 | Phase 3 | Complete |
 | ING-01 | Phase 4 | Complete |
-| ING-02 | Phase 4 | Pending |
+| ING-02 | Phase 4 | Complete |
 | ING-03 | Phase 4 | Pending |
 | ING-04 | Phase 4 | Pending |
 | ING-05 | Phase 4 | Pending |

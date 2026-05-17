@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 in progress; plan 04-02 completed
-stopped_at: 04-02-SUMMARY.md created
-last_updated: "2026-05-17T18:17:31.843+03:00"
-last_activity: 2026-05-17 -- Phase 04 plan 02 completed: ingestion state, AMQP foundation, and safe failure reporting
+status: Phase 4 in progress; plan 04-03 completed
+stopped_at: 04-03-SUMMARY.md created
+last_updated: "2026-05-17T15:33:07.236Z"
+last_activity: "2026-05-17 -- Phase 04 plan 03 completed: normalized parsing for PDF, DOCX, HTML, Markdown, and plain text"
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 21
-  percent: 78
+  completed_plans: 22
+  percent: 81
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 04 -- IN_PROGRESS
-Plan: 04-03-PLAN.md ready to execute
-Status: Phase 4 in progress; plan 04-02 completed
-Last activity: 2026-05-17 -- Phase 04 plan 02 completed: ingestion state, AMQP foundation, and safe failure reporting
+Plan: 04-04-PLAN.md ready to execute
+Status: Phase 4 in progress; plan 04-03 completed
+Last activity: 2026-05-17 -- Phase 04 plan 03 completed: normalized parsing for PDF, DOCX, HTML, Markdown, and plain text
 
-Progress: 78%
+Progress: [████████░░] 81%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -47,7 +47,7 @@ Progress: 78%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 2/8 | ~1h 12m | ~36m |
+| 04 | 3/8 | ~1h 20m | ~27m |
 
 **Recent Trend:**
 
@@ -75,6 +75,7 @@ Progress: 78%
 | Phase 03 P06 | 26 min | 3 tasks | 22 files |
 | Phase 04 P01 | ~1h | 3 tasks | 6 files |
 | Phase 04 P02 | 12 min | 3 tasks | 23 files |
+| Phase 04 P03 | 8 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -121,10 +122,12 @@ Recent locked decisions affecting current work:
 - [Phase 04]: python-ai Docker builds now use repository-root context and isolated builder codegen. - Plan 04-01 removes stale generated contracts before Docker codegen, excludes host generated outputs from the build context, and keeps PyYAML out of the runtime image.
 - [Phase 04]: AI AMQP consumers are config-gated and default-disabled until full ingestion orchestration is wired. - Plan 04-02 prevents placeholder handlers from ACKing real queued documents while preserving passive RabbitMQ topology checks and manual ACK/NACK behavior.
 - [Phase 04]: Stage-aware failed indexing events are formatted only through StageFailure safe templates. - Plan 04-02 exposes exception class names, MIME/parser/dependency summaries, and retryability without leaking raw exception text or tracebacks.
+- [Phase 04]: Parser outputs normalize into the locked ParsedBlock fields only. - Plan 04-03 excludes parser-native metadata from the domain model while assigning deterministic positions and section paths in one pass.
+- [Phase 04]: Docling PDF/DOCX parsing uses Markdown export plus the shared Markdown normalizer. - Plan 04-03 keeps normalization deterministic and records that direct page metadata is not retained in this adapter.
 
 ### Pending Todos
 
-- Continue with 04-03-PLAN.md: normalized parsing for PDF, DOCX, HTML, Markdown, and plain text.
+- Continue with 04-04-PLAN.md: deterministic parent/child chunking and Tier-0 child sanitizer.
 
 ### Blockers/Concerns
 
@@ -141,6 +144,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-17T18:17:31.843+03:00
-Stopped at: 04-02-SUMMARY.md created
-Resume file: .planning/phases/04-python-ingestion-indexing/04-03-PLAN.md
+Last session: 2026-05-17T15:33:07.222Z
+Stopped at: 04-03-SUMMARY.md created
+Resume file: .planning/phases/04-python-ingestion-indexing/04-04-PLAN.md
