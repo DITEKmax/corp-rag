@@ -42,5 +42,5 @@ packages = ["src/corp_rag_ai"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
-    "integration: tests that call external services and are skipped unless credentials are present",
+    "integration: live tests that call external services or local heavyweight models and self-skip unless explicit prerequisites are present",
 ]
