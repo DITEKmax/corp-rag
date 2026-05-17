@@ -55,6 +55,26 @@ async def test_upload_graph_failure_rolls_back_qdrant_before_failed_terminal_eve
 
 
 @pytest.mark.asyncio
+async def test_upload_parsing_failure_publishes_failed_without_qdrant_rollback() -> None:
+    calls: list[str] = []
+    parsing_failure = stage_failure(
+        stage=IndexingStage.PARSING,
+        error_code="INVALID_FILE_FORMAT",
+        retryable=False,
+        parser="docling",
+        mime_type="application/pdf",
+    )
+    service = _service(calls=calls, parser_error=parsing_failure)
+
+    await service.handle_uploaded(_uploaded_event(uuid4()))
+
+    assert "vector.replace" not in calls
+    assert "vector.delete" not in calls
+    assert calls.index("publisher.failed") < calls.index("state.mark_failed")
+    assert calls.index("state.mark_failed") < calls.index("processed.insert")
+
+
+@pytest.mark.asyncio
 async def test_failed_event_publish_failure_leaves_event_unprocessed_for_redelivery() -> None:
     calls: list[str] = []
     graph_failure = stage_failure(
@@ -75,6 +95,16 @@ async def test_failed_event_publish_failure_leaves_event_unprocessed_for_redeliv
     assert "publisher.failed" in calls
     assert "state.mark_failed" not in calls
     assert "processed.insert" not in calls
+
+
+@pytest.mark.asyncio
+async def test_upload_duplicate_redelivery_acks_without_side_effects() -> None:
+    calls: list[str] = []
+    service = _service(calls=calls, already_processed=True)
+
+    await service.handle_uploaded(_uploaded_event(uuid4()))
+
+    assert calls == ["processed.has"]
 
 
 @pytest.mark.asyncio
@@ -128,18 +158,30 @@ async def test_delete_handler_cleans_indexes_without_touching_minio() -> None:
     ]
 
 
+@pytest.mark.asyncio
+async def test_delete_duplicate_redelivery_acks_without_cleanup_side_effects() -> None:
+    calls: list[str] = []
+    service = _service(calls=calls, already_processed=True)
+
+    await service.handle_deleted(_deleted_event(uuid4()))
+
+    assert calls == ["processed.has"]
+
+
 def _service(
     *,
     calls: list[str],
+    already_processed: bool = False,
     existing_state: DocumentIndexState | None = None,
     state_sequence: list[DocumentIndexState | None] | None = None,
     object_error: Exception | None = None,
+    parser_error: Exception | None = None,
     graph_replace_error: Exception | None = None,
     failed_publish_error: Exception | None = None,
 ) -> DocumentIngestionService:
     return DocumentIngestionService(
         object_store=_ObjectStore(calls, error=object_error),
-        parser=_Parser(),
+        parser=_Parser(error=parser_error),
         chunker=DocumentChunker(),
         sanitizer=CorpusSanitizer(),
         vector_index=_VectorIndex(calls),
@@ -147,7 +189,7 @@ def _service(
         entity_embedder=_Embedder(),
         graph_index=_GraphIndex(calls, replace_error=graph_replace_error),
         publisher=_Publisher(calls, failed_error=failed_publish_error),
-        processed_events=_ProcessedEvents(calls),
+        processed_events=_ProcessedEvents(calls, processed=already_processed),
         document_states=_DocumentStates(calls, existing=existing_state, sequence=state_sequence),
         parent_chunks=_ParentChunks(calls),
     )
@@ -166,7 +208,12 @@ class _ObjectStore:
 
 
 class _Parser:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self._error = error
+
     async def parse(self, *, document_id: UUID, content: bytes, mime_type: str, language: str) -> ParsedDocument:
+        if self._error is not None:
+            raise self._error
         assert content == b"document bytes"
         assert mime_type == "application/pdf"
         return ParsedDocument(
@@ -243,12 +290,13 @@ class _Publisher:
 
 
 class _ProcessedEvents:
-    def __init__(self, calls: list[str]) -> None:
+    def __init__(self, calls: list[str], *, processed: bool = False) -> None:
         self._calls = calls
+        self._processed = processed
 
     async def has_processed(self, _event_id) -> bool:
         self._calls.append("processed.has")
-        return False
+        return self._processed
 
     async def insert_terminal(self, _event_id, _event_type) -> bool:
         self._calls.append("processed.insert")
