@@ -36,6 +36,20 @@ class Settings(BaseSettings):
         default="http://localhost:6333",
         validation_alias="QDRANT_URL",
     )
+    qdrant_initialize_collection: bool = Field(
+        default=False,
+        validation_alias="AI_QDRANT_INITIALIZE_COLLECTION",
+    )
+    embedding_model_name: str = Field(default="BAAI/bge-m3", validation_alias="AI_EMBEDDING_MODEL")
+    embedding_batch_size: int = Field(default=32, validation_alias="AI_EMBEDDING_BATCH_SIZE")
+    embedding_live_smoke_enabled: bool = Field(
+        default=False,
+        validation_alias="AI_EMBEDDING_LIVE_SMOKE_ENABLED",
+    )
+    embedding_model_cache_dir: str | None = Field(
+        default=None,
+        validation_alias="AI_EMBEDDING_MODEL_CACHE_DIR",
+    )
 
     neo4j_uri: str = Field(default="bolt://localhost:7687", validation_alias="NEO4J_URI")
     neo4j_user: str = Field(default="neo4j", validation_alias="NEO4J_USER")
