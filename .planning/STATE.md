@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 in progress; plan 04-05 completed
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-05-17T16:05:04.290Z"
-last_activity: "2026-05-17 -- Phase 04 plan 05 completed: local bge-m3 embeddings and Qdrant vector indexing"
+status: Phase 4 in progress; plan 04-06 completed
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-05-17T16:28:29.467Z"
+last_activity: "2026-05-17 -- Phase 04 plan 06 completed: Gemini entity extraction and Neo4j graph indexing"
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 24
-  percent: 89
+  completed_plans: 25
+  percent: 93
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 04 -- IN_PROGRESS
-Plan: 04-06-PLAN.md ready to execute
-Status: Phase 4 in progress; plan 04-05 completed
-Last activity: 2026-05-17 -- Phase 04 plan 05 completed: local bge-m3 embeddings and Qdrant vector indexing
+Plan: 04-07-PLAN.md ready to execute
+Status: Phase 4 in progress; plan 04-06 completed
+Last activity: 2026-05-17 -- Phase 04 plan 06 completed: Gemini entity extraction and Neo4j graph indexing
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -47,9 +47,9 @@ Progress: [█████████░] 89%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 5/8 | ~1h 50m | ~22m |
+| 04 | 6/8 | ~2h 03m | ~21m |
 
-**Recent completed plans:** Phase 04 P01-P05 complete; latest P05 took 14 min, 3 tasks, 10 files.
+**Recent completed plans:** Phase 04 P01-P06 complete; latest P06 took 13 min, 3 tasks, 15 files.
 
 ## Accumulated Context
 
@@ -101,10 +101,11 @@ Recent locked decisions affecting current work:
 - [Phase 04]: Token counting uses tiktoken cl100k_base for deterministic parent/child chunk sizing. - Plan 04-04 adds a cached cl100k counter and boundary-aware child splitting.
 - [Phase 04]: Table blocks are isolated as atomic parent/child chunks so they are never split. - Plan 04-04 preserves table Markdown text as a single child even when oversized.
 - [Phase 04]: Suspicious sanitizer matches remain indexable with isSanitized=false unless the chunk is empty or garbage. - Plan 04-04 drops only empty, punctuation-only, and repeated-character chunks.
+- [Phase 04]: Neo4j graph initialization is config-gated by AI_NEO4J_INITIALIZE_SCHEMA; Gemini extraction and graph writes are deterministic and CI-safe.
 
 ### Pending Todos
 
-- Continue with 04-06-PLAN.md: Gemini entity extraction and provenance-first Neo4j graph indexing.
+- Continue with 04-07-PLAN.md: full upload/delete ingestion orchestration and terminal event semantics.
 
 ### Blockers/Concerns
 
@@ -121,6 +122,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-17T16:05:04.276Z
-Stopped at: Completed 04-05-PLAN.md
-Resume file: .planning/phases/04-python-ingestion-indexing/04-06-PLAN.md
+Last session: 2026-05-17T16:28:14.921Z
+Stopped at: Completed 04-06-PLAN.md
+Resume file: .planning/phases/04-python-ingestion-indexing/04-07-PLAN.md

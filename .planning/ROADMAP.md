@@ -110,8 +110,8 @@ Plans:
   3. Chunks are sanitized, embedded with bge-m3 dense+sparse vectors, and upserted to Qdrant.
   4. Entities and relations are extracted and written to Neo4j.
   5. Java receives indexed or failed events with enough detail to update document status.
-**Plans:** 2/8 plans complete
-**Status:** In progress - Wave 2 ingestion state, AMQP foundation, and failure reporting completed on 2026-05-17.
+**Plans:** 6/8 plans complete
+**Status:** In progress - Wave 6 Gemini entity extraction and Neo4j graph indexing completed on 2026-05-17.
 Plans:
 **Wave 1**
 - [x] 04-01-PLAN.md - Fix python-ai repo-root Docker codegen and local bge-m3 runtime contour.
@@ -129,7 +129,7 @@ Plans:
 - [x] 04-05-PLAN.md - Implement local FlagEmbedding bge-m3 embeddings and Qdrant vector indexing.
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 04-06-PLAN.md - Implement Gemini entity extraction and provenance-first Neo4j graph indexing.
+- [x] 04-06-PLAN.md - Implement Gemini entity extraction and provenance-first Neo4j graph indexing.
 
 **Wave 7** *(blocked on Waves 2-6 completion)*
 - [ ] 04-07-PLAN.md - Wire full upload/delete ingestion orchestration and terminal event semantics.
@@ -194,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
-| 4. Python Ingestion & Indexing | 4/8 | In progress | - |
+| 4. Python Ingestion & Indexing | 6/8 | In progress | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
