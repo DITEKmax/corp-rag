@@ -123,7 +123,7 @@ Plans:
 - [x] 04-03-PLAN.md - Implement normalized parsing for PDF, DOCX, HTML, Markdown, and plain text.
 
 **Wave 4** *(blocked on Waves 2 and 3 completion)*
-- [ ] 04-04-PLAN.md - Implement deterministic parent/child chunking and Tier-0 sanitizer.
+- [x] 04-04-PLAN.md - Implement deterministic parent/child chunking and Tier-0 sanitizer.
 
 **Wave 5** *(blocked on Waves 1 and 4 completion)*
 - [ ] 04-05-PLAN.md - Implement local FlagEmbedding bge-m3 embeddings and Qdrant vector indexing.
@@ -194,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
-| 4. Python Ingestion & Indexing | 2/8 | In progress | - |
+| 4. Python Ingestion & Indexing | 4/8 | In progress | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |

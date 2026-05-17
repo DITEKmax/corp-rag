@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 in progress; plan 04-03 completed
-stopped_at: 04-03-SUMMARY.md created
-last_updated: "2026-05-17T15:33:07.236Z"
-last_activity: "2026-05-17 -- Phase 04 plan 03 completed: normalized parsing for PDF, DOCX, HTML, Markdown, and plain text"
+status: Phase 4 in progress; plan 04-04 completed
+stopped_at: 04-04-SUMMARY.md created
+last_updated: "2026-05-17T15:49:31.160Z"
+last_activity: "2026-05-17 -- Phase 04 plan 04 completed: deterministic parent/child chunking and Tier-0 sanitizer"
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 22
-  percent: 81
+  completed_plans: 23
+  percent: 85
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 04 -- IN_PROGRESS
-Plan: 04-04-PLAN.md ready to execute
-Status: Phase 4 in progress; plan 04-03 completed
-Last activity: 2026-05-17 -- Phase 04 plan 03 completed: normalized parsing for PDF, DOCX, HTML, Markdown, and plain text
+Plan: 04-05-PLAN.md ready to execute
+Status: Phase 4 in progress; plan 04-04 completed
+Last activity: 2026-05-17 -- Phase 04 plan 04 completed: deterministic parent/child chunking and Tier-0 sanitizer
 
-Progress: [████████░░] 81%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 22
+- Total plans completed: 23
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -47,7 +47,7 @@ Progress: [████████░░] 81%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 3/8 | ~1h 20m | ~27m |
+| 04 | 4/8 | ~1h 36m | ~24m |
 
 **Recent Trend:**
 
@@ -76,6 +76,7 @@ Progress: [████████░░] 81%
 | Phase 04 P01 | ~1h | 3 tasks | 6 files |
 | Phase 04 P02 | 12 min | 3 tasks | 23 files |
 | Phase 04 P03 | 8 min | 3 tasks | 16 files |
+| Phase 04 P04 | 16 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -124,10 +125,13 @@ Recent locked decisions affecting current work:
 - [Phase 04]: Stage-aware failed indexing events are formatted only through StageFailure safe templates. - Plan 04-02 exposes exception class names, MIME/parser/dependency summaries, and retryability without leaking raw exception text or tracebacks.
 - [Phase 04]: Parser outputs normalize into the locked ParsedBlock fields only. - Plan 04-03 excludes parser-native metadata from the domain model while assigning deterministic positions and section paths in one pass.
 - [Phase 04]: Docling PDF/DOCX parsing uses Markdown export plus the shared Markdown normalizer. - Plan 04-03 keeps normalization deterministic and records that direct page metadata is not retained in this adapter.
+- [Phase 04]: Token counting uses tiktoken cl100k_base for deterministic parent/child chunk sizing. - Plan 04-04 adds a cached cl100k counter and boundary-aware child splitting.
+- [Phase 04]: Table blocks are isolated as atomic parent/child chunks so they are never split. - Plan 04-04 preserves table Markdown text as a single child even when oversized.
+- [Phase 04]: Suspicious sanitizer matches remain indexable with isSanitized=false unless the chunk is empty or garbage. - Plan 04-04 drops only empty, punctuation-only, and repeated-character chunks.
 
 ### Pending Todos
 
-- Continue with 04-04-PLAN.md: deterministic parent/child chunking and Tier-0 child sanitizer.
+- Continue with 04-05-PLAN.md: local bge-m3 embedding and Qdrant vector indexing.
 
 ### Blockers/Concerns
 
@@ -144,6 +148,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-17T15:33:07.222Z
-Stopped at: 04-03-SUMMARY.md created
-Resume file: .planning/phases/04-python-ingestion-indexing/04-04-PLAN.md
+Last session: 2026-05-17T15:49:31.160Z
+Stopped at: 04-04-SUMMARY.md created
+Resume file: .planning/phases/04-python-ingestion-indexing/04-05-PLAN.md

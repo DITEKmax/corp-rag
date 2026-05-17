@@ -31,8 +31,8 @@
 
 - [x] **ING-01**: Python consumes document upload/delete events idempotently.
 - [x] **ING-02**: Python fetches source files from MinIO and parses PDF, DOCX, HTML, Markdown, and plain text into a normalized document representation.
-- [ ] **ING-03**: Python chunks parsed documents into parent and child chunks with inherited document metadata.
-- [ ] **ING-04**: Python sanitizes chunks and excludes unsafe chunks from retrieval.
+- [x] **ING-03**: Python chunks parsed documents into parent and child chunks with inherited document metadata.
+- [x] **ING-04**: Python sanitizes chunks and excludes unsafe chunks from retrieval.
 - [ ] **ING-05**: Python creates bge-m3 dense+sparse embeddings and writes chunk points to Qdrant.
 - [ ] **ING-06**: Python extracts entities/relations and writes graph data to Neo4j.
 - [x] **ING-07**: Python publishes indexed/failed events with stage-aware details.
@@ -104,8 +104,8 @@
 | AUD-01 | Phase 3 | Complete |
 | ING-01 | Phase 4 | Complete |
 | ING-02 | Phase 4 | Complete |
-| ING-03 | Phase 4 | Pending |
-| ING-04 | Phase 4 | Pending |
+| ING-03 | Phase 4 | Complete |
+| ING-04 | Phase 4 | Complete |
 | ING-05 | Phase 4 | Pending |
 | ING-06 | Phase 4 | Pending |
 | ING-07 | Phase 4 | Complete |
