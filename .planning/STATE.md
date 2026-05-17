@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 planned and ready for execution
-stopped_at: Phase 4 plans created
-last_updated: "2026-05-17T14:36:18.889Z"
-last_activity: 2026-05-17 -- Phase 04 context, research, local embedding pivot, and eight execution plans created
+status: Phase 4 in progress; plan 04-01 completed
+stopped_at: 04-01-SUMMARY.md created
+last_updated: "2026-05-17T17:54:41.602+03:00"
+last_activity: 2026-05-17 -- Phase 04 plan 01 completed: python-ai repo-root Docker codegen preflight
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 19
-  percent: 70
+  completed_plans: 20
+  percent: 74
 ---
 
 # Project State
@@ -25,18 +25,18 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 
 ## Current Position
 
-Phase: 04 -- PLANNED
-Plan: 04-01-PLAN.md ready to execute
-Status: Phase 4 planned and ready for execution
-Last activity: 2026-05-17 -- Phase 04 context, research, local embedding pivot, and eight execution plans created
+Phase: 04 -- IN_PROGRESS
+Plan: 04-02-PLAN.md ready to execute
+Status: Phase 4 in progress; plan 04-01 completed
+Last activity: 2026-05-17 -- Phase 04 plan 01 completed: python-ai repo-root Docker codegen preflight
 
-Progress: [███████░░░] 70%
+Progress: 74%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -47,7 +47,7 @@ Progress: [███████░░░] 70%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 0/8 | - | - |
+| 04 | 1/8 | ~1h | ~1h |
 
 **Recent Trend:**
 
@@ -73,6 +73,7 @@ Progress: [███████░░░] 70%
 | Phase 03 P04 | 21 min | 3 tasks | 14 files |
 | Phase 03 P05 | 15 min | 3 tasks | 13 files |
 | Phase 03 P06 | 26 min | 3 tasks | 22 files |
+| Phase 04 P01 | ~1h | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -116,10 +117,11 @@ Recent locked decisions affecting current work:
 - [Phase 03]: Correlation prefers a valid x-correlation-id AMQP header, then envelope metadata, then a generated UUID. — This preserves the HTTP to outbox to Python to Java audit chain while handling malformed or missing inbound headers.
 - [Phase 04]: Python embeddings pivoted from HF Inference API to local FlagEmbedding for BAAI/bge-m3 dense+sparse output. — Research found HF free-tier feature extraction documents dense-only output; local FlagEmbedding preserves ADR-001 and Qdrant dense+sparse semantics.
 - [Phase 04]: Phase 4 is split into eight execution plans covering Docker/codegen, state/AMQP, parsing, chunking/sanitizer, embeddings/Qdrant, graph/Gemini/Neo4j, orchestration, and end-to-end UAT.
+- [Phase 04]: python-ai Docker builds now use repository-root context and isolated builder codegen. - Plan 04-01 removes stale generated contracts before Docker codegen, excludes host generated outputs from the build context, and keeps PyYAML out of the runtime image.
 
 ### Pending Todos
 
-None yet.
+- Continue with 04-02-PLAN.md: AI ingestion state, AMQP foundation, and stage-aware failure reporting.
 
 ### Blockers/Concerns
 
@@ -136,6 +138,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-17T14:36:18.889Z
-Stopped at: Phase 4 plans created
-Resume file: .planning/phases/04-python-ingestion-indexing/04-01-PLAN.md
+Last session: 2026-05-17T17:54:41.602+03:00
+Stopped at: 04-01-SUMMARY.md created
+Resume file: .planning/phases/04-python-ingestion-indexing/04-02-PLAN.md
