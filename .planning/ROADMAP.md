@@ -110,8 +110,32 @@ Plans:
   3. Chunks are sanitized, embedded with bge-m3 dense+sparse vectors, and upserted to Qdrant.
   4. Entities and relations are extracted and written to Neo4j.
   5. Java receives indexed or failed events with enough detail to update document status.
-**Plans**: TBD
-**Status:** ready_to_discuss - Phase 3 handoff is available in `.planning/phases/03-documents-events-audit/03-HANDOFF.md`.
+**Plans:** 0/8 plans complete
+**Status:** Planned - Phase 4 context, research, and execution plans are available.
+Plans:
+**Wave 1**
+- [ ] 04-01-PLAN.md - Fix python-ai repo-root Docker codegen and local bge-m3 runtime contour.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-02-PLAN.md - Add AI ingestion state, AMQP foundation, and stage-aware failure reporting.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 04-03-PLAN.md - Implement normalized parsing for PDF, DOCX, HTML, Markdown, and plain text.
+
+**Wave 4** *(blocked on Waves 2 and 3 completion)*
+- [ ] 04-04-PLAN.md - Implement deterministic parent/child chunking and Tier-0 sanitizer.
+
+**Wave 5** *(blocked on Waves 1 and 4 completion)*
+- [ ] 04-05-PLAN.md - Implement local FlagEmbedding bge-m3 embeddings and Qdrant vector indexing.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 04-06-PLAN.md - Implement Gemini entity extraction and provenance-first Neo4j graph indexing.
+
+**Wave 7** *(blocked on Waves 2-6 completion)*
+- [ ] 04-07-PLAN.md - Wire full upload/delete ingestion orchestration and terminal event semantics.
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 04-08-PLAN.md - Add Phase 4 UAT checklist, live smoke helpers, and end-to-end UAT evidence.
 
 ### Phase 5: Retrieval, Guards & Query API
 **Goal**: Python can safely answer Java query requests using access-filtered hybrid/graph retrieval and cited structured generation.
@@ -170,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
-| 4. Python Ingestion & Indexing | 0/TBD | Ready to discuss | - |
+| 4. Python Ingestion & Indexing | 0/8 | Planned | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 3 passed HUMAN UAT; Phase 4 is ready for handoff and discussion
-stopped_at: Phase 4 context gathered
-last_updated: "2026-05-17T14:14:55.705Z"
-last_activity: 2026-05-17 -- Phase 03 Docker-backed HUMAN UAT passed; Phase 04 ready for discussion
+status: Phase 4 planned and ready for execution
+stopped_at: Phase 4 plans created
+last_updated: "2026-05-17T14:36:18.889Z"
+last_activity: 2026-05-17 -- Phase 04 context, research, local embedding pivot, and eight execution plans created
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 19
+  total_plans: 27
   completed_plans: 19
-  percent: 100
+  percent: 70
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 
 ## Current Position
 
-Phase: 04 -- READY TO DISCUSS
-Plan: Not started
-Status: Phase 3 passed HUMAN UAT; Phase 4 is ready for handoff and discussion
-Last activity: 2026-05-17 -- Phase 03 Docker-backed HUMAN UAT passed; Phase 04 ready for discussion
+Phase: 04 -- PLANNED
+Plan: 04-01-PLAN.md ready to execute
+Status: Phase 4 planned and ready for execution
+Last activity: 2026-05-17 -- Phase 04 context, research, local embedding pivot, and eight execution plans created
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [██████████] 100%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
+| 04 | 0/8 | - | - |
 
 **Recent Trend:**
 
@@ -113,6 +114,8 @@ Recent locked decisions affecting current work:
 - [Phase 03]: Consumer idempotency inserts processed_events before business handling and rolls back that insert on handler failure. — This implements duplicate ACK safety while allowing RabbitMQ retry or DLQ behavior when business processing fails.
 - [Phase 03]: Late terminal events for soft-deleted documents are recorded as processed without changing document status or audit details. — Plan 03-06 keeps delete semantics authoritative and prevents Python result events from resurrecting rows.
 - [Phase 03]: Correlation prefers a valid x-correlation-id AMQP header, then envelope metadata, then a generated UUID. — This preserves the HTTP to outbox to Python to Java audit chain while handling malformed or missing inbound headers.
+- [Phase 04]: Python embeddings pivoted from HF Inference API to local FlagEmbedding for BAAI/bge-m3 dense+sparse output. — Research found HF free-tier feature extraction documents dense-only output; local FlagEmbedding preserves ADR-001 and Qdrant dense+sparse semantics.
+- [Phase 04]: Phase 4 is split into eight execution plans covering Docker/codegen, state/AMQP, parsing, chunking/sanitizer, embeddings/Qdrant, graph/Gemini/Neo4j, orchestration, and end-to-end UAT.
 
 ### Pending Todos
 
@@ -120,8 +123,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- None blocking for Phase 4 start. Phase 03 Docker-backed human UAT passed on 2026-05-17.
-- Phase 4 should read `.planning/phases/03-documents-events-audit/03-HANDOFF.md` before discussion or planning.
+- None blocking for Phase 4 execution start. Phase 04 planning absorbed the Phase 03 handoff and resolved the HF sparse-output blocker through the local FlagEmbedding pivot.
 
 ## Deferred Items
 
@@ -134,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-17T14:14:55.665Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-python-ingestion-indexing/04-CONTEXT.md
+Last session: 2026-05-17T14:36:18.889Z
+Stopped at: Phase 4 plans created
+Resume file: .planning/phases/04-python-ingestion-indexing/04-01-PLAN.md
