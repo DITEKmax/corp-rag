@@ -25,6 +25,13 @@ class Settings(BaseSettings):
         default="amqp://corp_rag:corp_rag@localhost:5672/",
         validation_alias="RABBITMQ_URL",
     )
+    amqp_consumers_enabled: bool = Field(
+        default=False,
+        validation_alias="AI_AMQP_CONSUMERS_ENABLED",
+    )
+    amqp_prefetch_count: int = Field(default=1, validation_alias="AI_AMQP_PREFETCH_COUNT")
+    amqp_event_version: str = Field(default="1.0.0", validation_alias="AI_AMQP_EVENT_VERSION")
+    amqp_source_service: str = Field(default="corp-rag-ai", validation_alias="AI_AMQP_SOURCE_SERVICE")
     qdrant_url: AnyHttpUrl = Field(
         default="http://localhost:6333",
         validation_alias="QDRANT_URL",
