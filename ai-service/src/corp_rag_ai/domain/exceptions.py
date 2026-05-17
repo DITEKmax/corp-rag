@@ -54,8 +54,8 @@ STAGE_MESSAGE_TEMPLATES: dict[IndexingStage, str] = {
         "Проверьте коллекцию и доступность Qdrant."
     ),
     IndexingStage.ENTITY_EXTRACTION: (
-        "Извлечение сущностей не выполнено. Gemini/entity extraction detail: {detail}. "
-        "Проверьте ключ Gemini и структуру ответа."
+        "Извлечение сущностей не выполнено. DeepSeek/OpenRouter entity extraction detail: {detail}. "
+        "Проверьте ключ OpenRouter и структуру ответа."
     ),
     IndexingStage.GRAPH_UPSERT: (
         "Запись в Neo4j не выполнена. Neo4j detail: {detail}. "
@@ -64,13 +64,16 @@ STAGE_MESSAGE_TEMPLATES: dict[IndexingStage, str] = {
 }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass
 class StageFailure(Exception):
     stage: IndexingStage
     error_code: str
     retryable: bool
     message_template: str | None = None
     template_vars: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        super().__init__(self.to_error_message())
 
     def to_error_message(self, max_len: int = 2048) -> str:
         template = self.message_template or STAGE_MESSAGE_TEMPLATES[self.stage]

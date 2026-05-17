@@ -114,3 +114,22 @@
 - Neo4j communities, cross-language aliases, orphan cleanup, and reference-counted entity cleanup.
 - PII redaction and LLM sanitizer during ingestion.
 - Java/admin manual retry and retry counters.
+
+---
+
+## LLM Provider Pivot To DeepSeek
+
+**Trigger:** Phase 4 UAT P2 preflight failed three times. The Gemini free tier for `gemini-2.0-flash` returned `429 RESOURCE_EXHAUSTED` with `limit=0` for RPM, RPD, and TPM across different API keys and two Google AI Studio projects, which makes this a policy-level regional/project restriction rather than a temporary rate limit.
+
+| Provider | Pros | Cons | Decision |
+|---|---|---|---|
+| Gemini 2.0 Flash (status quo) | Already integrated, fast | quota=0 policy block, region-locked, requires Google billing | REJECTED |
+| Gemini 1.5 Flash | Might have softer quota | same regional policy risk, slower | REJECTED |
+| DeepSeek V4 Flash via OpenRouter | open-source, MIT, works from any region, strict json_schema mode, response-healing plugin, $0.14/$0.28 paid pricing | newer (Apr 2026), slightly higher latency | ACCEPTED |
+| DeepSeek V3 via OpenRouter | older, more battle-tested | $0.32/$0.89, no 1M context | REJECTED for primary, kept available |
+| Claude/OpenAI direct | best quality | no free tier, paid card needed | REJECTED |
+| Local LLM (Ollama/llama.cpp) | full control | 16GB RAM is not enough for a serious model plus bge-m3 | REJECTED |
+
+**Decision rationale:** DeepSeek V4 Flash satisfies the academic requirement for an open-source LLM while keeping the runtime hosted enough for MVP UAT. OpenRouter removes the single-provider access risk that blocked the previous provider and gives one OpenAI-compatible SDK surface for all LLM use cases. Strict `json_schema` mode keeps entity extraction and later guards/router outputs structured. The OpenRouter response-healing plugin auto-repairs common malformed JSON before application-side Pydantic validation. Using one model ID, `deepseek/deepseek-v4-flash`, simplifies testing, configuration, failure semantics, and later Phase 5 maintenance.
+
+**Implications:** `ARCHITECTURE.md` section 3.3 is rewritten around DeepSeek V4 Flash through OpenRouter. ADR-001 is clarified and ADR-004 records the LLM provider decision. The Phase 4 failure matrix `EMBEDDING` and `ENTITY_EXTRACTION` rows use HTTP/provider error semantics where relevant. The `google-genai` dependency and Gemini environment/configuration surface are removed.

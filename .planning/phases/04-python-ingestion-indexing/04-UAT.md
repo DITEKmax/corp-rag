@@ -14,7 +14,7 @@ This script validates the completed Python ingestion and indexing path against t
 
 - Do not run `docker compose down -v`, data reset scripts, or any volume cleanup before Scenario 1. The retained RabbitMQ queues and databases are part of the test.
 - Docker Desktop must have enough memory for the stack plus local bge-m3. The `python-ai` service reserves 3 GB and is capped at 4 GB.
-- `GEMINI_API_KEY` must be set for the Gemini structured-output preflight and graph extraction scenarios.
+- `OPENROUTER_API_KEY` must be set for the DeepSeek/OpenRouter structured-output preflight and graph extraction scenarios.
 - Keep all IDs and command outputs that prove each scenario in the Evidence Log section.
 
 ## Shared PowerShell Variables
@@ -42,7 +42,9 @@ if (!(Test-Path infra/.env)) { Copy-Item infra/.env.example infra/.env }
 Edit `infra/.env` and set:
 
 ```text
-GEMINI_API_KEY=<google-ai-studio-key>
+OPENROUTER_API_KEY=<openrouter-key>
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+DEEPSEEK_MODEL_ID=deepseek/deepseek-v4-flash
 ADMIN_USERNAME=admin
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=<strong-local-password>
@@ -65,12 +67,12 @@ Expected:
 - Sparse lexical weights are non-empty.
 - First run may download model weights into the Hugging Face cache; later runs should reuse the cache.
 
-## P2 Gemini Structured Output Smoke
+## P2 DeepSeek/OpenRouter Smoke
 
 ```powershell
 cd ai-service
-$env:GEMINI_API_KEY = "<google-ai-studio-key>"
-uv run pytest tests/test_entity_extraction_live.py::test_live_gemini_extracts_expected_hr_policy_subset -m integration -q -s
+$env:OPENROUTER_API_KEY = "<openrouter-key>"
+uv run pytest tests/test_deepseek_extraction_live.py::test_live_deepseek_extracts_expected_hr_policy_subset -m integration -q -s
 cd ..
 ```
 
@@ -387,7 +389,7 @@ Fill this table during the run.
 | Item | Value |
 |---|---|
 | P1 FlagEmbedding result | |
-| P2 Gemini result | |
+| P2 DeepSeek/OpenRouter result | |
 | P3 stack start timestamp | |
 | Scenario 1 retained processed count | |
 | Scenario 2 happy document ID | |

@@ -39,7 +39,7 @@ Do not clear retained Docker volumes before the end-of-Phase 4 UAT. The retained
 
 ## Test Selection
 
-Default tests are CI-safe and do not require a model download, Qdrant, Neo4j, or Gemini:
+Default tests are CI-safe and do not require a model download, Qdrant, Neo4j, or OpenRouter:
 
 ```bash
 cd ai-service
@@ -53,7 +53,7 @@ Live integration tests are marked `integration` and self-skip unless their expli
 | Local bge-m3 smoke | `AI_EMBEDDING_LIVE_SMOKE_ENABLED=true` |
 | Qdrant live smoke | `AI_QDRANT_LIVE_SMOKE_ENABLED=true` and reachable `QDRANT_URL` |
 | Neo4j live smoke | `AI_NEO4J_LIVE_SMOKE_ENABLED=true` and reachable `NEO4J_URI` |
-| Gemini live extraction | `GEMINI_API_KEY` |
+| DeepSeek/OpenRouter live extraction | `OPENROUTER_API_KEY` |
 
 PowerShell live smoke example:
 
@@ -62,25 +62,32 @@ cd ai-service
 $env:AI_EMBEDDING_LIVE_SMOKE_ENABLED = "true"
 $env:AI_QDRANT_LIVE_SMOKE_ENABLED = "true"
 $env:AI_NEO4J_LIVE_SMOKE_ENABLED = "true"
-$env:GEMINI_API_KEY = "your-google-ai-studio-key"
+$env:OPENROUTER_API_KEY = "your-openrouter-key"
 uv run pytest -m integration
 ```
 
-## Live Gemini Entity Extraction Smoke
+## Live DeepSeek/OpenRouter Entity Extraction Smoke
 
-Entity extraction unit tests mock `google-genai` and do not need credentials. The live integration smoke is skipped unless `GEMINI_API_KEY` is set.
+Entity extraction unit tests mock OpenAI-compatible chat completions and do not need credentials. The live integration smoke is skipped unless `OPENROUTER_API_KEY` is set.
+
+The service uses `deepseek/deepseek-v4-flash` through OpenRouter by default:
+
+| Setting | Default |
+|---|---|
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
+| `DEEPSEEK_MODEL_ID` | `deepseek/deepseek-v4-flash` |
 
 PowerShell:
 
 ```powershell
 cd ai-service
-$env:GEMINI_API_KEY = "your-google-ai-studio-key"
-uv run pytest tests/test_entity_extraction_live.py -m integration
+$env:OPENROUTER_API_KEY = "your-openrouter-key"
+uv run pytest tests/test_deepseek_extraction_live.py -m integration
 ```
 
 Bash:
 
 ```bash
 cd ai-service
-GEMINI_API_KEY=your-google-ai-studio-key uv run pytest tests/test_entity_extraction_live.py -m integration
+OPENROUTER_API_KEY=your-openrouter-key uv run pytest tests/test_deepseek_extraction_live.py -m integration
 ```

@@ -28,7 +28,7 @@
 
 - **Solo-разработчик** — никакой команды.
 - **~12 недель** на MVP (курсовая), потом ещё на расширения для диплома.
-- **Бесплатные/условно-бесплатные LLM** — Gemini Free tier (1500 req/день), OpenRouter `:free` (DeepSeek V3 и др.).
+- **Бесплатные/условно-бесплатные LLM** — OpenRouter для DeepSeek и других open-source моделей.
 - **Деплой во внутреннем контуре** — Docker Compose, можно on-premise (то есть в дипломе должна быть возможность переключить LLM на локальный через Ollama/vLLM).
 
 ## Архитектурное решение
@@ -59,7 +59,7 @@
 | **bge-m3** для эмбеддингов | Multilingual (ru+en), dense+sparse в одной модели, MIT | ADR-001 |
 | **Qdrant** как vector DB | Native hybrid (dense+sparse), фильтры по payload, простой Docker-сетап | ADR-002 |
 | **Neo4j Community** для графа | Стандарт индустрии, визуализация из коробки, Cypher | — |
-| **Gemini 2.0 Flash Lite** для генерации | Free tier 1500/день, 1M контекст, дёшево | — |
+| **DeepSeek V4 Flash via OpenRouter** для генерации | Open-source, 1M контекст, единый OpenAI-compatible API | — |
 | **LangGraph** для оркестрации | StateGraph с условным роутингом, нативная визуализация | — |
 | **RabbitMQ** для async | Зрелый, проверенный, легко с DLX/DLQ | — |
 | **Java + Python** разделение | Каждый на своей экспертизе | ADR-003 |

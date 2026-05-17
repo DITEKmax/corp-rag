@@ -49,12 +49,12 @@ ADR не редактируются после "принятия", только 
 | 001 | [Embedding model: bge-m3](ADR-001-embedding-model.md) | Accepted |
 | 002 | [Vector database: Qdrant](ADR-002-vector-database.md) | Accepted |
 | 003 | [Разделение Java и Python: два сервиса](ADR-003-java-python-split.md) | Accepted |
+| 004 | [LLM provider decision: DeepSeek V4 Flash via OpenRouter](ADR-004-llm-provider-deepseek-openrouter.md) | Accepted |
 
 ## Будущие ADR, которые скорее всего понадобятся
 
 По ходу реализации появятся:
 
-- ADR-004 — Sparse retrieval: bge-m3 sparse vs классический BM25
 - ADR-005 — Graph RAG: своя реализация vs LightRAG как зависимость
 - ADR-006 — Chunking strategy: parent-document
 - ADR-007 — Outbox: scheduled poller vs CDC (если придётся выбирать)

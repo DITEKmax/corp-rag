@@ -2,29 +2,42 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import httpx
+import openai
 import pytest
 
-from corp_rag_ai.domain.exceptions import INDEXING_PIPELINE_ERROR, DEPENDENCY_UNAVAILABLE, IndexingStage, StageFailure
+from corp_rag_ai.domain.exceptions import DEPENDENCY_UNAVAILABLE, INDEXING_PIPELINE_ERROR, IndexingStage, StageFailure
 from corp_rag_ai.pipeline.indexing.entity_extractor import (
-    DEFAULT_GEMINI_MODEL,
+    DEFAULT_DEEPSEEK_MODEL,
     ENTITY_EXTRACTION_PROMPT_VERSION,
+    DeepSeekEntityExtractor,
     EntityExtractionSource,
-    GeminiEntityExtractor,
+    _structured_response_format,
     load_entity_extraction_prompt,
 )
 
 
+class _FakeMessage:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content: str) -> None:
+        self.message = _FakeMessage(content)
+
+
 class _FakeResponse:
     def __init__(self, text: str) -> None:
-        self.text = text
+        self.choices = [_FakeChoice(text)]
 
 
-class _FakeModels:
+class _FakeCompletions:
     def __init__(self, outcomes) -> None:
         self.outcomes = list(outcomes)
         self.calls: list[dict[str, object]] = []
 
-    def generate_content(self, **kwargs):
+    async def create(self, **kwargs):
         self.calls.append(kwargs)
         outcome = self.outcomes.pop(0)
         if isinstance(outcome, Exception):
@@ -32,9 +45,14 @@ class _FakeModels:
         return outcome
 
 
+class _FakeChat:
+    def __init__(self, outcomes) -> None:
+        self.completions = _FakeCompletions(outcomes)
+
+
 class _FakeClient:
     def __init__(self, outcomes) -> None:
-        self.models = _FakeModels(outcomes)
+        self.chat = _FakeChat(outcomes)
 
 
 class _HttpError(Exception):
@@ -48,7 +66,7 @@ async def _no_sleep(_seconds: float) -> None:
 
 
 @pytest.mark.asyncio
-async def test_extract_parent_calls_gemini_structured_output_and_maps_candidates() -> None:
+async def test_extract_parent_calls_deepseek_structured_output_and_maps_candidates() -> None:
     client = _FakeClient(
         [
             _FakeResponse(
@@ -71,7 +89,7 @@ async def test_extract_parent_calls_gemini_structured_output_and_maps_candidates
             )
         ]
     )
-    extractor = GeminiEntityExtractor(client=client, sleep=_no_sleep)
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
 
     result = await extractor.extract_parent(
         _source(),
@@ -88,14 +106,16 @@ async def test_extract_parent_calls_gemini_structured_output_and_maps_candidates
     assert result.relations[0].source_entity_id == result.entities[0].entity_id
     assert result.relations[0].target_entity_id == result.entities[1].entity_id
 
-    call = client.models.calls[0]
-    assert call["model"] == DEFAULT_GEMINI_MODEL
-    assert "HR Policy" in call["contents"]
-    assert "Parent chunk ID" in call["contents"]
-    config = call["config"]
-    assert getattr(config, "temperature", None) == 0.1
-    assert getattr(config, "max_output_tokens", None) == 2000
-    assert getattr(config, "response_mime_type", None) == "application/json"
+    call = client.chat.completions.calls[0]
+    assert call["model"] == DEFAULT_DEEPSEEK_MODEL
+    assert call["messages"][0]["role"] == "user"
+    assert "HR Policy" in call["messages"][0]["content"]
+    assert "Parent chunk ID" in call["messages"][0]["content"]
+    assert call["temperature"] == 0.1
+    assert call["max_tokens"] == 2000
+    assert call["response_format"]["type"] == "json_schema"
+    assert call["response_format"]["json_schema"]["strict"] is True
+    assert call["extra_body"] == {"plugins": [{"id": "response-healing"}]}
 
 
 @pytest.mark.asyncio
@@ -115,7 +135,7 @@ async def test_unknown_entity_types_are_dropped_with_warning(caplog) -> None:
             )
         ]
     )
-    extractor = GeminiEntityExtractor(client=client, sleep=_no_sleep)
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
 
     result = await extractor.extract_parent(_source(), document_title="Payroll", language="en")
 
@@ -127,7 +147,7 @@ async def test_unknown_entity_types_are_dropped_with_warning(caplog) -> None:
 @pytest.mark.asyncio
 async def test_empty_entities_are_valid() -> None:
     client = _FakeClient([_FakeResponse('{"entities": [], "relations": []}')])
-    extractor = GeminiEntityExtractor(client=client, sleep=_no_sleep)
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
 
     result = await extractor.extract_parent(_source(), document_title="Empty", language="en")
 
@@ -144,7 +164,7 @@ async def test_malformed_structured_output_retries_once_total_then_fails() -> No
             _FakeResponse('{"entities": [], "relations": []}'),
         ]
     )
-    extractor = GeminiEntityExtractor(client=client, sleep=_no_sleep)
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
 
     with pytest.raises(StageFailure) as failure:
         await extractor.extract_parent(_source(), document_title="Broken", language="en")
@@ -152,7 +172,7 @@ async def test_malformed_structured_output_retries_once_total_then_fails() -> No
     assert failure.value.stage == IndexingStage.ENTITY_EXTRACTION
     assert failure.value.error_code == INDEXING_PIPELINE_ERROR
     assert failure.value.retryable is False
-    assert len(client.models.calls) == 2
+    assert len(client.chat.completions.calls) == 2
 
 
 @pytest.mark.asyncio
@@ -164,18 +184,18 @@ async def test_retryable_dependency_errors_backoff_up_to_three_attempts() -> Non
             _FakeResponse('{"entities": [], "relations": []}'),
         ]
     )
-    extractor = GeminiEntityExtractor(client=client, sleep=_no_sleep)
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
 
     result = await extractor.extract_parent(_source(), document_title="Retry", language="en")
 
     assert result.entities == ()
-    assert len(client.models.calls) == 3
+    assert len(client.chat.completions.calls) == 3
 
 
 @pytest.mark.asyncio
 async def test_auth_errors_fail_without_retry_as_non_retryable_dependency() -> None:
     client = _FakeClient([_HttpError(403), _FakeResponse('{"entities": [], "relations": []}')])
-    extractor = GeminiEntityExtractor(client=client, sleep=_no_sleep)
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
 
     with pytest.raises(StageFailure) as failure:
         await extractor.extract_parent(_source(), document_title="Auth", language="en")
@@ -183,7 +203,35 @@ async def test_auth_errors_fail_without_retry_as_non_retryable_dependency() -> N
     assert failure.value.stage == IndexingStage.ENTITY_EXTRACTION
     assert failure.value.error_code == DEPENDENCY_UNAVAILABLE
     assert failure.value.retryable is False
-    assert len(client.models.calls) == 1
+    assert len(client.chat.completions.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_openai_bad_request_raises_stage_failure_without_traceback_type_error() -> None:
+    request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    response = httpx.Response(400, request=request)
+    bad_request = openai.BadRequestError(
+        message="Invalid response_format schema.",
+        response=response,
+        body={"error": {"code": 400, "message": "Invalid schema"}},
+    )
+    client = _FakeClient([bad_request])
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
+
+    with pytest.raises(StageFailure) as failure:
+        await extractor.extract_parent(_source(), document_title="Broken schema", language="en")
+
+    assert failure.value.stage == IndexingStage.ENTITY_EXTRACTION
+    assert failure.value.error_code == INDEXING_PIPELINE_ERROR
+    assert failure.value.retryable is False
+    assert failure.value.__traceback__ is not None
+
+
+def test_openrouter_response_schema_strips_additional_properties_recursively() -> None:
+    schema = _structured_response_format()["json_schema"]["schema"]
+
+    assert not _contains_schema_key(schema, "additionalProperties")
+    assert not _contains_schema_key(schema, "additional_properties")
 
 
 def test_prompt_artifact_is_versioned_and_has_required_sections() -> None:
@@ -203,3 +251,11 @@ def _source() -> EntityExtractionSource:
         parent_chunk_id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
         section_path=("Benefits",),
     )
+
+
+def _contains_schema_key(value, key: str) -> bool:
+    if isinstance(value, dict):
+        return key in value or any(_contains_schema_key(child, key) for child in value.values())
+    if isinstance(value, list):
+        return any(_contains_schema_key(child, key) for child in value)
+    return False

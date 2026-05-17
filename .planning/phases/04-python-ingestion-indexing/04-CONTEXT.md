@@ -128,8 +128,8 @@ This phase does not implement query retrieval, answer generation, frontend scree
 
 ### Graph Extraction Execution
 - **D-91:** Run graph extraction after successful Qdrant vector upsert.
-- **D-92:** Use parent-level extraction: one Gemini 2.0 Flash structured-output call per parent chunk, sequentially. Do not run extraction per child and do not parallelize parent calls in MVP.
-- **D-147:** Use the current `google-genai` SDK for Gemini API integration. Do not use legacy `google-generativeai` in Phase 4.
+- **D-92:** Use parent-level extraction: one DeepSeek V4 Flash structured-output call per parent chunk through OpenRouter, sequentially. Do not run extraction per child and do not parallelize parent calls in MVP.
+- **D-147:** Use the OpenAI Python SDK with OpenRouter `base_url` override for LLM integration. Do not keep the previous provider SDK in Phase 4.
 - **D-93:** If graph extraction or graph upsert fails, the whole document indexing fails. Do not emit `document.indexed` for hybrid-only partial state.
 - **D-94:** On any failure after Qdrant upsert has started, including a suspected partial `VECTOR_UPSERT`, rollback Qdrant by delete-by-filter `documentId`, then publish failed event and set `document_index_state.status=FAILED`.
 - **D-95:** If rollback cleanup itself fails, log critical error and still publish the original failed event. A later retry/reindex starts with delete-by-filter and can repair stale Qdrant state.
@@ -139,7 +139,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - **D-99:** Use one Neo4j write transaction per document for Document, Entities, RelationMentions, and edges.
 - **D-100:** Graph extraction wave must create prompt file `ai-service/src/corp_rag_ai/pipeline/indexing/prompts/entity_extraction_v1.md` with `## System prompt` and `## User template` sections.
 - **D-101:** Prompt file is versioned in filename; create a new file for major schema/type changes. Code references `ENTITY_EXTRACTION_PROMPT_VERSION`.
-- **D-102:** Graph extraction wave must add golden fixture `ai-service/tests/fixtures/entity_extraction/01_hr_policy_basic.json`, mocked unit tests, skipped live Gemini integration test requiring `GEMINI_API_KEY`, and README guidance.
+- **D-102:** Graph extraction wave must add golden fixture `ai-service/tests/fixtures/entity_extraction/01_hr_policy_basic.json`, mocked unit tests, skipped live DeepSeek/OpenRouter integration test requiring `OPENROUTER_API_KEY`, and README guidance.
 - **D-103:** Prompt content is authored during graph wave, but must include entity type whitelist, relation type guidance using UPPER_SNAKE_CASE open vocabulary, structured-output JSON schema, language instruction, and one few-shot example.
 
 ### Tier-0 Corpus Sanitizer
@@ -175,10 +175,10 @@ This phase does not implement query retrieval, answer generation, frontend scree
 | EMBEDDING | FlagEmbedding inference exception, OOM, torch/transformers runtime error | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
 | VECTOR_UPSERT | Qdrant connection refused / timeout | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId if upsert started or partial success is possible | publish failed; status=FAILED |
 | VECTOR_UPSERT | Qdrant 4xx bad schema / missing collection | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
-| ENTITY_EXTRACTION | Gemini 429 after 3 attempts | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
-| ENTITY_EXTRACTION | Gemini 5xx / timeout after backoff | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
-| ENTITY_EXTRACTION | Gemini malformed JSON after retry | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
-| ENTITY_EXTRACTION | Gemini auth error | DEPENDENCY_UNAVAILABLE | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
+| ENTITY_EXTRACTION | OpenRouter 429 rate limit after 3 attempts | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
+| ENTITY_EXTRACTION | OpenRouter 5xx / timeout / connection error after backoff | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
+| ENTITY_EXTRACTION | DeepSeek/OpenRouter malformed JSON after response-healing and retry | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
+| ENTITY_EXTRACTION | OpenRouter 401/403 auth or permission error | DEPENDENCY_UNAVAILABLE | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | ENTITY_EXTRACTION | entity embedding FlagEmbedding failure | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | GRAPH_UPSERT | Neo4j connection refused / timeout | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | GRAPH_UPSERT | Neo4j Cypher constraint violation | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId; Neo4j cleanup attempted | publish failed; status=FAILED |
@@ -200,7 +200,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 ### Verification And UAT
 - **D-130:** Phase 4 UAT is held at the end, not interleaved after every wave.
 - **D-131:** UAT preflight P1 must prove local FlagEmbedding bge-m3 model loading and one smoke inference. The smoke must verify dense vector dimension 1024 and non-empty sparse lexical weights. Failure means insufficient disk/RAM/model cache or dependency incompatibility, and blocks UAT.
-- **D-132:** UAT preflight P2 must prove Gemini 2.0 Flash structured output access through `google-genai` with `GEMINI_API_KEY`.
+- **D-132:** UAT preflight P2 must prove DeepSeek V4 Flash structured output access through OpenRouter with `OPENROUTER_API_KEY`.
 - **D-133:** UAT preflight P3 must prove Docker stack starts on retained volumes, `python-ai` is healthy, Qdrant collection exists with correct schema, and Neo4j accepts connections.
 - **D-134:** UAT Scenario 1 consumes Phase 3 accumulated messages and expects one successful indexed document, one deleted/tombstoned document, 3 AI `processed_events`, 2 `document_index_state` rows, no backend failed messages, and Java status/audit updated for indexed event.
 - **D-135:** UAT Scenario 2 uploads a fresh multi-page PDF and expects Java `INDEXED`, realistic chunk count, `neo4jEntityCount >= 1`, Qdrant payload fields present, Neo4j Document/Entity/RelationMention data present, Java audit received indexed event, and parent rows in AI Postgres.
@@ -212,7 +212,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 
 ### the agent's Discretion
 - Choose exact Python package/module names that preserve adapter/service/domain/repository boundaries and the locked file paths.
-- Choose exact async libraries and wrappers around `aio-pika`, Qdrant client, Neo4j driver, MinIO client, local FlagEmbedding adapter, and `google-genai` SDK if behavior matches the decisions above.
+- Choose exact async libraries and wrappers around `aio-pika`, Qdrant client, Neo4j driver, MinIO client, local FlagEmbedding adapter, and OpenRouter client if behavior matches the decisions above.
 - Choose exact prompt wording in `entity_extraction_v1.md` within the locked prompt lifecycle and content guidelines.
 - Choose exact unit/integration test organization beyond required fixture names and critical tests.
 
@@ -251,7 +251,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - `scripts/generate_constants.py` - Java/Python constants generation used by local dev and Docker builder.
 - `ai-service/Dockerfile` - current Python image to convert to repo-root multi-stage codegen build.
 - `ai-service/src/corp_rag_ai/main.py` - current FastAPI app entrypoint for startup hooks and health checks.
-- `ai-service/src/corp_rag_ai/config.py` - existing Settings surface to extend with local embedding/model cache, Gemini, Qdrant init, and worker config.
+- `ai-service/src/corp_rag_ai/config.py` - existing Settings surface to extend with local embedding/model cache, OpenRouter, Qdrant init, and worker config.
 - `ai-service/migrations/env.py` - Alembic async migration harness.
 - `ai-service/migrations/versions/0001_empty_baseline.py` - baseline; Phase 4 migrations continue from here.
 - `infra/docker-compose.yml` - python-ai context/env/dependency wiring, Qdrant, Neo4j, MinIO, RabbitMQ, and retained volume contour.
@@ -283,7 +283,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - Service code should keep adapter/service/domain/repository separation; transport/AMQP adapters validate/map and delegate.
 
 ### Integration Points
-- Extend Python dependencies for parsing, AMQP, MinIO, Qdrant, Neo4j, local FlagEmbedding, `google-genai`, token counting, Markdown parsing, and tests.
+- Extend Python dependencies for parsing, AMQP, MinIO, Qdrant, Neo4j, local FlagEmbedding, OpenAI-compatible OpenRouter access, token counting, Markdown parsing, and tests.
 - Add AI Postgres migrations for `processed_events`, `document_index_state`, and `document_chunks_parent`.
 - Add AMQP consumers for `ai.document.uploaded` and `ai.document.deleted`, plus publisher for backend result queues.
 - Add MinIO fetch adapter using payload bucket/key rather than querying Java.

@@ -15,7 +15,7 @@
       "text": "The HR Department owns the Remote Work Policy. Employees submit remote work requests in Workday. The policy is effective on January 1, 2026."
     }
   ],
-  "mockGeminiResponse": {
+  "mockDeepSeekResponse": {
     "entities": [
       {
         "name": "HR Department",

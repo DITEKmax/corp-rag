@@ -10,7 +10,7 @@ from corp_rag_ai.adapters.amqp.messages import InboundEvent
 from corp_rag_ai.adapters.minio import MinioDocumentStore
 from corp_rag_ai.config import get_settings
 from corp_rag_ai.pipeline.indexing.embedding import LocalBgeM3Embedder
-from corp_rag_ai.pipeline.indexing.entity_extractor import GeminiEntityExtractor
+from corp_rag_ai.pipeline.indexing.entity_extractor import DeepSeekEntityExtractor
 from corp_rag_ai.pipeline.indexing.graph_indexer import Neo4jGraphIndex
 from corp_rag_ai.pipeline.indexing.vector_indexer import QdrantVectorIndex
 from corp_rag_ai.pipeline.ingestion.chunker import DocumentChunker
@@ -84,7 +84,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         parser = build_default_parser_dispatcher()
         chunker = DocumentChunker()
         sanitizer = CorpusSanitizer()
-        entity_extractor = GeminiEntityExtractor(api_key=_secret_value(settings.gemini_api_key))
+        entity_extractor = DeepSeekEntityExtractor(
+            api_key=_secret_value(settings.openrouter_api_key),
+            base_url=str(settings.openrouter_base_url),
+            model=settings.deepseek_model_id,
+        )
 
         async def uploaded_handler(event: InboundEvent) -> None:
             async with session_scope(session_factory) as session:

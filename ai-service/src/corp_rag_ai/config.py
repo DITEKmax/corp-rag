@@ -76,7 +76,15 @@ class Settings(BaseSettings):
         default=30.0,
         validation_alias="AI_MINIO_FETCH_TIMEOUT_SECONDS",
     )
-    gemini_api_key: SecretStr | None = Field(default=None, validation_alias="GEMINI_API_KEY")
+    openrouter_api_key: SecretStr | None = Field(default=None, validation_alias="OPENROUTER_API_KEY")
+    openrouter_base_url: AnyHttpUrl = Field(
+        default="https://openrouter.ai/api/v1",
+        validation_alias="OPENROUTER_BASE_URL",
+    )
+    deepseek_model_id: str = Field(
+        default="deepseek/deepseek-v4-flash",
+        validation_alias="DEEPSEEK_MODEL_ID",
+    )
 
     langfuse_host: AnyHttpUrl = Field(
         default="http://localhost:3000",

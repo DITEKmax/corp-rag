@@ -54,6 +54,10 @@
 
 ## Последствия
 
+### Update 2026-05-18: LLM hosting alignment
+
+The same free/open-source academic constraint now applies to hosted LLM calls. The project uses DeepSeek V4 Flash through OpenRouter for generation, entity extraction, router, input guard, output guard, and synthesizer flows. The previous hosted Flash path was rejected after Phase 4 UAT P2 returned a regional/project quota policy of `limit=0`; ADR-004 records the provider decision.
+
 ### Что получаем
 - Один embedding-инференс на чанк (dense+sparse одновременно) → экономия compute.
 - Один индекс в Qdrant с двумя векторами → меньше сложности пайплайна.

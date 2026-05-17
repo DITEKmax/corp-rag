@@ -5,14 +5,17 @@ from uuid import UUID
 
 import pytest
 
-from corp_rag_ai.pipeline.indexing.entity_extractor import EntityExtractionSource, GeminiEntityExtractor
+from corp_rag_ai.pipeline.indexing.entity_extractor import DeepSeekEntityExtractor, EntityExtractionSource
 
 
 @pytest.mark.integration
-@pytest.mark.skipif("GEMINI_API_KEY" not in os.environ, reason="GEMINI_API_KEY is required for live Gemini extraction")
+@pytest.mark.skipif(
+    "OPENROUTER_API_KEY" not in os.environ,
+    reason="OPENROUTER_API_KEY is required for live DeepSeek/OpenRouter extraction",
+)
 @pytest.mark.asyncio
-async def test_live_gemini_extracts_expected_hr_policy_subset() -> None:
-    extractor = GeminiEntityExtractor(api_key=os.environ["GEMINI_API_KEY"])
+async def test_live_deepseek_extracts_expected_hr_policy_subset() -> None:
+    extractor = DeepSeekEntityExtractor(api_key=os.environ["OPENROUTER_API_KEY"])
     result = await extractor.extract_parent(
         EntityExtractionSource(
             text=(

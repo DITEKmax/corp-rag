@@ -8,8 +8,8 @@ import pytest
 
 from corp_rag_ai.pipeline.indexing.embedding import EmbeddingVector
 from corp_rag_ai.pipeline.indexing.entity_extractor import (
+    DeepSeekEntityExtractor,
     EntityExtractionSource,
-    GeminiEntityExtractor,
     build_graph_document_index,
 )
 from corp_rag_ai.pipeline.indexing.graph_indexer import GraphDocument
@@ -19,20 +19,35 @@ FIXTURE_PATH = Path(__file__).parent / "fixtures" / "entity_extraction" / "01_hr
 
 class _FakeResponse:
     def __init__(self, payload) -> None:
-        self.text = json.dumps(payload)
+        self.choices = [_FakeChoice(json.dumps(payload))]
 
 
-class _FakeModels:
+class _FakeChoice:
+    def __init__(self, content: str) -> None:
+        self.message = _FakeMessage(content)
+
+
+class _FakeMessage:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
+class _FakeCompletions:
     def __init__(self, payload) -> None:
         self.payload = payload
 
-    def generate_content(self, **_kwargs):
+    async def create(self, **_kwargs):
         return _FakeResponse(self.payload)
+
+
+class _FakeChat:
+    def __init__(self, payload) -> None:
+        self.completions = _FakeCompletions(payload)
 
 
 class _FakeClient:
     def __init__(self, payload) -> None:
-        self.models = _FakeModels(payload)
+        self.chat = _FakeChat(payload)
 
 
 class _FakeEmbedder:
@@ -58,8 +73,8 @@ async def _no_sleep(_seconds: float) -> None:
 @pytest.mark.asyncio
 async def test_golden_fixture_maps_deduplicates_and_embeds_unique_entities() -> None:
     fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-    extractor = GeminiEntityExtractor(
-        client=_FakeClient(fixture["mockGeminiResponse"]),
+    extractor = DeepSeekEntityExtractor(
+        client=_FakeClient(fixture["mockDeepSeekResponse"]),
         sleep=_no_sleep,
     )
     parent_result = await extractor.extract_parent(

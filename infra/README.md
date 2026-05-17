@@ -63,10 +63,10 @@ Do not run `docker compose down -v` or data reset scripts before Scenario 1 in `
 
 `python-ai` mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` so local `BAAI/bge-m3` model weights survive container recreation. Docker Desktop should have enough memory for the whole stack plus the `python-ai` 3 GB reservation and 4 GB limit.
 
-Live graph extraction requires `GEMINI_API_KEY` in the environment used by Compose:
+Live graph extraction requires `OPENROUTER_API_KEY` in the environment used by Compose:
 
 ```powershell
-# Put GEMINI_API_KEY in ignored infra/.env first.
+# Put OPENROUTER_API_KEY in ignored infra/.env first.
 docker compose --env-file infra/.env -f infra/docker-compose.yml up -d --build python-ai
 ```
 

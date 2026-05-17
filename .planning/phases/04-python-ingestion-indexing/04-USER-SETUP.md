@@ -4,19 +4,21 @@
 **Phase:** 04-python-ingestion-indexing
 **Status:** Incomplete
 
-Complete these items for live Gemini entity-extraction smoke tests and Phase 04 UAT. Unit tests mock Gemini and do not require this setup.
+Complete these items for live DeepSeek/OpenRouter entity-extraction smoke tests and Phase 04 UAT. Unit tests mock OpenRouter responses and do not require this setup.
 
 ## Environment Variables
 
 | Status | Variable | Source | Add to |
 |--------|----------|--------|--------|
-| [ ] | `GEMINI_API_KEY` | Google AI Studio -> API keys | local shell environment for `ai-service` live tests and UAT |
+| [ ] | `OPENROUTER_API_KEY` | OpenRouter -> API keys | local shell environment for `ai-service` live tests and `infra/.env` for UAT |
+| [ ] | `OPENROUTER_BASE_URL` | fixed default `https://openrouter.ai/api/v1` | optional override only |
+| [ ] | `DEEPSEEK_MODEL_ID` | fixed default `deepseek/deepseek-v4-flash` | optional override only |
 
 ## Account Setup
 
-- [ ] **Google AI Studio access**
-  - URL: https://aistudio.google.com/app/apikey
-  - Skip if: You already have a Gemini API key with Gemini 2.0 Flash access.
+- [ ] **OpenRouter API key**
+  - URL: https://openrouter.ai/keys
+  - Skip if: You already have an OpenRouter key with access to `deepseek/deepseek-v4-flash`.
 
 ## Verification
 
@@ -24,8 +26,8 @@ After setting the variable, verify with:
 
 ```powershell
 cd ai-service
-$env:GEMINI_API_KEY = "your-google-ai-studio-key"
-uv run pytest tests/test_entity_extraction_live.py -m integration
+$env:OPENROUTER_API_KEY = "your-openrouter-key"
+uv run pytest tests/test_deepseek_extraction_live.py -m integration
 ```
 
 Expected results:

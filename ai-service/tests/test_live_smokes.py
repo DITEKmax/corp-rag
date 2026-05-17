@@ -4,6 +4,7 @@ import os
 from uuid import uuid4
 
 import pytest
+from openai import AsyncOpenAI
 
 from corp_rag_ai.pipeline.indexing.embedding import BGE_M3_DENSE_DIMENSION, LocalBgeM3Embedder
 from corp_rag_ai.pipeline.indexing.graph_indexer import Neo4jGraphIndex
@@ -17,6 +18,13 @@ from corp_rag_ai.pipeline.indexing.vector_indexer import (
 def _requires_enabled_flag(name: str) -> None:
     if os.environ.get(name, "").strip().lower() not in {"1", "true", "yes", "on"}:
         pytest.skip(f"{name}=true is required for this live integration smoke")
+
+
+def _requires_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        pytest.skip(f"{name} is required for this live integration smoke")
+    return value
 
 
 @pytest.mark.integration
@@ -77,3 +85,23 @@ async def test_live_neo4j_schema_initialization_smoke() -> None:
         await index.ensure_graph_schema(timeout_seconds=30.0, poll_interval_seconds=0.25)
     finally:
         await index.close()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_live_deepseek_smoke() -> None:
+    api_key = _requires_env("OPENROUTER_API_KEY")
+    client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+    )
+
+    response = await client.chat.completions.create(
+        model=os.environ.get("DEEPSEEK_MODEL_ID", "deepseek/deepseek-v4-flash"),
+        messages=[{"role": "user", "content": "Return only: ok"}],
+        temperature=0,
+        max_tokens=8,
+    )
+
+    content = response.choices[0].message.content or ""
+    assert "ok" in content.lower()

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Protocol
 from uuid import UUID
 
+import openai
+from openai import AsyncOpenAI
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from corp_rag_ai.domain.exceptions import (
@@ -18,6 +20,7 @@ from corp_rag_ai.domain.exceptions import (
     StageFailure,
     stage_failure,
 )
+from corp_rag_ai.pipeline.indexing.embedding import EmbeddingVector
 from corp_rag_ai.pipeline.indexing.graph_indexer import (
     GraphDocument,
     GraphDocumentIndex,
@@ -30,15 +33,15 @@ from corp_rag_ai.pipeline.indexing.graph_indexer import (
     normalize_entity_type,
     normalize_relation_type,
 )
-from corp_rag_ai.pipeline.indexing.embedding import EmbeddingVector
 
 logger = logging.getLogger(__name__)
 
 ENTITY_EXTRACTION_PROMPT_VERSION = "entity_extraction_v1"
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+DEFAULT_DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash"
+DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MAX_OUTPUT_TOKENS = 2000
 DEFAULT_TEMPERATURE = 0.1
-DEFAULT_GEMINI_ATTEMPTS = 3
+DEFAULT_DEPENDENCY_ATTEMPTS = 3
 PROMPT_PATH = Path(__file__).with_name("prompts") / f"{ENTITY_EXTRACTION_PROMPT_VERSION}.md"
 
 
@@ -100,7 +103,7 @@ class ParentEntityExtraction:
     warnings: tuple[str, ...] = ()
 
 
-class GeminiEntity(BaseModel):
+class EntityExtractionEntity(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     name: str = Field(min_length=1)
@@ -113,7 +116,7 @@ class GeminiEntity(BaseModel):
         return value.strip().lower()
 
 
-class GeminiRelation(BaseModel):
+class EntityExtractionRelation(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True, str_strip_whitespace=True)
 
     source_entity_name: str = Field(alias="sourceEntityName", min_length=1)
@@ -122,11 +125,11 @@ class GeminiRelation(BaseModel):
     description: str = Field(default="", max_length=500)
 
 
-class GeminiExtractionResponse(BaseModel):
+class EntityExtractionResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    entities: list[GeminiEntity] = Field(default_factory=list)
-    relations: list[GeminiRelation] = Field(default_factory=list)
+    entities: list[EntityExtractionEntity] = Field(default_factory=list)
+    relations: list[EntityExtractionRelation] = Field(default_factory=list)
 
 
 SleepFn = Callable[[float], Awaitable[None]]
@@ -137,21 +140,23 @@ class EntityEmbeddingProvider(Protocol):
         ...
 
 
-class GeminiEntityExtractor:
+class DeepSeekEntityExtractor:
     def __init__(
         self,
         *,
         client: Any | None = None,
         api_key: str | None = None,
-        model: str = DEFAULT_GEMINI_MODEL,
+        base_url: str = DEFAULT_OPENROUTER_BASE_URL,
+        model: str = DEFAULT_DEEPSEEK_MODEL,
         prompt: EntityExtractionPrompt | None = None,
         max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
-        max_dependency_attempts: int = DEFAULT_GEMINI_ATTEMPTS,
+        max_dependency_attempts: int = DEFAULT_DEPENDENCY_ATTEMPTS,
         sleep: SleepFn = asyncio.sleep,
     ) -> None:
         self._client = client
         self._api_key = api_key
+        self._base_url = base_url
         self._model = model
         self._prompt = prompt or load_entity_extraction_prompt()
         self._max_output_tokens = max_output_tokens
@@ -173,7 +178,9 @@ class GeminiEntityExtractor:
         while True:
             dependency_attempt += 1
             try:
-                response = await self._generate_content(contents)
+                response = await self._create_completion(contents)
+            except StageFailure:
+                raise
             except Exception as exc:
                 if _is_auth_error(exc):
                     raise _dependency_failure(exc, retryable=False) from exc
@@ -188,8 +195,8 @@ class GeminiEntityExtractor:
                 parsed = _parse_response(response)
             except (ValidationError, ValueError) as exc:
                 logger.warning(
-                    "Malformed Gemini structured entity extraction response",
-                    extra={"raw_gemini_response": _raw_response_text(response)},
+                    "Malformed DeepSeek/OpenRouter structured entity extraction response",
+                    extra={"raw_openrouter_response": _raw_response_text(response)},
                 )
                 if malformed_retry_used:
                     raise _malformed_output_failure() from exc
@@ -211,27 +218,27 @@ class GeminiEntityExtractor:
             )
         )
 
-    async def _generate_content(self, contents: str) -> Any:
+    async def _create_completion(self, contents: str) -> Any:
         client = self._get_client()
-        config = _generate_content_config(
+        return await client.chat.completions.create(
+            model=self._model,
+            messages=[{"role": "user", "content": contents}],
+            response_format=_structured_response_format(),
+            extra_body={"plugins": [{"id": "response-healing"}]},
             temperature=self._temperature,
-            max_output_tokens=self._max_output_tokens,
+            max_tokens=self._max_output_tokens,
         )
-
-        def _call() -> Any:
-            return client.models.generate_content(
-                model=self._model,
-                contents=contents,
-                config=config,
-            )
-
-        return await asyncio.to_thread(_call)
 
     def _get_client(self) -> Any:
         if self._client is None:
-            from google import genai
-
-            self._client = genai.Client(api_key=self._api_key) if self._api_key else genai.Client()
+            if not self._api_key:
+                raise stage_failure(
+                    stage=IndexingStage.ENTITY_EXTRACTION,
+                    error_code=DEPENDENCY_UNAVAILABLE,
+                    retryable=False,
+                    detail="missing_openrouter_api_key",
+                )
+            self._client = AsyncOpenAI(api_key=self._api_key, base_url=self._base_url)
         return self._client
 
 
@@ -257,39 +264,58 @@ def _parse_prompt(text: str) -> EntityExtractionPrompt:
     )
 
 
-def _generate_content_config(*, temperature: float, max_output_tokens: int) -> Any:
-    try:
-        from google.genai import types
+def _structured_response_format() -> dict[str, Any]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "entity_extraction_result",
+            "strict": True,
+            "schema": _entity_extraction_schema(),
+        },
+    }
 
-        return types.GenerateContentConfig(
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            response_mime_type="application/json",
-            response_schema=GeminiExtractionResponse,
-        )
-    except Exception:
+
+def _entity_extraction_schema() -> dict[str, Any]:
+    return _strip_unsupported_schema_keys(EntityExtractionResponse.model_json_schema())
+
+
+def _strip_unsupported_schema_keys(value: Any) -> Any:
+    if isinstance(value, dict):
         return {
-            "temperature": temperature,
-            "max_output_tokens": max_output_tokens,
-            "response_mime_type": "application/json",
-            "response_schema": GeminiExtractionResponse,
+            key: _strip_unsupported_schema_keys(child)
+            for key, child in value.items()
+            if key not in {"additionalProperties", "additional_properties"}
         }
+    if isinstance(value, list):
+        return [_strip_unsupported_schema_keys(child) for child in value]
+    return value
 
 
-def _parse_response(response: Any) -> GeminiExtractionResponse:
+def _parse_response(response: Any) -> EntityExtractionResponse:
     parsed = getattr(response, "parsed", None)
-    if isinstance(parsed, GeminiExtractionResponse):
+    if isinstance(parsed, EntityExtractionResponse):
         return parsed
     if parsed is not None:
-        return GeminiExtractionResponse.model_validate(parsed)
+        return EntityExtractionResponse.model_validate(parsed)
     text = getattr(response, "text", None)
+    if text is None:
+        text = _completion_message_content(response)
     if not isinstance(text, str) or not text.strip():
-        raise ValueError("Gemini response text is empty")
-    return GeminiExtractionResponse.model_validate_json(text)
+        raise ValueError("OpenRouter response text is empty")
+    return EntityExtractionResponse.model_validate_json(text)
+
+
+def _completion_message_content(response: Any) -> str | None:
+    choices = getattr(response, "choices", None)
+    if not choices:
+        return None
+    message = getattr(choices[0], "message", None)
+    content = getattr(message, "content", None)
+    return content if isinstance(content, str) else None
 
 
 def _map_parent_extraction(
-    response: GeminiExtractionResponse,
+    response: EntityExtractionResponse,
     source: EntityExtractionSource,
 ) -> ParentEntityExtraction:
     evidence = GraphEvidence(
@@ -493,6 +519,8 @@ def _entity_embedding_failure(exc: Exception) -> StageFailure:
 
 def _raw_response_text(response: Any) -> str:
     text = getattr(response, "text", "")
+    if not text:
+        text = _completion_message_content(response) or ""
     return text if isinstance(text, str) else repr(response)
 
 
@@ -506,10 +534,15 @@ def _status_code(exc: Exception) -> int | None:
 
 
 def _is_auth_error(exc: Exception) -> bool:
-    return _status_code(exc) in {401, 403}
+    return isinstance(exc, (openai.AuthenticationError, openai.PermissionDeniedError)) or _status_code(exc) in {
+        401,
+        403,
+    }
 
 
 def _is_retryable_dependency_error(exc: Exception) -> bool:
+    if isinstance(exc, (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError)):
+        return True
     status = _status_code(exc)
     if status == 429 or (status is not None and 500 <= status <= 599):
         return True

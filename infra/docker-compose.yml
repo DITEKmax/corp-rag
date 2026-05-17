@@ -182,6 +182,9 @@ services:
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-local-minio-root}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-local-minio-password}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      DEEPSEEK_MODEL_ID: ${DEEPSEEK_MODEL_ID:-deepseek/deepseek-v4-flash}
       LANGFUSE_HOST: ${LANGFUSE_HOST_INTERNAL:-http://langfuse:3000}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-local-placeholder}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-local-placeholder}
