@@ -57,6 +57,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - **D-35:** One parser protocol is used: `async def parse(content: bytes, mime_type: str, language: str) -> ParsedDocument`.
 - **D-36:** OCR for scanned PDFs is deferred to Phase 7+. If docling returns no extractable content, fail with `PARSING / INVALID_FILE_FORMAT`.
 - **D-37:** Python trusts Java-provided `mimeType` and `language`; do not re-sniff MIME or detect language in Phase 4.
+- **D-141:** Parser execution starts with a 2-4 hour Docling spike on a representative PDF. Primary path is structured `DoclingDocument` traversal into `ParsedBlock`s. If structured traversal is unstable or too costly, fallback path is `docling.export_to_markdown()` followed by the same `markdown-it-py` Markdown normalizer used for `text/markdown`.
 
 ### Deterministic Parent And Child Chunking
 - **D-38:** Use deterministic structural+size parent-child chunking. This intentionally overrides `ARCHITECTURE.md`'s original SemanticSplitterNodeParser idea; semantic splitting is deferred to Phase 7+ ablation.
@@ -94,10 +95,16 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - **D-66:** Payload indexes are created for `documentId`, `language`, `docType`, `department`, and `accessLevel`. Do not index `parentChunkId` or `isSanitized` in MVP.
 - **D-67:** Startup hook `ensure_collection_exists()` is controlled by `AI_QDRANT_INITIALIZE_COLLECTION`, default false for tests, true in compose.
 - **D-68:** Existing collection with matching schema is no-op. Existing collection with incompatible schema logs error and raises. Do not auto-drop or recreate Qdrant data.
-- **D-69:** Use HuggingFace Inference API for bge-m3 embeddings in MVP, gated by `HF_API_TOKEN`.
-- **D-70:** Embedding wave must first smoke-test whether the selected HF API path returns both dense 1024 vectors and sparse output for `BAAI/bge-m3`. If sparse is unavailable in free tier, stop for a mini-discussion on fallback.
-- **D-71:** Embedding batch size is 32 chunk texts per HF call. Use one in-flight HF request per document and AMQP prefetch 1 in MVP to reduce rate-limit pressure.
-- **D-72:** HF 429/5xx/timeouts use exponential backoff 1s/2s/4s up to 3 attempts, then fail `EMBEDDING`.
+- **D-69:** Use local `FlagEmbedding` for bge-m3 embeddings in MVP. `BAAI/bge-m3` is loaded inside the Python AI service and produces both dense 1024 vectors and learned sparse lexical weights from one local model path.
+- **D-70:** Add `FlagEmbedding` as the embedding dependency. Research found current stable `FlagEmbedding>=1.4.0,<2.0.0`; execution may only relax to `>=1.3.0,<2.0.0` if 1.4.x has a compatibility issue that is documented in the plan/execution notes.
+- **D-71:** Embedding batch size remains 32 chunk texts, but it is an in-process `BGEM3FlagModel.encode(...)` batch, not an external HF API call. Keep one document in flight through AMQP prefetch 1.
+- **D-72:** The model runs on CPU for MVP. Prefer `use_fp16=True` as the first smoke path for speed, but the embedding adapter must fall back to `use_fp16=False` if CPU/PyTorch fp16 fails or is materially slower in smoke verification.
+- **D-142:** Do not use HF Inference free tier, DeepInfra, NVIDIA NIM, or HF Inference Endpoints for Phase 4 embeddings. Hosted sparse alternatives are paid or provider-specific and violate ADR-001's free-tier MVP constraint.
+- **D-143:** Do not split dense and sparse generation across two providers. Hybrid `dense HF + sparse local` adds two code paths without MVP benefit.
+- **D-144:** Do not self-host a separate text-embeddings-inference container in Phase 4. It is deferred to Phase 7+ if local CPU inference becomes a real bottleneck.
+- **D-145:** Compose must provide a named `bge-m3-cache` Docker volume mounted at `/root/.cache/huggingface` for `python-ai`. This caches model weights across container restarts/recreates. Build planning should not assume this named volume is a Docker build cache; dependency layers and model cache are separate concerns.
+- **D-146:** Expected local embedding footprint is heavy: PyTorch/transformers dependencies plus ~2.3GB model cache, with overall Docker disk usage around 5-6GB. Python AI runtime should reserve at least 3GB RAM for bge-m3 load/inference; compose should set an explicit 4GB `python-ai` memory limit to leave headroom for Phase 5 reranker work.
+- **D-148:** Phase 5 is expected to use `bge-reranker-v2-m3` locally through `FlagEmbedding`/`FlagReranker`, but Phase 4 does not download the reranker model or implement reranking. Phase 4 only adds the shared `FlagEmbedding` package needed for bge-m3 embeddings.
 - **D-73:** Convert bge sparse dictionary to Qdrant `SparseVector` by int-casting token IDs, float-casting weights, sorting by index, and building `indices`/`values`. Unit test this conversion.
 - **D-74:** Before indexing/upserting a document, delete existing Qdrant points by `documentId`. This makes retry/reindex replace-all semantics safe.
 - **D-75:** On `document.deleted`, use Qdrant delete-by-filter on `documentId`. Do not recompute point IDs.
@@ -122,12 +129,13 @@ This phase does not implement query retrieval, answer generation, frontend scree
 ### Graph Extraction Execution
 - **D-91:** Run graph extraction after successful Qdrant vector upsert.
 - **D-92:** Use parent-level extraction: one Gemini 2.0 Flash structured-output call per parent chunk, sequentially. Do not run extraction per child and do not parallelize parent calls in MVP.
+- **D-147:** Use the current `google-genai` SDK for Gemini API integration. Do not use legacy `google-generativeai` in Phase 4.
 - **D-93:** If graph extraction or graph upsert fails, the whole document indexing fails. Do not emit `document.indexed` for hybrid-only partial state.
 - **D-94:** On `ENTITY_EXTRACTION` or `GRAPH_UPSERT` failure after Qdrant upsert, rollback Qdrant by delete-by-filter `documentId`, then publish failed event and set `document_index_state.status=FAILED`.
 - **D-95:** If rollback cleanup itself fails, log critical error and still publish the original failed event. A later retry/reindex starts with delete-by-filter and can repair stale Qdrant state.
 - **D-96:** Entity extraction malformed JSON gets one local retry, then fails `ENTITY_EXTRACTION` with retryable false.
-- **D-97:** After collecting unique entities for a document, embed entity texts as dense-only vectors through HF and store them on `Entity.embedding`.
-- **D-98:** Entity embedding failure is attributed to `ENTITY_EXTRACTION` but uses the same retryability rules as `EMBEDDING`.
+- **D-97:** After collecting unique entities for a document, embed entity texts as dense-only vectors through the same local `FlagEmbedding` bge-m3 adapter and store them on `Entity.embedding`.
+- **D-98:** Entity embedding failure is attributed to `ENTITY_EXTRACTION` but uses the same local FlagEmbedding failure classification as `EMBEDDING`.
 - **D-99:** Use one Neo4j write transaction per document for Document, Entities, RelationMentions, and edges.
 - **D-100:** Graph extraction wave must create prompt file `ai-service/src/corp_rag_ai/pipeline/indexing/prompts/entity_extraction_v1.md` with `## System prompt` and `## User template` sections.
 - **D-101:** Prompt file is versioned in filename; create a new file for major schema/type changes. Code references `ENTITY_EXTRACTION_PROMPT_VERSION`.
@@ -163,17 +171,15 @@ This phase does not implement query retrieval, answer generation, frontend scree
 | CHUNKING | internal logic error | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
 | SANITIZATION | all children dropped / 0 valid chunks | INVALID_FILE_FORMAT | false | None | publish failed; status=FAILED |
 | SANITIZATION | internal logic error | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
-| EMBEDDING | HF 429 after backoff | DEPENDENCY_UNAVAILABLE | true | None | publish failed; status=FAILED |
-| EMBEDDING | HF 5xx / timeout after backoff | DEPENDENCY_UNAVAILABLE | true | None | publish failed; status=FAILED |
-| EMBEDDING | HF auth 401/403 | DEPENDENCY_UNAVAILABLE | false | None | publish failed; status=FAILED |
-| EMBEDDING | HF returns no sparse vector | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
+| EMBEDDING | FlagEmbedding model load failed | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
+| EMBEDDING | FlagEmbedding inference exception, OOM, torch/transformers runtime error | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
 | VECTOR_UPSERT | Qdrant connection refused / timeout | DEPENDENCY_UNAVAILABLE | true | None | publish failed; status=FAILED |
 | VECTOR_UPSERT | Qdrant 4xx bad schema / missing collection | INDEXING_PIPELINE_ERROR | false | None | publish failed; status=FAILED |
 | ENTITY_EXTRACTION | Gemini 429 after 3 attempts | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | ENTITY_EXTRACTION | Gemini 5xx / timeout after backoff | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | ENTITY_EXTRACTION | Gemini malformed JSON after retry | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | ENTITY_EXTRACTION | Gemini auth error | DEPENDENCY_UNAVAILABLE | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
-| ENTITY_EXTRACTION | entity embedding HF failure | DEPENDENCY_UNAVAILABLE or INDEXING_PIPELINE_ERROR | mirrors EMBEDDING rules | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
+| ENTITY_EXTRACTION | entity embedding FlagEmbedding failure | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | GRAPH_UPSERT | Neo4j connection refused / timeout | DEPENDENCY_UNAVAILABLE | true | Qdrant delete-by-filter documentId | publish failed; status=FAILED |
 | GRAPH_UPSERT | Neo4j Cypher constraint violation | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId; Neo4j cleanup attempted | publish failed; status=FAILED |
 | GRAPH_UPSERT | Neo4j out of memory | INDEXING_PIPELINE_ERROR | false | Qdrant delete-by-filter documentId; Neo4j cleanup attempted | publish failed; status=FAILED |
@@ -193,8 +199,8 @@ This phase does not implement query retrieval, answer generation, frontend scree
 
 ### Verification And UAT
 - **D-130:** Phase 4 UAT is held at the end, not interleaved after every wave.
-- **D-131:** UAT preflight P1 must prove real HF API access returns dense 1024 vector and sparse output for one bge-m3 smoke input. If not, stop for mini-discussion on fallback.
-- **D-132:** UAT preflight P2 must prove Gemini 2.0 Flash structured output access with `GEMINI_API_KEY`.
+- **D-131:** UAT preflight P1 must prove local FlagEmbedding bge-m3 model loading and one smoke inference. The smoke must verify dense vector dimension 1024 and non-empty sparse lexical weights. Failure means insufficient disk/RAM/model cache or dependency incompatibility, and blocks UAT.
+- **D-132:** UAT preflight P2 must prove Gemini 2.0 Flash structured output access through `google-genai` with `GEMINI_API_KEY`.
 - **D-133:** UAT preflight P3 must prove Docker stack starts on retained volumes, `python-ai` is healthy, Qdrant collection exists with correct schema, and Neo4j accepts connections.
 - **D-134:** UAT Scenario 1 consumes Phase 3 accumulated messages and expects one successful indexed document, one deleted/tombstoned document, 3 AI `processed_events`, 2 `document_index_state` rows, no backend failed messages, and Java status/audit updated for indexed event.
 - **D-135:** UAT Scenario 2 uploads a fresh multi-page PDF and expects Java `INDEXED`, realistic chunk count, `neo4jEntityCount >= 1`, Qdrant payload fields present, Neo4j Document/Entity/RelationMention data present, Java audit received indexed event, and parent rows in AI Postgres.
@@ -206,7 +212,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 
 ### the agent's Discretion
 - Choose exact Python package/module names that preserve adapter/service/domain/repository boundaries and the locked file paths.
-- Choose exact async libraries and wrappers around `aio-pika`, Qdrant client, Neo4j driver, MinIO client, HF client, and Gemini SDK if behavior matches the decisions above.
+- Choose exact async libraries and wrappers around `aio-pika`, Qdrant client, Neo4j driver, MinIO client, local FlagEmbedding adapter, and `google-genai` SDK if behavior matches the decisions above.
 - Choose exact prompt wording in `entity_extraction_v1.md` within the locked prompt lifecycle and content guidelines.
 - Choose exact unit/integration test organization beyond required fixture names and critical tests.
 
@@ -245,7 +251,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - `scripts/generate_constants.py` - Java/Python constants generation used by local dev and Docker builder.
 - `ai-service/Dockerfile` - current Python image to convert to repo-root multi-stage codegen build.
 - `ai-service/src/corp_rag_ai/main.py` - current FastAPI app entrypoint for startup hooks and health checks.
-- `ai-service/src/corp_rag_ai/config.py` - existing Settings surface to extend with HF, Gemini, Qdrant init, and worker config.
+- `ai-service/src/corp_rag_ai/config.py` - existing Settings surface to extend with local embedding/model cache, Gemini, Qdrant init, and worker config.
 - `ai-service/migrations/env.py` - Alembic async migration harness.
 - `ai-service/migrations/versions/0001_empty_baseline.py` - baseline; Phase 4 migrations continue from here.
 - `infra/docker-compose.yml` - python-ai context/env/dependency wiring, Qdrant, Neo4j, MinIO, RabbitMQ, and retained volume contour.
@@ -277,7 +283,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - Service code should keep adapter/service/domain/repository separation; transport/AMQP adapters validate/map and delegate.
 
 ### Integration Points
-- Extend Python dependencies for parsing, AMQP, MinIO, Qdrant, Neo4j, HF/Gemini clients, token counting, Markdown parsing, and tests.
+- Extend Python dependencies for parsing, AMQP, MinIO, Qdrant, Neo4j, local FlagEmbedding, `google-genai`, token counting, Markdown parsing, and tests.
 - Add AI Postgres migrations for `processed_events`, `document_index_state`, and `document_chunks_parent`.
 - Add AMQP consumers for `ai.document.uploaded` and `ai.document.deleted`, plus publisher for backend result queues.
 - Add MinIO fetch adapter using payload bucket/key rather than querying Java.
@@ -291,7 +297,7 @@ This phase does not implement query retrieval, answer generation, frontend scree
 ## Specific Ideas
 
 - First execution wave should prioritize clean Docker codegen and retained-queue startup safety before deeper ingestion logic.
-- HF sparse-output support for bge-m3 through the chosen free-tier API path is a hard preflight. If it fails, pause for a mini-discussion before committing to a fallback.
+- Local FlagEmbedding bge-m3 loading and dense+sparse smoke inference is a hard UAT preflight. HF sparse-output preflight is removed because HF free-tier feature extraction is dense-only.
 - UAT should intentionally use the retained Phase 3 queue messages to validate delete-before-upload and real cross-service consumption.
 - Phase 4 intentionally departs from two original architecture hints: deterministic structural chunking replaces SemanticSplitter for MVP, and provenance-first Neo4j graph replaces direct entity-edge graph.
 - Parent context is stored in AI Postgres, not duplicated into every Qdrant payload and not embedded separately.
@@ -305,7 +311,9 @@ This phase does not implement query retrieval, answer generation, frontend scree
 - Python result outbox and publisher confirms are deferred to Phase 7+.
 - OCR for scan-only PDFs is deferred to Phase 7+.
 - SemanticSplitter/pysbd/nltk/spaCy sentence splitting is deferred to Phase 7+ ablation.
-- Local FlagEmbedding/DeepInfra/self-hosted bge-m3 are fallback/future options if HF sparse output or rate limits block MVP.
+- Hosted embedding providers such as DeepInfra, NVIDIA NIM, and HF Inference Endpoints are deferred because they are paid/provider-specific and violate the Phase 4 ADR-001 free-tier MVP constraint.
+- Self-hosted text-embeddings-inference or a separate embedding service is deferred to Phase 7+ if local CPU FlagEmbedding becomes a measured bottleneck.
+- Phase 5 reranker model download and reranking implementation are deferred to Phase 5; Phase 4 only reserves memory headroom.
 - Parent embeddings and parent retrieval collection are deferred to Phase 7+ evaluation.
 - Neo4j community detection, graph summaries, cross-language entity aliasing, orphan RelationMention cleanup, and reference-counted entity cleanup are deferred to Phase 7+.
 - PII redaction and semantic LLM sanitizer during ingestion are deferred unless new requirements demand them.
