@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 in progress; plan 04-01 completed
-stopped_at: 04-01-SUMMARY.md created
-last_updated: "2026-05-17T17:54:41.602+03:00"
-last_activity: 2026-05-17 -- Phase 04 plan 01 completed: python-ai repo-root Docker codegen preflight
+status: Phase 4 in progress; plan 04-02 completed
+stopped_at: 04-02-SUMMARY.md created
+last_updated: "2026-05-17T18:17:31.843+03:00"
+last_activity: 2026-05-17 -- Phase 04 plan 02 completed: ingestion state, AMQP foundation, and safe failure reporting
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 20
-  percent: 74
+  completed_plans: 21
+  percent: 78
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 04 -- IN_PROGRESS
-Plan: 04-02-PLAN.md ready to execute
-Status: Phase 4 in progress; plan 04-01 completed
-Last activity: 2026-05-17 -- Phase 04 plan 01 completed: python-ai repo-root Docker codegen preflight
+Plan: 04-03-PLAN.md ready to execute
+Status: Phase 4 in progress; plan 04-02 completed
+Last activity: 2026-05-17 -- Phase 04 plan 02 completed: ingestion state, AMQP foundation, and safe failure reporting
 
-Progress: 74%
+Progress: 78%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -47,7 +47,7 @@ Progress: 74%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 1/8 | ~1h | ~1h |
+| 04 | 2/8 | ~1h 12m | ~36m |
 
 **Recent Trend:**
 
@@ -74,6 +74,7 @@ Progress: 74%
 | Phase 03 P05 | 15 min | 3 tasks | 13 files |
 | Phase 03 P06 | 26 min | 3 tasks | 22 files |
 | Phase 04 P01 | ~1h | 3 tasks | 6 files |
+| Phase 04 P02 | 12 min | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -118,10 +119,12 @@ Recent locked decisions affecting current work:
 - [Phase 04]: Python embeddings pivoted from HF Inference API to local FlagEmbedding for BAAI/bge-m3 dense+sparse output. — Research found HF free-tier feature extraction documents dense-only output; local FlagEmbedding preserves ADR-001 and Qdrant dense+sparse semantics.
 - [Phase 04]: Phase 4 is split into eight execution plans covering Docker/codegen, state/AMQP, parsing, chunking/sanitizer, embeddings/Qdrant, graph/Gemini/Neo4j, orchestration, and end-to-end UAT.
 - [Phase 04]: python-ai Docker builds now use repository-root context and isolated builder codegen. - Plan 04-01 removes stale generated contracts before Docker codegen, excludes host generated outputs from the build context, and keeps PyYAML out of the runtime image.
+- [Phase 04]: AI AMQP consumers are config-gated and default-disabled until full ingestion orchestration is wired. - Plan 04-02 prevents placeholder handlers from ACKing real queued documents while preserving passive RabbitMQ topology checks and manual ACK/NACK behavior.
+- [Phase 04]: Stage-aware failed indexing events are formatted only through StageFailure safe templates. - Plan 04-02 exposes exception class names, MIME/parser/dependency summaries, and retryability without leaking raw exception text or tracebacks.
 
 ### Pending Todos
 
-- Continue with 04-02-PLAN.md: AI ingestion state, AMQP foundation, and stage-aware failure reporting.
+- Continue with 04-03-PLAN.md: normalized parsing for PDF, DOCX, HTML, Markdown, and plain text.
 
 ### Blockers/Concerns
 
@@ -138,6 +141,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-17T17:54:41.602+03:00
-Stopped at: 04-01-SUMMARY.md created
-Resume file: .planning/phases/04-python-ingestion-indexing/04-02-PLAN.md
+Last session: 2026-05-17T18:17:31.843+03:00
+Stopped at: 04-02-SUMMARY.md created
+Resume file: .planning/phases/04-python-ingestion-indexing/04-03-PLAN.md

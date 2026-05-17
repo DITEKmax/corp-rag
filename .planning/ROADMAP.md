@@ -110,14 +110,14 @@ Plans:
   3. Chunks are sanitized, embedded with bge-m3 dense+sparse vectors, and upserted to Qdrant.
   4. Entities and relations are extracted and written to Neo4j.
   5. Java receives indexed or failed events with enough detail to update document status.
-**Plans:** 1/8 plans complete
-**Status:** In progress - Wave 1 Docker/codegen preflight completed on 2026-05-17.
+**Plans:** 2/8 plans complete
+**Status:** In progress - Wave 2 ingestion state, AMQP foundation, and failure reporting completed on 2026-05-17.
 Plans:
 **Wave 1**
 - [x] 04-01-PLAN.md - Fix python-ai repo-root Docker codegen and local bge-m3 runtime contour.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 04-02-PLAN.md - Add AI ingestion state, AMQP foundation, and stage-aware failure reporting.
+- [x] 04-02-PLAN.md - Add AI ingestion state, AMQP foundation, and stage-aware failure reporting.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 04-03-PLAN.md - Implement normalized parsing for PDF, DOCX, HTML, Markdown, and plain text.
@@ -194,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
-| 4. Python Ingestion & Indexing | 1/8 | In progress | - |
+| 4. Python Ingestion & Indexing | 2/8 | In progress | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
