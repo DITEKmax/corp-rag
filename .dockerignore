@@ -1,0 +1,17 @@
+.git/
+.planning/
+
+backend/target/
+frontend/node_modules/
+ai-service/.venv/
+ai-service/src/corp_rag_ai/contracts/generated/
+
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc
+
+.env
+.env.*
+!.env.example
+
+tmp/

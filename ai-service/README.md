@@ -1,50 +1,30 @@
-# ai-service/
+# corp-rag-ai
 
-Python AI Service (FastAPI + LangGraph). Весь RAG-пайплайн.
+Python FastAPI AI service for the Corporate RAG ingestion, indexing, and retrieval pipeline.
 
-Эта папка пустая — здесь появится содержимое в **EPIC 9** (Python Skeleton).
+## Contract Codegen
 
-## Целевая структура (после EPIC 9)
+Source contract YAML files live in the repository root under `contracts/`. Generated Python modules are written to `ai-service/src/corp_rag_ai/contracts/generated/` and remain ignored by git.
 
-```
-ai-service/
-├── pyproject.toml                   # управление через uv
-├── Dockerfile
-├── .env.example
-├── src/corp_rag_ai/
-│   ├── main.py
-│   ├── config.py
-│   ├── contracts/
-│   │   ├── __init__.py
-│   │   └── generated/
-│   │       ├── api_v1.py
-│   │       ├── ai_service_v1.py
-│   │       ├── events_v1.py
-│   │       ├── routing_keys.py
-│   │       ├── queue_names.py
-│   │       ├── exchange_names.py
-│   │       └── error_codes.py
-│   ├── adapter/
-│   ├── service/
-│   ├── pipeline/
-│   ├── agent/
-│   ├── repository/
-│   ├── domain/
-│   └── shared/
-├── data/
-├── eval/
-└── tests/
-```
+Local development:
 
-Исходные OpenAPI/AsyncAPI YAML и `constants.yaml` живут в корневом `contracts/`; Python генерирует локальные Pydantic-модели и контрактные константы из этого общего источника.
+- Run the root contract verification or generation command from the repository root.
+- Generated modules are written to the same `src/corp_rag_ai/contracts/generated/` path that Docker uses.
+- Do not commit generated contract outputs.
 
-Полная структура — см. `docs/ARCHITECTURE.md` раздел 5.1.
+Docker build:
 
-## Команды (появятся когда будет pyproject.toml)
+- `infra/docker-compose.yml` builds `python-ai` from the repository root with `dockerfile: ai-service/Dockerfile`.
+- The Docker builder stage copies root `contracts/`, root `scripts/`, and `ai-service/` into `/repo`.
+- Before codegen, the builder removes any existing generated contract directory to avoid stale files.
+- The builder runs `generate_python_contracts.py` and `generate_constants.py`; the runtime stage copies only the generated `src` tree and service files.
+- PyYAML is installed only in the builder stage. The runtime image must not include PyYAML as a production dependency.
+
+## Local Commands
 
 ```bash
-# cd ai-service
-# uv sync
-# uv run uvicorn corp_rag_ai.main:app --reload
-# uv run pytest
+cd ai-service
+uv sync
+uv run uvicorn corp_rag_ai.main:app --reload
+uv run pytest
 ```

@@ -1,3 +1,22 @@
+FROM ghcr.io/astral-sh/uv:0.5.26-python3.12-bookworm AS builder
+
+WORKDIR /repo
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+COPY contracts/ ./contracts/
+COPY scripts/ ./scripts/
+COPY ai-service/ ./ai-service/
+
+WORKDIR /repo/ai-service
+RUN uv pip install --system "pyyaml>=6.0,<7.0"
+RUN rm -rf /repo/ai-service/src/corp_rag_ai/contracts/generated \
+    && python /repo/scripts/generate_python_contracts.py \
+    && python /repo/scripts/generate_constants.py
+
 FROM ghcr.io/astral-sh/uv:0.5.26-python3.12-bookworm AS runtime
 
 WORKDIR /app
@@ -7,12 +26,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-COPY pyproject.toml README.md ./
+COPY --from=builder /repo/ai-service/pyproject.toml /repo/ai-service/README.md ./
 RUN uv sync --no-dev --no-install-project
 
-COPY src ./src
-COPY alembic.ini ./alembic.ini
-COPY migrations ./migrations
+COPY --from=builder /repo/ai-service/src ./src
+COPY --from=builder /repo/ai-service/alembic.ini ./alembic.ini
+COPY --from=builder /repo/ai-service/migrations ./migrations
 RUN uv sync --no-dev
 
 EXPOSE 8000

@@ -168,8 +168,8 @@ services:
   python-ai:
     image: corp-rag-python-ai:phase1
     build:
-      context: ../ai-service
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: ai-service/Dockerfile
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8000
@@ -187,6 +187,10 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-local-placeholder}
     ports:
       - "${PYTHON_AI_PORT:-8000}:8000"
+    volumes:
+      - bge-m3-cache:/root/.cache/huggingface
+    mem_limit: 4g
+    mem_reservation: 3g
     depends_on:
       postgres:
         condition: service_healthy
@@ -233,6 +237,7 @@ volumes:
   minio-data:
   rabbitmq-data:
   qdrant-data:
+  bge-m3-cache:
   neo4j-data:
   neo4j-logs:
 
