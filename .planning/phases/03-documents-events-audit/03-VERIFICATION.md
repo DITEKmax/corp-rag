@@ -1,21 +1,18 @@
 ---
 phase: "03-documents-events-audit"
-verified: "2026-05-13T21:22:58Z"
-status: "human_needed"
-score: "23/23 must-haves verified"
+verified: "2026-05-17T16:08:14+03:00"
+status: "passed"
+score: "23/23 must-haves verified; Docker-backed human UAT passed"
 overrides_applied: 0
-human_verification:
-  - test: "Run a Docker-backed Phase 3 lifecycle smoke against real PostgreSQL, MinIO, and RabbitMQ."
-    expected: "A supported document upload stores the object in MinIO, persists metadata/status in PostgreSQL, emits document.uploaded and document.deleted through the outbox to RabbitMQ, consumes document.indexed and document.indexing.failed messages idempotently, and writes correlated audit rows."
-    why_human: "The verifier environment has no valid Docker/Testcontainers runtime, so live MinIO/RabbitMQ integration cannot be proven here. Code, contract generation, unit/slice tests, and Docker-gated lifecycle IT wiring were verified."
+human_verification: []
 ---
 
 # Phase 3: Documents, Events & Audit Verification Report
 
 **Phase Goal:** Java owns document metadata, object storage orchestration, document events, indexing status updates, and audit logging.
-**Verified:** 2026-05-13T21:22:58Z
-**Status:** human_needed
-**Re-verification:** No - initial verification
+**Verified:** 2026-05-17T16:08:14+03:00
+**Status:** passed
+**Re-verification:** Yes - Docker-backed human UAT completed after initial automated `human_needed` result
 
 ## Goal Achievement
 
@@ -120,6 +117,7 @@ human_verification:
 | Contract generation and imports | `$env:MAVEN_CMD='C:\dev\apache-maven-3.9.15\bin\mvn.cmd'; uv run --project ai-service python scripts\verify-contracts.py` | YAML lint, Java constants/OpenAPI generation, Python generation/imports completed | PASS |
 | Backend unit/slice tests | `C:\dev\apache-maven-3.9.15\bin\mvn.cmd -q -f backend\pom.xml -pl corp-rag-app -am test` | Exit 0; Docker unavailable warnings from Testcontainers were non-fatal | PASS |
 | Backend verify/IT wiring | `C:\dev\apache-maven-3.9.15\bin\mvn.cmd -q -f backend\pom.xml -pl corp-rag-app -am verify` | Initial sandbox run failed with Windows compiler access denial; approved escalated rerun exited 0 | PASS |
+| Docker-backed human UAT | `docker compose -f infra/docker-compose.yml --env-file .env up -d --force-recreate postgres minio rabbitmq java-backend` plus manual REST, SQL, MinIO, and RabbitMQ checks | All 13 planned human checks passed on a clean stack; see `03-HUMAN-UAT.md` | PASS |
 | Probe discovery | `Get-ChildItem scripts -Recurse -Filter probe-*.sh` and phase plan/summary probe search | No probes declared or found | SKIP |
 
 ### Probe Execution
@@ -150,7 +148,7 @@ No orphaned Phase 3 requirements were found: all Phase 3 requirement IDs in `.pl
 
 No `TODO`, `FIXME`, `XXX`, placeholder UI/API stubs, empty handlers, or hardcoded empty runtime data were found in Phase 3 production paths.
 
-### Human Verification Required
+### Human Verification Completed
 
 #### 1. Docker-backed external integration
 
@@ -158,15 +156,15 @@ No `TODO`, `FIXME`, `XXX`, placeholder UI/API stubs, empty handlers, or hardcode
 
 **Expected:** Upload writes the source object to MinIO and metadata to PostgreSQL; `document.uploaded` and `document.deleted` outbox rows publish to the configured RabbitMQ queues; synthetic `document.indexed` and `document.indexing.failed` messages update active documents once; duplicate and late deleted events do not duplicate audit/status or resurrect soft-deleted rows; correlation IDs remain present in audit rows and AMQP headers.
 
-**Why human:** Current verifier environment reports no valid Docker/Testcontainers runtime. Automated code/test evidence verifies wiring and behavior with mocks/slices, but live external service integration remains environment-dependent.
+**Result:** Passed on 2026-05-17 against a clean Docker stack with postgres, minio, rabbitmq, and java-backend. The full UAT result is recorded in `03-HUMAN-UAT.md`.
 
 ### Gaps Summary
 
-No blocking implementation gaps were found. The phase goal is achieved in code, contracts, persistence, event wiring, idempotent consumers, and automated tests. Overall status is `human_needed` only because real MinIO/RabbitMQ integration could not be executed in this verifier environment.
+No blocking implementation gaps were found. The phase goal is achieved in code, contracts, persistence, event wiring, idempotent consumers, automated tests, and Docker-backed human UAT. Remaining items are documented as pre-existing or deferred concerns in `03-HUMAN-UAT.md` and `03-HANDOFF.md`.
 
-Planning metadata note: `ROADMAP.md` still contains stale progress text for Phase 3 (`4/6 plans executed` in the section and `2/6` in the progress table), while the phase directory has six plans and six summaries and the code evidence verifies all Phase 3 must-haves. This is not a Phase 3 implementation gap.
+Planning metadata note: `ROADMAP.md` and `STATE.md` were updated during Phase 3 closeout after Docker-backed human UAT passed.
 
 ---
 
-_Verified: 2026-05-13T21:22:58Z_
+_Verified: 2026-05-17T16:08:14+03:00_
 _Verifier: the agent (gsd-verifier)_

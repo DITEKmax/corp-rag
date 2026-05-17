@@ -12,7 +12,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 
 - [x] **Phase 1: Foundation & Contracts** - Local infrastructure and shared API/event contracts are ready.
 - [x] **Phase 2: Identity, Users & Access Control** - Java authentication, users, roles, permissions, and access filters work.
-- [ ] **Phase 3: Documents, Events & Audit** - Java can manage documents and exchange indexing events safely.
+- [x] **Phase 3: Documents, Events & Audit** - Java can manage documents and exchange indexing events safely. (completed 2026-05-17)
 - [ ] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status.
 - [ ] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers.
 - [ ] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows.
@@ -80,7 +80,7 @@ Plans:
   4. Java idempotently consumes indexed/failed events and updates document status.
   5. Significant auth, document, role, chat, indexing, and guard events are auditable.
 **Plans:** 6/6 plans complete
-**Status:** human_needed - automated verification passed; Docker-backed human UAT is tracked in `03-HUMAN-UAT.md`.
+**Status:** Complete - automated verification passed and Docker-backed HUMAN UAT passed on 2026-05-17.
 Plans:
 **Wave 1**
 - [x] 03-01-PLAN.md - Align Phase 3 REST, event, and constants contracts.
@@ -111,6 +111,7 @@ Plans:
   4. Entities and relations are extracted and written to Neo4j.
   5. Java receives indexed or failed events with enough detail to update document status.
 **Plans**: TBD
+**Status:** ready_to_discuss - Phase 3 handoff is available in `.planning/phases/03-documents-events-audit/03-HANDOFF.md`.
 
 ### Phase 5: Retrieval, Guards & Query API
 **Goal**: Python can safely answer Java query requests using access-filtered hybrid/graph retrieval and cited structured generation.
@@ -168,8 +169,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
-| 3. Documents, Events & Audit | 6/6 | Human UAT pending | - |
-| 4. Python Ingestion & Indexing | 0/TBD | Not started | - |
+| 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
+| 4. Python Ingestion & Indexing | 0/TBD | Ready to discuss | - |
 | 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
