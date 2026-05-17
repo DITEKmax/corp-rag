@@ -110,8 +110,8 @@ Plans:
   3. Chunks are sanitized, embedded with bge-m3 dense+sparse vectors, and upserted to Qdrant.
   4. Entities and relations are extracted and written to Neo4j.
   5. Java receives indexed or failed events with enough detail to update document status.
-**Plans:** 6/8 plans complete
-**Status:** In progress - Wave 6 Gemini entity extraction and Neo4j graph indexing completed on 2026-05-17.
+**Plans:** 7/8 plans complete
+**Status:** In progress - Wave 7 upload/delete ingestion orchestration completed on 2026-05-17.
 Plans:
 **Wave 1**
 - [x] 04-01-PLAN.md - Fix python-ai repo-root Docker codegen and local bge-m3 runtime contour.
@@ -132,7 +132,7 @@ Plans:
 - [x] 04-06-PLAN.md - Implement Gemini entity extraction and provenance-first Neo4j graph indexing.
 
 **Wave 7** *(blocked on Waves 2-6 completion)*
-- [ ] 04-07-PLAN.md - Wire full upload/delete ingestion orchestration and terminal event semantics.
+- [x] 04-07-PLAN.md - Wire full upload/delete ingestion orchestration and terminal event semantics.
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 04-08-PLAN.md - Add Phase 4 UAT checklist, live smoke helpers, and end-to-end UAT evidence.

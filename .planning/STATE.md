@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 in progress; plan 04-06 completed
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-05-17T16:28:29.467Z"
-last_activity: "2026-05-17 -- Phase 04 plan 06 completed: Gemini entity extraction and Neo4j graph indexing"
+status: Phase 4 in progress; plan 04-07 completed
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-05-17T16:47:04.478Z"
+last_activity: "2026-05-17 -- Phase 04 plan 07 completed: upload/delete ingestion orchestration and terminal events"
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 27
-  completed_plans: 25
-  percent: 93
+  completed_plans: 26
+  percent: 96
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 04 -- IN_PROGRESS
-Plan: 04-07-PLAN.md ready to execute
-Status: Phase 4 in progress; plan 04-06 completed
-Last activity: 2026-05-17 -- Phase 04 plan 06 completed: Gemini entity extraction and Neo4j graph indexing
+Plan: 04-08-PLAN.md ready to execute
+Status: Phase 4 in progress; plan 04-07 completed
+Last activity: 2026-05-17 -- Phase 04 plan 07 completed: upload/delete ingestion orchestration and terminal events
 
-Progress: [█████████░] 93%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -47,9 +47,9 @@ Progress: [█████████░] 93%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 6/8 | ~2h 03m | ~21m |
+| 04 | 7/8 | ~2h 21m | ~20m |
 
-**Recent completed plans:** Phase 04 P01-P06 complete; latest P06 took 13 min, 3 tasks, 15 files.
+**Recent completed plans:** Phase 04 P01-P07 complete; latest P07 took 18 min, 3 tasks, 12 files.
 
 ## Accumulated Context
 
@@ -102,10 +102,13 @@ Recent locked decisions affecting current work:
 - [Phase 04]: Table blocks are isolated as atomic parent/child chunks so they are never split. - Plan 04-04 preserves table Markdown text as a single child even when oversized.
 - [Phase 04]: Suspicious sanitizer matches remain indexable with isSanitized=false unless the chunk is empty or garbage. - Plan 04-04 drops only empty, punctuation-only, and repeated-character chunks.
 - [Phase 04]: Neo4j graph initialization is config-gated by AI_NEO4J_INITIALIZE_SCHEMA; Gemini extraction and graph writes are deterministic and CI-safe.
+- [Phase 04]: Upload and delete orchestration now uses terminal-after-outcome processed_events. - Plan 04-07 publishes indexed/failed results before terminal state+processed writes and ACK.
+- [Phase 04]: Qdrant rollback is best-effort after vector, entity extraction, and graph upsert failures. - Plan 04-07 deletes by documentId before failed event publication so retries start from a clean vector state.
+- [Phase 04]: DELETED tombstones suppress late upload work. - Plan 04-07 records the upload event as processed without publishing failed events for delete-before-upload and MinIO 404 delete races.
 
 ### Pending Todos
 
-- Continue with 04-07-PLAN.md: full upload/delete ingestion orchestration and terminal event semantics.
+- Continue with 04-08-PLAN.md: Phase 4 docs, live smoke helpers, and end-to-end UAT evidence.
 
 ### Blockers/Concerns
 
@@ -122,6 +125,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-17T16:28:14.921Z
-Stopped at: Completed 04-06-PLAN.md
-Resume file: .planning/phases/04-python-ingestion-indexing/04-07-PLAN.md
+Last session: 2026-05-17T16:46:01Z
+Stopped at: Completed 04-07-PLAN.md
+Resume file: .planning/phases/04-python-ingestion-indexing/04-08-PLAN.md
