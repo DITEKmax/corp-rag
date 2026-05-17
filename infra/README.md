@@ -48,3 +48,33 @@ Prometheus/Grafana добавляются в Phase 7 (Evaluation & Observability
 | Java backend | http://localhost:8080 |
 | Python AI | http://localhost:8000 |
 | Frontend | http://localhost:80 |
+
+## Phase 4 Retained-Volume UAT Notes
+
+For Phase 4 ingestion UAT, start the stack from the repository root and keep existing Docker volumes:
+
+```powershell
+docker compose -f infra/docker-compose.yml up -d --build
+docker compose -f infra/docker-compose.yml ps
+```
+
+Do not run `docker compose down -v` or data reset scripts before Scenario 1 in `.planning/phases/04-python-ingestion-indexing/04-UAT.md`. Retained RabbitMQ messages from Phase 3 are intentionally consumed by `python-ai` as the first end-to-end smoke.
+
+`python-ai` mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` so local `BAAI/bge-m3` model weights survive container recreation. Docker Desktop should have enough memory for the whole stack plus the `python-ai` 3 GB reservation and 4 GB limit.
+
+Live graph extraction requires `GEMINI_API_KEY` in the environment used by Compose:
+
+```powershell
+$env:GEMINI_API_KEY = "your-google-ai-studio-key"
+docker compose -f infra/docker-compose.yml up -d --build python-ai
+```
+
+Core live checks:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/health
+Invoke-RestMethod http://localhost:8000/ready
+Invoke-RestMethod http://localhost:8080/actuator/health
+Invoke-RestMethod http://localhost:6333/collections/documents_chunks
+docker compose -f infra/docker-compose.yml exec neo4j cypher-shell -u neo4j -p local-neo4j-password "RETURN 1;"
+```

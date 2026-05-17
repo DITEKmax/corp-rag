@@ -29,6 +29,43 @@ uv run uvicorn corp_rag_ai.main:app --reload
 uv run pytest
 ```
 
+## Local Model Cache And Memory
+
+Phase 4 uses local `FlagEmbedding` for `BAAI/bge-m3` dense+sparse embeddings. The first live smoke or first container run can download about 2.3 GB of model weights into the Hugging Face cache.
+
+Docker Compose mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` for `python-ai`. Keep that volume between runs so the model is not downloaded repeatedly. The compose service reserves 3 GB and caps `python-ai` at 4 GB; Docker Desktop should have additional headroom for Java, Postgres, Qdrant, Neo4j, MinIO, RabbitMQ, and Langfuse.
+
+Do not clear retained Docker volumes before the end-of-Phase 4 UAT. The retained RabbitMQ messages from Phase 3 are part of the first UAT scenario.
+
+## Test Selection
+
+Default tests are CI-safe and do not require a model download, Qdrant, Neo4j, or Gemini:
+
+```bash
+cd ai-service
+uv run pytest tests
+```
+
+Live integration tests are marked `integration` and self-skip unless their explicit prerequisites are present:
+
+| Test | Required prerequisite |
+|---|---|
+| Local bge-m3 smoke | `AI_EMBEDDING_LIVE_SMOKE_ENABLED=true` |
+| Qdrant live smoke | `AI_QDRANT_LIVE_SMOKE_ENABLED=true` and reachable `QDRANT_URL` |
+| Neo4j live smoke | `AI_NEO4J_LIVE_SMOKE_ENABLED=true` and reachable `NEO4J_URI` |
+| Gemini live extraction | `GEMINI_API_KEY` |
+
+PowerShell live smoke example:
+
+```powershell
+cd ai-service
+$env:AI_EMBEDDING_LIVE_SMOKE_ENABLED = "true"
+$env:AI_QDRANT_LIVE_SMOKE_ENABLED = "true"
+$env:AI_NEO4J_LIVE_SMOKE_ENABLED = "true"
+$env:GEMINI_API_KEY = "your-google-ai-studio-key"
+uv run pytest -m integration
+```
+
 ## Live Gemini Entity Extraction Smoke
 
 Entity extraction unit tests mock `google-genai` and do not need credentials. The live integration smoke is skipped unless `GEMINI_API_KEY` is set.
