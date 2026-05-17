@@ -71,6 +71,12 @@ class Settings(BaseSettings):
         default="local-minio-secret-key",
         validation_alias="MINIO_SECRET_KEY",
     )
+    minio_secure: bool = Field(default=False, validation_alias="MINIO_SECURE")
+    minio_fetch_timeout_seconds: float = Field(
+        default=30.0,
+        validation_alias="AI_MINIO_FETCH_TIMEOUT_SECONDS",
+    )
+    gemini_api_key: SecretStr | None = Field(default=None, validation_alias="GEMINI_API_KEY")
 
     langfuse_host: AnyHttpUrl = Field(
         default="http://localhost:3000",

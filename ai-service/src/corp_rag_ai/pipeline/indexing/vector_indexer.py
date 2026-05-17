@@ -8,6 +8,13 @@ from uuid import UUID
 from qdrant_client import AsyncQdrantClient, models
 
 from corp_rag_ai.domain.chunks import ChildChunk
+from corp_rag_ai.domain.exceptions import (
+    DEPENDENCY_UNAVAILABLE,
+    INDEXING_PIPELINE_ERROR,
+    IndexingStage,
+    StageFailure,
+    stage_failure,
+)
 from corp_rag_ai.pipeline.indexing.embedding import BGE_M3_DENSE_DIMENSION
 from corp_rag_ai.pipeline.indexing.embedding import EmbeddingVector
 
@@ -37,6 +44,7 @@ class VectorIndexChunk:
     is_sanitized: bool = True
     sanitizer_flags: tuple[str, ...] = ()
     content_for_embedding: str | None = None
+    payload_content: str | None = None
 
     @property
     def embedding_text(self) -> str:
@@ -45,7 +53,7 @@ class VectorIndexChunk:
         return self.child.content_for_embedding
 
     def to_payload(self) -> dict[str, object]:
-        return self.child.to_qdrant_payload(
+        payload = self.child.to_qdrant_payload(
             document_title=self.document_title,
             language=self.language,
             doc_type=self.doc_type,
@@ -54,6 +62,9 @@ class VectorIndexChunk:
             is_sanitized=self.is_sanitized,
             sanitizer_flags=self.sanitizer_flags,
         )
+        if self.payload_content is not None:
+            payload["content"] = self.payload_content
+        return payload
 
 
 class QdrantVectorIndex:
@@ -131,16 +142,26 @@ class QdrantVectorIndex:
             )
             for chunk, embedding in zip(chunks, embeddings, strict=True)
         ]
-        await self._client.upsert(
-            collection_name=self._collection_name,
-            points=points,
-        )
+        try:
+            await self._client.upsert(
+                collection_name=self._collection_name,
+                points=points,
+            )
+        except StageFailure:
+            raise
+        except Exception as exc:  # pragma: no cover - exact Qdrant exceptions vary
+            raise _vector_failure(exc) from exc
 
     async def delete_document(self, document_id: UUID | str) -> None:
-        await self._client.delete(
-            collection_name=self._collection_name,
-            points_selector=document_filter(document_id),
-        )
+        try:
+            await self._client.delete(
+                collection_name=self._collection_name,
+                points_selector=document_filter(document_id),
+            )
+        except StageFailure:
+            raise
+        except Exception as exc:  # pragma: no cover - exact Qdrant exceptions vary
+            raise _vector_failure(exc) from exc
 
 
 def document_filter(document_id: UUID | str) -> models.Filter:
@@ -204,3 +225,23 @@ def _is_not_found(exc: Exception) -> bool:
         return True
     response = getattr(exc, "response", None)
     return getattr(response, "status_code", None) == 404
+
+
+def _vector_failure(exc: Exception) -> StageFailure:
+    status_code = _status_code(exc)
+    client_error = status_code is not None and 400 <= status_code < 500 and status_code != 429
+    return stage_failure(
+        stage=IndexingStage.VECTOR_UPSERT,
+        error_code=INDEXING_PIPELINE_ERROR if client_error else DEPENDENCY_UNAVAILABLE,
+        retryable=not client_error,
+        detail=f"status_{status_code}" if status_code is not None else exc.__class__.__name__,
+    )
+
+
+def _status_code(exc: Exception) -> int | None:
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status
+    response = getattr(exc, "response", None)
+    response_status = getattr(response, "status_code", None)
+    return response_status if isinstance(response_status, int) else None

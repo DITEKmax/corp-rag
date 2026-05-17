@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import aio_pika
 from aio_pika.abc import AbstractChannel, AbstractExchange
@@ -42,7 +42,7 @@ class DocumentResultPublisher:
         duration_ms: int,
         correlation_id: UUID,
         indexed_at: datetime | None = None,
-    ) -> None:
+    ) -> UUID:
         event_type = self._topology.document_indexed_routing_key
         payload = {
             "documentId": document_id,
@@ -52,7 +52,7 @@ class DocumentResultPublisher:
             "neo4jEntityCount": neo4j_entity_count,
             "durationMs": duration_ms,
         }
-        await self._publish(
+        return await self._publish(
             event_type=event_type,
             routing_key=self._topology.document_indexed_routing_key,
             payload=payload,
@@ -70,7 +70,7 @@ class DocumentResultPublisher:
         correlation_id: UUID,
         failed_at: datetime | None = None,
         retry_count: int = 0,
-    ) -> None:
+    ) -> UUID:
         event_type = self._topology.document_indexing_failed_routing_key
         payload = {
             "documentId": document_id,
@@ -81,7 +81,7 @@ class DocumentResultPublisher:
             "retryable": retryable,
             "retryCount": retry_count,
         }
-        await self._publish(
+        return await self._publish(
             event_type=event_type,
             routing_key=self._topology.document_indexing_failed_routing_key,
             payload=payload,
@@ -96,8 +96,8 @@ class DocumentResultPublisher:
         correlation_id: UUID,
         failed_at: datetime | None = None,
         retry_count: int = 0,
-    ) -> None:
-        await self._publish(
+    ) -> UUID:
+        return await self._publish(
             event_type=self._topology.document_indexing_failed_routing_key,
             routing_key=self._topology.document_indexing_failed_routing_key,
             payload=build_document_indexing_failed_payload(
@@ -116,13 +116,15 @@ class DocumentResultPublisher:
         routing_key: str,
         payload: dict[str, object],
         correlation_id: UUID,
-    ) -> None:
+    ) -> UUID:
+        event_id = uuid4()
         envelope = build_envelope(
             event_type=event_type,
             payload=payload,
             correlation_id=correlation_id,
             event_version=self._event_version,
             source_service=self._source_service,
+            event_id=event_id,
         )
         message = aio_pika.Message(
             body=encode_json_bytes(envelope),
@@ -137,6 +139,7 @@ class DocumentResultPublisher:
         )
         exchange = await self._get_exchange()
         await exchange.publish(message, routing_key=routing_key)
+        return event_id
 
     async def _get_exchange(self) -> AbstractExchange:
         if self._exchange is None:
