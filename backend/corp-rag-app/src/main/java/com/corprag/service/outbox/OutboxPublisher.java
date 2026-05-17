@@ -16,6 +16,7 @@ import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class OutboxPublisher {
     private final OutboxPublisherProperties properties;
     private final Clock clock;
 
+    @Autowired
     public OutboxPublisher(
             OutboxEventRepository outboxEventRepository,
             RabbitTemplate rabbitTemplate,
