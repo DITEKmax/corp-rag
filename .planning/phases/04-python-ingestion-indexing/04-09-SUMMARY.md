@@ -37,7 +37,7 @@ metrics:
 
 ## Objective
 
-Pivot Phase 4 LLM usage from the blocked hosted Flash provider to `deepseek/deepseek-v4-flash` through OpenRouter, preserving structured entity extraction and unblocking UAT P2.
+Pivot Phase 4 LLM usage from the blocked hosted Flash provider to `deepseek/deepseek-v4-flash:free` through OpenRouter, preserving structured entity extraction and unblocking UAT P2.
 
 ## Tasks
 
@@ -70,6 +70,10 @@ Pivot Phase 4 LLM usage from the blocked hosted Flash provider to `deepseek/deep
 
 - `python scripts/verify-contracts.py` could not run through the Windows Store `python.exe` shim in this shell. The same script passed through `uv run` with `pyyaml`, `pydantic`, and explicit `MAVEN_CMD`.
 - The live DeepSeek/OpenRouter P2 test was not executed against the network because `OPENROUTER_API_KEY` is not set in this environment.
+
+## Post-Pivot Adjustment
+
+Post-pivot adjustment: switched default model from `deepseek/deepseek-v4-flash` (paid) to `deepseek/deepseek-v4-flash:free` after P2 retry revealed paid-only access. Free variant uses same underlying model with shared infrastructure and 50 RPD rate limit, sufficient for diploma UAT scope (~21 calls total). Paid override remains available via `DEEPSEEK_MODEL_ID` env variable for production scaling.
 
 ## Self-Check
 

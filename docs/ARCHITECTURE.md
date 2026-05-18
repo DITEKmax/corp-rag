@@ -185,11 +185,11 @@
 
 | Задача | Модель | Почему |
 |---|---|---|
-| Генерация ответа | `deepseek/deepseek-v4-flash` via OpenRouter | open-source, 1M context, $0.14/$0.28 |
-| Entity/relation extraction | `deepseek/deepseek-v4-flash` via OpenRouter | strict json_schema mode, response-healing plugin |
-| Query router | `deepseek/deepseek-v4-flash` via OpenRouter | same provider simplicity |
-| Input guard classifier | `deepseek/deepseek-v4-flash` via OpenRouter | same provider simplicity |
-| Output guard / synthesizer | `deepseek/deepseek-v4-flash` via OpenRouter | one SDK, one API key, one failure surface |
+| Генерация ответа | `deepseek/deepseek-v4-flash:free` via OpenRouter | open-source, 1M context, free tier for diploma UAT |
+| Entity/relation extraction | `deepseek/deepseek-v4-flash:free` via OpenRouter | strict json_schema mode, response-healing plugin |
+| Query router | `deepseek/deepseek-v4-flash:free` via OpenRouter | same provider simplicity |
+| Input guard classifier | `deepseek/deepseek-v4-flash:free` via OpenRouter | same provider simplicity |
+| Output guard / synthesizer | `deepseek/deepseek-v4-flash:free` via OpenRouter | one SDK, one API key, one failure surface |
 
 ### 3.4 Инфраструктура (Docker Compose)
 
@@ -1535,7 +1535,7 @@ CREATE TABLE ingestion_state (
 - `upsert` point с обоими векторами и payload.
 
 #### 11.1.6 Entity extraction (Graph RAG)
-- Для каждого parent chunk → `deepseek/deepseek-v4-flash` через OpenRouter с structured output (`Extraction { entities, relations }`).
+- Для каждого parent chunk → `deepseek/deepseek-v4-flash:free` через OpenRouter с structured output (`Extraction { entities, relations }`).
 - Промпт основан на LightRAG-референсе, переведён на русский.
 - Дедупликация сущностей: эмбеддинг `name + description`, cosine > 0.9 → merge.
 - Запись в Neo4j: `Entity`, `Relation`, `MENTIONED_IN`.

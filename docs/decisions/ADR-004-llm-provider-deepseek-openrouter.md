@@ -10,7 +10,7 @@ The project needs one hosted LLM path that works for academic demo constraints, 
 
 ## Decision
 
-Use `deepseek/deepseek-v4-flash` through OpenRouter as the single LLM provider/model ID for:
+Use `deepseek/deepseek-v4-flash:free` through OpenRouter as the default single LLM provider/model ID for:
 
 - entity and relation extraction during indexing;
 - answer generation with citations;
@@ -45,10 +45,11 @@ Tradeoffs:
 - OpenRouter remains an external dependency and can rate-limit free-tier usage.
 - DeepSeek V4 Flash is newer, so live UAT must keep an explicit P2 smoke.
 - Paid usage should be monitored if indexing large corpora creates hundreds of extraction calls.
+- Free tier (`:free` suffix) selected for diploma scope. Rate limit 50 RPD without credit / 1000 RPD with $10 OpenRouter top-up. Trade-off: shared infrastructure latency variability vs $0 cost. Paid variant of same model available via `DEEPSEEK_MODEL_ID` override for production deployment.
 
 ## Implementation Notes
 
 - Runtime env: `OPENROUTER_API_KEY`, optional `OPENROUTER_BASE_URL`, optional `DEEPSEEK_MODEL_ID`.
-- Default model ID: `deepseek/deepseek-v4-flash`.
+- Default model ID: `deepseek/deepseek-v4-flash:free`.
 - Removed the previous provider SDK dependency.
 - Added dependency: `openai>=1.40,<2.0`.

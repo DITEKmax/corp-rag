@@ -70,12 +70,13 @@ uv run pytest -m integration
 
 Entity extraction unit tests mock OpenAI-compatible chat completions and do not need credentials. The live integration smoke is skipped unless `OPENROUTER_API_KEY` is set.
 
-The service uses `deepseek/deepseek-v4-flash` through OpenRouter by default:
+The service uses `deepseek/deepseek-v4-flash:free` through OpenRouter by default.
+Set `DEEPSEEK_MODEL_ID` only when overriding to a paid tier:
 
 | Setting | Default |
 |---|---|
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `DEEPSEEK_MODEL_ID` | `deepseek/deepseek-v4-flash` |
+| `DEEPSEEK_MODEL_ID` | `deepseek/deepseek-v4-flash:free` |
 
 PowerShell:
 

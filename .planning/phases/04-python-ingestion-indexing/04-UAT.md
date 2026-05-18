@@ -44,7 +44,7 @@ Edit `infra/.env` and set:
 ```text
 OPENROUTER_API_KEY=<openrouter-key>
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-DEEPSEEK_MODEL_ID=deepseek/deepseek-v4-flash
+DEEPSEEK_MODEL_ID=deepseek/deepseek-v4-flash:free
 ADMIN_USERNAME=admin
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=<strong-local-password>

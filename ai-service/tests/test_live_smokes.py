@@ -97,7 +97,7 @@ async def test_live_deepseek_smoke() -> None:
     )
 
     response = await client.chat.completions.create(
-        model=os.environ.get("DEEPSEEK_MODEL_ID", "deepseek/deepseek-v4-flash"),
+        model=os.environ.get("DEEPSEEK_MODEL_ID", "deepseek/deepseek-v4-flash:free"),
         messages=[{"role": "user", "content": "Return only: ok"}],
         temperature=0,
         max_tokens=8,

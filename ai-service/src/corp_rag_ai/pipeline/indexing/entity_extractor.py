@@ -37,7 +37,7 @@ from corp_rag_ai.pipeline.indexing.graph_indexer import (
 logger = logging.getLogger(__name__)
 
 ENTITY_EXTRACTION_PROMPT_VERSION = "entity_extraction_v1"
-DEFAULT_DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash"
+DEFAULT_DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash:free"
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MAX_OUTPUT_TOKENS = 2000
 DEFAULT_TEMPERATURE = 0.1

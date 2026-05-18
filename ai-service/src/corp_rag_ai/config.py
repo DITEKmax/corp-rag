@@ -82,7 +82,7 @@ class Settings(BaseSettings):
         validation_alias="OPENROUTER_BASE_URL",
     )
     deepseek_model_id: str = Field(
-        default="deepseek/deepseek-v4-flash",
+        default="deepseek/deepseek-v4-flash:free",
         validation_alias="DEEPSEEK_MODEL_ID",
     )
 
