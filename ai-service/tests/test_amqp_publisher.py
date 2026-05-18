@@ -82,6 +82,8 @@ async def test_document_indexed_publisher_uses_generated_topology_and_headers() 
     assert envelope["metadata"]["correlationId"] == str(correlation_id)
     assert envelope["payload"]["documentId"] == str(document_id)
     assert envelope["payload"]["chunkCount"] == 4
+    assert envelope["payload"]["indexedAt"] == "2026-05-17T12:00:00Z"
+    assert " " not in envelope["payload"]["indexedAt"]
 
 
 @pytest.mark.asyncio
@@ -108,6 +110,8 @@ async def test_document_indexing_failed_publisher_defaults_retry_count_to_zero()
     assert envelope["payload"]["retryCount"] == 0
     assert envelope["payload"]["stage"] == "PARSING"
     assert envelope["payload"]["errorCode"] == "INVALID_FILE_FORMAT"
+    assert envelope["payload"]["failedAt"] == "2026-05-17T12:00:00Z"
+    assert " " not in envelope["payload"]["failedAt"]
 
 
 def test_correlation_id_resolution_prefers_header_then_metadata_then_generated() -> None:

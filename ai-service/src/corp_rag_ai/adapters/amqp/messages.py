@@ -85,7 +85,15 @@ def resolve_correlation_id(headers: Mapping[str, Any], metadata: EventMetadata |
 
 
 def encode_json_bytes(value: Mapping[str, Any]) -> bytes:
-    return json.dumps(value, default=str, separators=(",", ":")).encode("utf-8")
+    return json.dumps(value, default=_json_default, separators=(",", ":")).encode("utf-8")
+
+
+def _json_default(value: Any) -> str:
+    if isinstance(value, datetime):
+        return _isoformat_utc(value)
+    if isinstance(value, UUID):
+        return str(value)
+    raise TypeError(f"Type {type(value)} is not JSON serializable")
 
 
 def _parse_metadata(value: Mapping[str, Any]) -> EventMetadata:
@@ -123,4 +131,3 @@ def _isoformat_utc(value: datetime) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=UTC)
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
-
