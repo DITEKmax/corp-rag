@@ -24,16 +24,36 @@ class _ScalarResult:
         return self._value
 
 
+class _MappingResult:
+    def __init__(self, rows: list[dict[str, object]]) -> None:
+        self._rows = rows
+
+    def mappings(self):
+        return self
+
+    def all(self) -> list[dict[str, object]]:
+        return self._rows
+
+
 class _FakeDb:
-    def __init__(self, *, scalar: object | None = None, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        scalar: object | None = None,
+        rows: list[dict[str, object]] | None = None,
+        error: Exception | None = None,
+    ) -> None:
         self.scalar = scalar
+        self.rows = rows
         self.error = error
         self.calls: list[tuple[object, object | None]] = []
 
-    async def execute(self, statement: object, params: object | None = None) -> _ScalarResult:
+    async def execute(self, statement: object, params: object | None = None) -> _ScalarResult | _MappingResult:
         self.calls.append((statement, params))
         if self.error is not None:
             raise self.error
+        if self.rows is not None:
+            return _MappingResult(self.rows)
         return _ScalarResult(self.scalar)
 
 
@@ -170,3 +190,28 @@ async def test_parent_chunk_repository_replaces_document_rows() -> None:
         }
     ]
 
+
+@pytest.mark.asyncio
+async def test_parent_chunk_repository_reads_by_parent_ids_and_document_id() -> None:
+    document_id = uuid4()
+    parent_id = uuid4()
+    row = {
+        "parent_chunk_id": parent_id,
+        "document_id": document_id,
+        "section_path": ["HR", "Vacations"],
+        "content": "Policy body",
+        "position": 2,
+        "token_count": 17,
+    }
+    db = _FakeDb(rows=[row])
+    repo = ParentChunkRepository(db)
+
+    by_parent = await repo.get_by_parent_ids((parent_id, parent_id))
+    by_document = await repo.list_by_document(document_id)
+
+    assert tuple(by_parent) == (parent_id,)
+    assert by_parent[parent_id].content == "Policy body"
+    assert by_parent[parent_id].section_path == ("HR", "Vacations")
+    assert by_document[0].parent_chunk_id == parent_id
+    assert "parent_chunk_id IN" in str(db.calls[0][0].compile(dialect=postgresql.dialect()))
+    assert "ORDER BY document_chunks_parent.position" in str(db.calls[1][0].compile(dialect=postgresql.dialect()))

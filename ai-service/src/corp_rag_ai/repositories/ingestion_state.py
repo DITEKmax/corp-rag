@@ -159,3 +159,30 @@ class ParentChunkRepository:
         statement = document_chunks_parent.delete().where(document_chunks_parent.c.document_id == document_id)
         await self._db.execute(statement)
 
+    async def get_by_parent_ids(self, parent_ids: Sequence[UUID]) -> dict[UUID, ParentChunkRecord]:
+        ids = tuple(dict.fromkeys(parent_ids))
+        if not ids:
+            return {}
+        statement = sa.select(document_chunks_parent).where(document_chunks_parent.c.parent_chunk_id.in_(ids))
+        result = await self._db.execute(statement)
+        return {chunk.parent_chunk_id: chunk for chunk in (_parent_record(row) for row in result.mappings().all())}
+
+    async def list_by_document(self, document_id: UUID) -> tuple[ParentChunkRecord, ...]:
+        statement = (
+            sa.select(document_chunks_parent)
+            .where(document_chunks_parent.c.document_id == document_id)
+            .order_by(document_chunks_parent.c.position)
+        )
+        result = await self._db.execute(statement)
+        return tuple(_parent_record(row) for row in result.mappings().all())
+
+
+def _parent_record(row: Any) -> ParentChunkRecord:
+    return ParentChunkRecord(
+        parent_chunk_id=row["parent_chunk_id"],
+        document_id=row["document_id"],
+        section_path=tuple(row["section_path"] or ()),
+        content=row["content"],
+        position=row["position"],
+        token_count=row["token_count"],
+    )
