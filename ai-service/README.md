@@ -54,6 +54,7 @@ Live integration tests are marked `integration` and self-skip unless their expli
 | Qdrant live smoke | `AI_QDRANT_LIVE_SMOKE_ENABLED=true` and reachable `QDRANT_URL` |
 | Neo4j live smoke | `AI_NEO4J_LIVE_SMOKE_ENABLED=true` and reachable `NEO4J_URI` |
 | DeepSeek/OpenRouter live extraction | `OPENROUTER_API_KEY` |
+| Query API live smokes | `AI_QUERY_LIVE_SMOKE_ENABLED=true`, `AI_QUERY_LIVE_CORPUS_READY=true`, `AI_QUERY_LIVE_BASE_URL`, and `OPENROUTER_API_KEY` |
 
 PowerShell live smoke example:
 
@@ -91,6 +92,23 @@ Phase 5 query behavior is configured through environment-backed settings:
 | `AI_CONTEXT_TOKEN_CAP` | `4000` |
 | `AI_WEAK_EVIDENCE_THRESHOLD` | `0.4` |
 | `AI_FLAGGED_CHUNK_SCORE_MULTIPLIER` | `0.5` |
+
+`POST /v1/query` accepts Java-resolved `accessFilter` values and returns `QueryResponse` with `answered`, `answer`, child-UUID `citations`, `confidence`, optional `guardVerdict`, and `retrievalMeta`. Safe refusals and timeouts are returned as `answered=false`; invalid boundary/configuration failures return Problem Details.
+
+`/diagnostics` includes query readiness fields: `query_service`, `query_router`, `reranker_configured`, and `llm_reachable`. The LLM field is a cheap configured-state indicator and does not make a live OpenRouter call.
+
+Optional query live smokes:
+
+```powershell
+cd ai-service
+$env:AI_QUERY_LIVE_SMOKE_ENABLED = "true"
+$env:AI_QUERY_LIVE_CORPUS_READY = "true"
+$env:AI_QUERY_LIVE_BASE_URL = "http://localhost:8000"
+$env:AI_QUERY_LIVE_DEPARTMENTS = "HR"
+$env:AI_QUERY_LIVE_DOC_TYPES = "POLICY"
+$env:OPENROUTER_API_KEY = "your-openrouter-key"
+uv run pytest tests/test_query_live_smokes.py -m integration -q -s
+```
 
 PowerShell:
 

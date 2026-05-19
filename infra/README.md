@@ -91,3 +91,30 @@ Invoke-RestMethod http://localhost:8080/actuator/health
 Invoke-RestMethod http://localhost:6333/collections/documents_chunks
 docker compose --env-file infra/.env -f infra/docker-compose.yml exec neo4j cypher-shell -u neo4j -p local-neo4j-password "RETURN 1;"
 ```
+
+## Phase 5 Query UAT Notes
+
+Phase 5 validates Python `POST /v1/query`. Before live query UAT, upload a fresh indexed corpus as described in `.planning/phases/05-retrieval-guards-query-api/05-USER-SETUP.md`; the Phase 4 TechCorp happy-path document was deleted during cleanup.
+
+Do not run `docker compose down -v` before collecting evidence. Keep the `bge-m3-cache` volume because the query path may load both `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3`.
+
+Record `python-ai` memory before and after the first successful factual query:
+
+```powershell
+docker stats python-ai --no-stream --format "{{.MemUsage}}"
+```
+
+The Phase 5 contour is still the local 4 GiB reservation and 6 GiB limit. Alarm if observed peak memory exceeds 5.5 GiB; defer any 8 GiB bump to Phase 7+ unless Phase 5 cannot run.
+
+Optional live query smokes:
+
+```powershell
+cd ai-service
+$env:AI_QUERY_LIVE_SMOKE_ENABLED = "true"
+$env:AI_QUERY_LIVE_CORPUS_READY = "true"
+$env:AI_QUERY_LIVE_BASE_URL = "http://localhost:8000"
+$env:AI_QUERY_LIVE_DEPARTMENTS = "HR"
+$env:AI_QUERY_LIVE_DOC_TYPES = "POLICY"
+$env:OPENROUTER_API_KEY = "<openrouter-key>"
+uv run pytest tests/test_query_live_smokes.py -m integration -q -s
+```
