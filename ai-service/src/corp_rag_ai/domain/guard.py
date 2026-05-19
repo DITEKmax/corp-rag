@@ -15,6 +15,9 @@ class GuardReason(str, Enum):
     OUT_OF_SCOPE = "out_of_scope"
     POLICY = "policy"
     MISSING_CITATIONS = "missing_citations"
+    INVALID_CITATIONS = "invalid_citations"
+    LEAK_PATTERN = "leak_pattern"
+    UNSAFE_EVIDENCE_ONLY = "unsafe_evidence_only"
 
 
 @dataclass(frozen=True, slots=True)
