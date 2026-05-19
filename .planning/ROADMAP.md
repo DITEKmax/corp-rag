@@ -154,7 +154,7 @@ Plans:
 Plans:
 
 **Wave 1**
-- [ ] 05-01-PLAN.md - Establish query contracts, ADRs, runtime contour, and duplicate idempotency prerequisite.
+- [x] 05-01-PLAN.md - Establish query contracts, ADRs, runtime contour, and duplicate idempotency prerequisite.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 05-02-PLAN.md - Add query domain, input guard, and rules/LLM router.
