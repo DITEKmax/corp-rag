@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-05-19T20:53:32.617Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-05-19T20:58:15.621Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 36
-  completed_plans: 31
-  percent: 86
+  completed_plans: 32
+  percent: 89
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 05 (retrieval-guards-query-api) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-05-19
 
-Progress: [█████████░] 86%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 31
+- Total plans completed: 32
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -53,6 +53,7 @@ Progress: [█████████░] 86%
 | Phase 05 P01 | 27 min | 4 tasks | 18 files |
 | Phase 05 P02 | 16 min | 3 tasks + prerequisite fix | 14 files |
 | Phase 05 P03 | 7 min | 3 tasks | 6 files |
+| Phase 05 P04 | 5 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -117,10 +118,13 @@ Recent locked decisions affecting current work:
 - [Phase 05]: Qdrant hybrid retrieval uses named dense and sparse prefetches fused with RRF while applying Java-provided access filters inside Qdrant. - Plan 05-03 pushes accessLevel/docType and optional department conditions into storage before payloads return.
 - [Phase 05]: Hybrid retrieval distinguishes zero permitted chunks from embedding or vector dependency failure. - RetrievalResult carries candidates, metadata, and optional failure reason for orchestration.
 - [Phase 05]: Flagged chunks are downranked, not excluded, and sanitizer flags remain on candidates. - Plan 05-03 multiplies flagged scores by the 0.5 default and preserves flags for output guard handling.
+- [Phase 05]: Neo4j graph retrieval filters through accessible Document evidence before returning any entity or relation evidence. - Plan 05-04 added read-side Cypher helpers and graph retriever tests for MENTIONED_IN/EVIDENCE document backing.
+- [Phase 05]: Multi-hop graph retrieval is capped at 3 hops; explicit deeper requests short-circuit before Neo4j. - Plan 05-04 returns unsupported_graph_depth metadata for over-cap requests.
+- [Phase 05]: Factual route does not depend on Neo4j availability, while graph-first routes report graph_retrieval_unavailable on dependency failure. - This implements the route-specific degraded-mode matrix for graph retrieval.
 
 ### Pending Todos
 
-- Execute Phase 5 Plan 05-04: access-filtered Neo4j graph retrieval.
+- Execute Phase 5 Plan 05-05: parent resolution, reranking, context packing, and citation lookup.
 - Seed or upload a fresh indexed corpus before live Phase 5 retrieval/UAT; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
 
 ### Blockers/Concerns
@@ -144,6 +148,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-19T20:53:32.617Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-05-19T20:58:15.621Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None

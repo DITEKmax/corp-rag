@@ -161,7 +161,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 05-03-PLAN.md - Implement access-filtered Qdrant hybrid retrieval.
-- [ ] 05-04-PLAN.md - Implement access-filtered Neo4j graph retrieval.
+- [x] 05-04-PLAN.md - Implement access-filtered Neo4j graph retrieval.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 05-05-PLAN.md - Add parent resolution, reranking, context packing, and citation lookup.
@@ -221,7 +221,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
-| 5. Retrieval, Guards & Query API | 3/8 | In progress | - |
+| 5. Retrieval, Guards & Query API | 4/8 | In progress | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |
