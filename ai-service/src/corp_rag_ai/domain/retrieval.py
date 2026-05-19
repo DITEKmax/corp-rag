@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import Enum
 from uuid import UUID
 
@@ -13,6 +14,8 @@ class RetrieverType(str, Enum):
 class RetrievalFailureReason(str, Enum):
     EMBEDDING_UNAVAILABLE = "embedding_unavailable"
     VECTOR_RETRIEVAL_UNAVAILABLE = "vector_retrieval_unavailable"
+    GRAPH_RETRIEVAL_UNAVAILABLE = "graph_retrieval_unavailable"
+    UNSUPPORTED_GRAPH_DEPTH = "unsupported_graph_depth"
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +32,7 @@ class RetrievalCandidate:
     page_number: int | None = None
     snippet: str | None = None
     sanitizer_flags: tuple[str, ...] = ()
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.score <= 1.0:
@@ -38,6 +42,7 @@ class RetrievalCandidate:
         object.__setattr__(self, "section_path", tuple(part.strip() for part in self.section_path if part.strip()))
         object.__setattr__(self, "access_level", self.access_level.strip().upper())
         object.__setattr__(self, "sanitizer_flags", tuple(self.sanitizer_flags))
+        object.__setattr__(self, "metadata", dict(self.metadata))
 
 
 @dataclass(frozen=True, slots=True)
