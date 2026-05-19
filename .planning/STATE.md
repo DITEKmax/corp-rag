@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-06-PLAN.md
-last_updated: "2026-05-19T21:09:05.948Z"
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-05-19T21:26:08.421Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 36
-  completed_plans: 34
-  percent: 94
+  completed_plans: 35
+  percent: 97
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 05 (retrieval-guards-query-api) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-05-19
 
-Progress: [█████████░] 94%
+Progress: [█████████░] 97%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 34
+- Total plans completed: 35
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -56,6 +56,7 @@ Progress: [█████████░] 94%
 | Phase 05 P04 | 5 min | 3 tasks | 5 files |
 | Phase 05 P05 | 6 min | 3 tasks | 12 files |
 | Phase 05 P06 | 5 min | 3 tasks | 10 files |
+| Phase 05 P07 | 17 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -129,15 +130,18 @@ Recent locked decisions affecting current work:
 - [Phase 05]: Answer synthesis uses DeepSeek/OpenRouter strict JSON output with per-request evidence sentinels and HTML-escaped packed context. - Plan 05-06 prevents retrieved XML-like text from breaking prompt boundaries.
 - [Phase 05]: Output guard blocks answered=true for invalid citation refs, missing refs, leak-like output, or unsafe-evidence-only context. - Plan 05-06 returns OUTPUT_CHECK guard verdicts for post-generation failures.
 - [Phase 05]: Degraded-mode behavior is centralized in apply_degradation. - DependencyState and EvidenceState cover generation, vector, graph, reranker, embedding, no-evidence, and weak-evidence decisions.
+- [Phase 05]: LangGraph orchestration remains thin and service primitives own behavior. - Plan 05-07 added typed graph state and mocked skip-path tests for guard and unsupported routes.
+- [Phase 05]: Python `/v1/query` returns contract QueryResponse for safe success/refusal/timeout outcomes and Problem Details for boundary/configuration failures. - Plan 05-07 enforces the 30-second default timeout in the adapter.
+- [Phase 05]: Query diagnostics are cheap readiness indicators, not live dependency probes. - Plan 05-07 exposes query_service, query_router, reranker_configured, and llm_reachable from local runtime state.
 
 ### Pending Todos
 
-- Execute Phase 5 Plan 05-07: LangGraph orchestration and Python `/v1/query`.
+- Execute Phase 5 Plan 05-08: UAT, live smoke helpers, and handoff docs.
 - Seed or upload a fresh indexed corpus before live Phase 5 retrieval/UAT; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
 
 ### Blockers/Concerns
 
-- No blocker for 05-03 implementation.
+- No blocker for 05-08 implementation.
 - Live query validation still needs a fresh indexed corpus.
 
 ## Deferred Items
@@ -156,6 +160,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-19T21:09:05.948Z
-Stopped at: Completed 05-06-PLAN.md
+Last session: 2026-05-19T21:26:08.421Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None

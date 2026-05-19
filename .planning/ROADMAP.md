@@ -170,7 +170,7 @@ Plans:
 - [x] 05-06-PLAN.md - Add cited synthesis, output guard, confidence, and degradation policy.
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 05-07-PLAN.md - Wire LangGraph orchestration and Python `/v1/query`.
+- [x] 05-07-PLAN.md - Wire LangGraph orchestration and Python `/v1/query`.
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 05-08-PLAN.md - Add Phase 5 UAT, live smoke helpers, and handoff docs.
@@ -221,7 +221,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
-| 5. Retrieval, Guards & Query API | 6/8 | In progress | - |
+| 5. Retrieval, Guards & Query API | 7/8 | In progress | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |
