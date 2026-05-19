@@ -157,7 +157,7 @@ Plans:
 - [x] 05-01-PLAN.md - Establish query contracts, ADRs, runtime contour, and duplicate idempotency prerequisite.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 05-02-PLAN.md - Add query domain, input guard, and rules/LLM router.
+- [x] 05-02-PLAN.md - Add query domain, input guard, and rules/LLM router.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 05-03-PLAN.md - Implement access-filtered Qdrant hybrid retrieval.
@@ -221,7 +221,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
-| 5. Retrieval, Guards & Query API | 0/8 | Ready to execute | - |
+| 5. Retrieval, Guards & Query API | 2/8 | In progress | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |

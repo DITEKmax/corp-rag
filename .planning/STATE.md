@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-05-19T20:30:28.681Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-05-19T20:46:18.010Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 36
-  completed_plans: 29
-  percent: 81
+  completed_plans: 30
+  percent: 83
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 05 (retrieval-guards-query-api) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-05-19
 
-Progress: [████████░░] 81%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 28
+- Total plans completed: 30
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -51,6 +51,7 @@ Progress: [████████░░] 81%
 
 **Recent completed plans:** Phase 04 P01-P09 complete. Phase 04 UAT passed on 2026-05-19 with evidence in `.planning/phases/04-python-ingestion-indexing/04-UAT-EVIDENCE.md`.
 | Phase 05 P01 | 27 min | 4 tasks | 18 files |
+| Phase 05 P02 | 16 min | 3 tasks + prerequisite fix | 14 files |
 
 ## Accumulated Context
 
@@ -108,16 +109,20 @@ Recent locked decisions affecting current work:
 - [Phase 04]: DELETED tombstones suppress late upload work. - Plan 04-07 records the upload event as processed without publishing failed events for delete-before-upload and MinIO 404 delete races.
 - [Phase 04]: DeepSeek V4 Flash through OpenRouter is the accepted LLM provider for entity extraction and later Phase 5 LLM use. - Phase 4.5 pivot is captured by ADR-004 and 04-09-SUMMARY.md.
 - [Phase 04]: End-to-end UAT passed on 2026-05-19. - Evidence is recorded in 04-UAT-EVIDENCE.md; Scenario 1 was skipped because retained Phase 3 AMQP messages were lost before the Phase 4.5 pivot.
+- [Phase 05]: Query pipeline code owns internal domain dataclasses and keeps generated OpenAPI DTOs at the REST adapter boundary. - Plan 05-02 added query input, access filter, route decision, retrieval metadata, citation draft, refusal, and result types.
+- [Phase 05]: Input guard is deterministic for MVP and short-circuits with refused QueryResult objects before retrieval or generation. - Plan 05-02 reuses corpus sanitizer prompt-injection constants and adds query-specific out-of-scope and policy buckets.
+- [Phase 05]: Query routing is rules-first; rules return confidence 1.0 and skip OpenRouter, while ambiguous questions use DeepSeek strict JSON schema fallback. - Low confidence, malformed output, and classifier dependency failure become UNSUPPORTED with no retrieval.
+- [Phase 05]: AI-service `RetrieverType` contract is aligned to public values `HYBRID` and `GRAPH`. - Plan 05-02 corrected stale AI-service-only enum values before domain adapter work.
 
 ### Pending Todos
 
-- Start Phase 5 discussion/planning. Recommended command: `$gsd-discuss-phase 5`, then `$gsd-plan-phase 5`.
-- Seed or upload a fresh indexed corpus before Phase 5 retrieval work; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
+- Execute Phase 5 Plan 05-03: access-filtered Qdrant hybrid retrieval.
+- Seed or upload a fresh indexed corpus before live Phase 5 retrieval/UAT; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
 
 ### Blockers/Concerns
 
-- No blocker for Phase 5 planning.
-- Phase 5 should account for the Phase 4 UAT deferred items, especially duplicate upload reprocessing before load-sensitive retrieval demos.
+- No blocker for 05-03 implementation.
+- Live query validation still needs a fresh indexed corpus.
 
 ## Deferred Items
 
@@ -127,14 +132,14 @@ Recent locked decisions affecting current work:
 | Product | Self-service registration or SSO | Deferred to v2 | Initial ingest |
 | Ops | Qdrant/Neo4j backup automation | Deferred to v2 | Initial ingest |
 | Data | Full document version history | Deferred to v2 | Initial ingest |
-| Phase 5 | Fix duplicate upload idempotency short-circuit so repeated event IDs do not call Qdrant, Neo4j, or OpenRouter again. | Backlog | Phase 4 UAT Scenario 5 |
+| Phase 5 | Fix duplicate upload idempotency short-circuit so repeated event IDs do not call Qdrant, Neo4j, or OpenRouter again. | Closed in 05-01 | Phase 4 UAT Scenario 5 |
 | Phase 5/8 | Decide whether PDF support needs OCR engines or whether demo corpus stays on Markdown/plain text. | Backlog | Phase 4 UAT Scenario 3 |
 | Phase 5 | Audit Docling dependency surface; direct dependency is `docling`, while `docling-slim` appears transitively in `uv.lock`. | Backlog | Phase 4 UAT |
-| Phase 5 | Consider bumping `python-ai` memory limit from 4 GiB to 6 GiB before reranker/query work. | Backlog | Phase 4 UAT |
+| Phase 5 | Consider bumping `python-ai` memory limit from 4 GiB to 6 GiB before reranker/query work. | Closed in 05-01 | Phase 4 UAT |
 | Phase 5/7 | Decide orphan Neo4j entity cleanup strategy; retrieval must filter through accessible Document evidence. | Backlog | Phase 4 UAT Scenario 6 |
 
 ## Session Continuity
 
-Last session: 2026-05-19T20:30:28.414Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-05-19T20:46:18.010Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
