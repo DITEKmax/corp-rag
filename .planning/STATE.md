@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-05-19T21:04:23.359Z"
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-05-19T21:09:05.948Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 36
-  completed_plans: 33
-  percent: 92
+  completed_plans: 34
+  percent: 94
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 05 (retrieval-guards-query-api) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-05-19
 
-Progress: [█████████░] 92%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 33
+- Total plans completed: 34
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -55,6 +55,7 @@ Progress: [█████████░] 92%
 | Phase 05 P03 | 7 min | 3 tasks | 6 files |
 | Phase 05 P04 | 5 min | 3 tasks | 5 files |
 | Phase 05 P05 | 6 min | 3 tasks | 12 files |
+| Phase 05 P06 | 5 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -125,10 +126,13 @@ Recent locked decisions affecting current work:
 - [Phase 05]: Parent chunks are context units fetched from AI Postgres, while child chunks remain citation IDs. - Plan 05-05 added ParentResolver and parent chunk read methods without storing parent context in Qdrant.
 - [Phase 05]: Local reranker soft-degrades to raw retrieval order when disabled or unavailable. - RerankOutcome records reranker_used and warnings so confidence can distinguish normalized reranker scores from raw retrieval scores.
 - [Phase 05]: Packed evidence context uses XML-style boundaries and child-level CitationDrafts. - ContextPacker prefers parent-boundary truncation and only truncates a single oversized parent as a last resort.
+- [Phase 05]: Answer synthesis uses DeepSeek/OpenRouter strict JSON output with per-request evidence sentinels and HTML-escaped packed context. - Plan 05-06 prevents retrieved XML-like text from breaking prompt boundaries.
+- [Phase 05]: Output guard blocks answered=true for invalid citation refs, missing refs, leak-like output, or unsafe-evidence-only context. - Plan 05-06 returns OUTPUT_CHECK guard verdicts for post-generation failures.
+- [Phase 05]: Degraded-mode behavior is centralized in apply_degradation. - DependencyState and EvidenceState cover generation, vector, graph, reranker, embedding, no-evidence, and weak-evidence decisions.
 
 ### Pending Todos
 
-- Execute Phase 5 Plan 05-06: synthesis, output guard, confidence, and degradation policy.
+- Execute Phase 5 Plan 05-07: LangGraph orchestration and Python `/v1/query`.
 - Seed or upload a fresh indexed corpus before live Phase 5 retrieval/UAT; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
 
 ### Blockers/Concerns
@@ -152,6 +156,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-19T21:04:23.359Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-05-19T21:09:05.948Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None
