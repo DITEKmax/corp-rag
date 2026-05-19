@@ -1,0 +1,122 @@
+from __future__ import annotations
+
+import time
+from uuid import UUID
+
+import pytest
+
+from corp_rag_ai.domain.retrieval import RetrievalCandidate, RetrieverType
+from corp_rag_ai.pipeline.retrieval.reranker import (
+    RERANKER_DISABLED_WARNING,
+    RERANKER_UNAVAILABLE_WARNING,
+    LocalReranker,
+)
+
+
+DOCUMENT_ID = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
+PARENT_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+
+
+async def test_reranker_uses_normalized_scores_for_final_ranking() -> None:
+    model = _FakeReranker([0.2, 0.95])
+    reranker = LocalReranker(model_factory=lambda _name: model)
+
+    outcome = await reranker.rerank(
+        query="vacation policy",
+        candidates=(_candidate("first", 0.8), _candidate("second", 0.4)),
+        top_n=2,
+    )
+
+    assert outcome.reranker_used is True
+    assert [candidate.content for candidate in outcome.candidates] == ["second", "first"]
+    assert [candidate.score for candidate in outcome.candidates] == [0.95, 0.2]
+    assert model.calls[0]["normalize"] is True
+    assert all(0.0 <= candidate.score <= 1.0 for candidate in outcome.candidates)
+
+
+async def test_disabled_reranker_keeps_raw_order_and_sets_metadata_warning() -> None:
+    reranker = LocalReranker(enabled=False, model_factory=lambda _name: _FakeReranker([1.0]))
+
+    outcome = await reranker.rerank(query="q", candidates=(_candidate("first", 0.8),), top_n=1)
+
+    assert outcome.reranker_used is False
+    assert outcome.warnings == (RERANKER_DISABLED_WARNING,)
+    assert outcome.candidates[0].content == "first"
+
+
+async def test_unavailable_reranker_keeps_candidates_without_reporting_reranker_scores() -> None:
+    reranker = LocalReranker(model_factory=lambda _name: _FailingReranker())
+
+    outcome = await reranker.rerank(
+        query="q",
+        candidates=(_candidate("first", 0.8), _candidate("second", 0.7)),
+        top_n=1,
+    )
+
+    assert outcome.reranker_used is False
+    assert outcome.warnings == (RERANKER_UNAVAILABLE_WARNING,)
+    assert [candidate.content for candidate in outcome.candidates] == ["first"]
+    assert outcome.candidates[0].score == 0.8
+
+
+async def test_reranker_semaphore_serializes_concurrent_scoring() -> None:
+    model = _BlockingReranker()
+    reranker = LocalReranker(model_factory=lambda _name: model, concurrency=1)
+
+    await asyncio_gather(
+        reranker.rerank(query="q1", candidates=(_candidate("first", 0.8),), top_n=1),
+        reranker.rerank(query="q2", candidates=(_candidate("second", 0.7),), top_n=1),
+    )
+
+    assert model.max_active == 1
+    assert model.calls == 2
+
+
+class _FakeReranker:
+    def __init__(self, scores: list[float]) -> None:
+        self.scores = scores
+        self.calls: list[dict[str, object]] = []
+
+    def compute_score(self, pairs, *, normalize: bool):
+        self.calls.append({"pairs": pairs, "normalize": normalize})
+        return self.scores
+
+
+class _FailingReranker:
+    def compute_score(self, _pairs, *, normalize: bool):
+        raise RuntimeError("reranker unavailable")
+
+
+class _BlockingReranker:
+    def __init__(self) -> None:
+        self.active = 0
+        self.max_active = 0
+        self.calls = 0
+
+    def compute_score(self, pairs, *, normalize: bool):
+        self.calls += 1
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        time.sleep(0.03)
+        self.active -= 1
+        return [0.5 for _ in pairs]
+
+
+async def asyncio_gather(*awaitables) -> None:
+    import asyncio
+
+    await asyncio.gather(*awaitables)
+
+
+def _candidate(content: str, score: float) -> RetrievalCandidate:
+    return RetrievalCandidate(
+        chunk_id=UUID(int=abs(hash(content)) % (1 << 128)),
+        parent_chunk_id=PARENT_ID,
+        document_id=DOCUMENT_ID,
+        document_title="Policy",
+        section_path=("HR",),
+        content=content,
+        score=score,
+        access_level="INTERNAL",
+        retriever=RetrieverType.HYBRID,
+    )

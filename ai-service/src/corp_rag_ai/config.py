@@ -91,6 +91,8 @@ class Settings(BaseSettings):
     router_confidence_threshold: float = Field(default=0.65, validation_alias="AI_ROUTER_CONFIDENCE_THRESHOLD")
     reranker_enabled: bool = Field(default=True, validation_alias="AI_RERANKER_ENABLED")
     reranker_model: str = Field(default="BAAI/bge-reranker-v2-m3", validation_alias="AI_RERANKER_MODEL")
+    reranker_concurrency: int = Field(default=1, validation_alias="AI_RERANKER_CONCURRENCY")
+    query_final_top_n: int = Field(default=5, validation_alias="AI_QUERY_FINAL_TOP_N")
     context_token_cap: int = Field(default=4000, validation_alias="AI_CONTEXT_TOKEN_CAP")
     weak_evidence_threshold: float = Field(default=0.4, validation_alias="AI_WEAK_EVIDENCE_THRESHOLD")
     flagged_chunk_score_multiplier: float = Field(default=0.5, validation_alias="AI_FLAGGED_CHUNK_SCORE_MULTIPLIER")
