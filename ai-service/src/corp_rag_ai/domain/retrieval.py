@@ -10,6 +10,11 @@ class RetrieverType(str, Enum):
     GRAPH = "GRAPH"
 
 
+class RetrievalFailureReason(str, Enum):
+    EMBEDDING_UNAVAILABLE = "embedding_unavailable"
+    VECTOR_RETRIEVAL_UNAVAILABLE = "vector_retrieval_unavailable"
+
+
 @dataclass(frozen=True, slots=True)
 class RetrievalCandidate:
     chunk_id: UUID
@@ -20,6 +25,7 @@ class RetrievalCandidate:
     score: float
     access_level: str
     retriever: RetrieverType
+    parent_chunk_id: UUID | None = None
     page_number: int | None = None
     snippet: str | None = None
     sanitizer_flags: tuple[str, ...] = ()
@@ -101,3 +107,17 @@ class RetrievalMetadata:
 def _enum_value(value: object) -> str:
     raw = getattr(value, "value", value)
     return str(raw)
+
+
+@dataclass(frozen=True, slots=True)
+class RetrievalResult:
+    candidates: tuple[RetrievalCandidate, ...]
+    metadata: RetrievalMetadata
+    failure_reason: RetrievalFailureReason | str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "candidates", tuple(self.candidates))
+
+    @property
+    def failed(self) -> bool:
+        return self.failure_reason is not None
