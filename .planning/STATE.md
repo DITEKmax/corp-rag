@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 in progress; plan 04-07 completed
-stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-05-17T16:47:04.478Z"
-last_activity: "2026-05-17 -- Phase 04 plan 07 completed: upload/delete ingestion orchestration and terminal events"
+status: Phase 4 complete; Phase 5 ready for discussion/planning
+stopped_at: Completed Phase 4 UAT closeout and handoff
+last_updated: "2026-05-19"
+last_activity: "2026-05-19 -- Phase 04 UAT passed end-to-end; evidence, summary, roadmap/state updates, and Phase 04 to Phase 05 handoff completed"
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 27
-  completed_plans: 26
-  percent: 96
+  completed_phases: 4
+  total_plans: 28
+  completed_plans: 28
+  percent: 100
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 04 — python-ingestion-indexing
+**Current focus:** Phase 05 -- retrieval-guards-query-api
 
 ## Current Position
 
-Phase: 04 -- IN_PROGRESS
-Plan: 04-08-PLAN.md ready to execute
-Status: Phase 4 in progress; plan 04-07 completed
-Last activity: 2026-05-17 -- Phase 04 plan 07 completed: upload/delete ingestion orchestration and terminal events
+Phase: 05 -- READY_TO_PLAN
+Plan: TBD
+Status: Phase 4 complete; Phase 5 ready for discussion/planning
+Last activity: 2026-05-19 -- Phase 04 UAT passed end-to-end; evidence, summary, roadmap/state updates, and Phase 04 to Phase 05 handoff completed
 
-Progress: [██████████] 96%
+Progress: [complete through Phase 04; Phase 05 plans TBD]
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 25
+- Total plans completed: 28
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -47,9 +47,9 @@ Progress: [██████████] 96%
 | 01 | 6 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
-| 04 | 7/8 | ~2h 21m | ~20m |
+| 04 | 9/9 | ~2h 21m + manual UAT | ~20m for automated waves |
 
-**Recent completed plans:** Phase 04 P01-P07 complete; latest P07 took 18 min, 3 tasks, 12 files.
+**Recent completed plans:** Phase 04 P01-P09 complete. Phase 04 UAT passed on 2026-05-19 with evidence in `.planning/phases/04-python-ingestion-indexing/04-UAT-EVIDENCE.md`.
 
 ## Accumulated Context
 
@@ -92,7 +92,7 @@ Recent locked decisions affecting current work:
 - [Phase 03]: Late terminal events for soft-deleted documents are recorded as processed without changing document status or audit details. — Plan 03-06 keeps delete semantics authoritative and prevents Python result events from resurrecting rows.
 - [Phase 03]: Correlation prefers a valid x-correlation-id AMQP header, then envelope metadata, then a generated UUID. — This preserves the HTTP to outbox to Python to Java audit chain while handling malformed or missing inbound headers.
 - [Phase 04]: Python embeddings pivoted from HF Inference API to local FlagEmbedding for BAAI/bge-m3 dense+sparse output. — Research found HF free-tier feature extraction documents dense-only output; local FlagEmbedding preserves ADR-001 and Qdrant dense+sparse semantics.
-- [Phase 04]: Phase 4 is split into eight execution plans covering Docker/codegen, state/AMQP, parsing, chunking/sanitizer, embeddings/Qdrant, graph/Gemini/Neo4j, orchestration, and end-to-end UAT.
+- [Phase 04]: Phase 4 completed nine execution plans covering Docker/codegen, state/AMQP, parsing, chunking/sanitizer, embeddings/Qdrant, graph/Neo4j, orchestration, UAT, and the Phase 4.5 LLM provider pivot.
 - [Phase 04]: python-ai Docker builds now use repository-root context and isolated builder codegen. - Plan 04-01 removes stale generated contracts before Docker codegen, excludes host generated outputs from the build context, and keeps PyYAML out of the runtime image.
 - [Phase 04]: AI AMQP consumers are config-gated and default-disabled until full ingestion orchestration is wired. - Plan 04-02 prevents placeholder handlers from ACKing real queued documents while preserving passive RabbitMQ topology checks and manual ACK/NACK behavior.
 - [Phase 04]: Stage-aware failed indexing events are formatted only through StageFailure safe templates. - Plan 04-02 exposes exception class names, MIME/parser/dependency summaries, and retryability without leaking raw exception text or tracebacks.
@@ -101,18 +101,22 @@ Recent locked decisions affecting current work:
 - [Phase 04]: Token counting uses tiktoken cl100k_base for deterministic parent/child chunk sizing. - Plan 04-04 adds a cached cl100k counter and boundary-aware child splitting.
 - [Phase 04]: Table blocks are isolated as atomic parent/child chunks so they are never split. - Plan 04-04 preserves table Markdown text as a single child even when oversized.
 - [Phase 04]: Suspicious sanitizer matches remain indexable with isSanitized=false unless the chunk is empty or garbage. - Plan 04-04 drops only empty, punctuation-only, and repeated-character chunks.
-- [Phase 04]: Neo4j graph initialization is config-gated by AI_NEO4J_INITIALIZE_SCHEMA; Gemini extraction and graph writes are deterministic and CI-safe.
+- [Phase 04]: Neo4j graph initialization is config-gated by AI_NEO4J_INITIALIZE_SCHEMA; DeepSeek/OpenRouter extraction and graph writes are deterministic and CI-safe.
 - [Phase 04]: Upload and delete orchestration now uses terminal-after-outcome processed_events. - Plan 04-07 publishes indexed/failed results before terminal state+processed writes and ACK.
 - [Phase 04]: Qdrant rollback is best-effort after vector, entity extraction, and graph upsert failures. - Plan 04-07 deletes by documentId before failed event publication so retries start from a clean vector state.
 - [Phase 04]: DELETED tombstones suppress late upload work. - Plan 04-07 records the upload event as processed without publishing failed events for delete-before-upload and MinIO 404 delete races.
+- [Phase 04]: DeepSeek V4 Flash through OpenRouter is the accepted LLM provider for entity extraction and later Phase 5 LLM use. - Phase 4.5 pivot is captured by ADR-004 and 04-09-SUMMARY.md.
+- [Phase 04]: End-to-end UAT passed on 2026-05-19. - Evidence is recorded in 04-UAT-EVIDENCE.md; Scenario 1 was skipped because retained Phase 3 AMQP messages were lost before the Phase 4.5 pivot.
 
 ### Pending Todos
 
-- Continue with 04-08-PLAN.md: Phase 4 docs, live smoke helpers, and end-to-end UAT evidence.
+- Start Phase 5 discussion/planning. Recommended command: `$gsd-discuss-phase 5`, then `$gsd-plan-phase 5`.
+- Seed or upload a fresh indexed corpus before Phase 5 retrieval work; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
 
 ### Blockers/Concerns
 
-- None blocking for Phase 4 execution start. Phase 04 planning absorbed the Phase 03 handoff and resolved the HF sparse-output blocker through the local FlagEmbedding pivot.
+- No blocker for Phase 5 planning.
+- Phase 5 should account for the Phase 4 UAT deferred items, especially duplicate upload reprocessing before load-sensitive retrieval demos.
 
 ## Deferred Items
 
@@ -122,9 +126,14 @@ Recent locked decisions affecting current work:
 | Product | Self-service registration or SSO | Deferred to v2 | Initial ingest |
 | Ops | Qdrant/Neo4j backup automation | Deferred to v2 | Initial ingest |
 | Data | Full document version history | Deferred to v2 | Initial ingest |
+| Phase 5 | Fix duplicate upload idempotency short-circuit so repeated event IDs do not call Qdrant, Neo4j, or OpenRouter again. | Backlog | Phase 4 UAT Scenario 5 |
+| Phase 5/8 | Decide whether PDF support needs OCR engines or whether demo corpus stays on Markdown/plain text. | Backlog | Phase 4 UAT Scenario 3 |
+| Phase 5 | Audit Docling dependency surface; direct dependency is `docling`, while `docling-slim` appears transitively in `uv.lock`. | Backlog | Phase 4 UAT |
+| Phase 5 | Consider bumping `python-ai` memory limit from 4 GiB to 6 GiB before reranker/query work. | Backlog | Phase 4 UAT |
+| Phase 5/7 | Decide orphan Neo4j entity cleanup strategy; retrieval must filter through accessible Document evidence. | Backlog | Phase 4 UAT Scenario 6 |
 
 ## Session Continuity
 
-Last session: 2026-05-17T16:46:01Z
-Stopped at: Completed 04-07-PLAN.md
-Resume file: .planning/phases/04-python-ingestion-indexing/04-08-PLAN.md
+Last session: 2026-05-19
+Stopped at: Phase 04 complete; Phase 05 ready for discussion/planning
+Resume file: .planning/phases/04-python-ingestion-indexing/04-HANDOFF.md

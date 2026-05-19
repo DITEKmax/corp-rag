@@ -13,8 +13,8 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - [x] **Phase 1: Foundation & Contracts** - Local infrastructure and shared API/event contracts are ready.
 - [x] **Phase 2: Identity, Users & Access Control** - Java authentication, users, roles, permissions, and access filters work.
 - [x] **Phase 3: Documents, Events & Audit** - Java can manage documents and exchange indexing events safely. (completed 2026-05-17)
-- [ ] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status.
-- [ ] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers.
+- [x] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status. (completed 2026-05-19)
+- [ ] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers. (next)
 - [ ] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows.
 - [ ] **Phase 7: Evaluation & Observability** - Quality, safety, ablation, traces, and metrics are measurable.
 - [ ] **Phase 8: Delivery Polish & Demo Readiness** - Production-like compose, seed corpus, final regression, README, and demo assets are ready.
@@ -110,8 +110,8 @@ Plans:
   3. Chunks are sanitized, embedded with bge-m3 dense+sparse vectors, and upserted to Qdrant.
   4. Entities and relations are extracted and written to Neo4j.
   5. Java receives indexed or failed events with enough detail to update document status.
-**Plans:** 7/8 plans complete
-**Status:** In progress - Wave 7 upload/delete ingestion orchestration completed on 2026-05-17.
+**Plans:** 9/9 plans complete
+**Status:** Complete - end-to-end UAT passed on 2026-05-19; duplicate redelivery final consistency passed with a Phase 5 efficiency bug deferred.
 Plans:
 **Wave 1**
 - [x] 04-01-PLAN.md - Fix python-ai repo-root Docker codegen and local bge-m3 runtime contour.
@@ -135,7 +135,10 @@ Plans:
 - [x] 04-07-PLAN.md - Wire full upload/delete ingestion orchestration and terminal event semantics.
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 04-08-PLAN.md - Add Phase 4 UAT checklist, live smoke helpers, and end-to-end UAT evidence.
+- [x] 04-08-PLAN.md - Add Phase 4 UAT checklist, live smoke helpers, and end-to-end UAT evidence.
+
+**Wave 9 / Phase 4.5 Provider Pivot** *(inserted after Wave 8 to unblock UAT P2)*
+- [x] 04-09-PLAN.md - Pivot LLM provider from Gemini to DeepSeek V4 Flash through OpenRouter.
 
 ### Phase 5: Retrieval, Guards & Query API
 **Goal**: Python can safely answer Java query requests using access-filtered hybrid/graph retrieval and cited structured generation.
@@ -194,8 +197,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation & Contracts | 6/6 | Complete | 2026-05-11 |
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
-| 4. Python Ingestion & Indexing | 6/8 | In progress | - |
-| 5. Retrieval, Guards & Query API | 0/TBD | Not started | - |
+| 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
+| 5. Retrieval, Guards & Query API | 0/TBD | Next | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |

@@ -1,14 +1,17 @@
 ---
-status: partial
+status: complete
+result: passed
 phase: 04-python-ingestion-indexing
 source: ["04-08-PLAN.md"]
 started: "2026-05-17T00:00:00Z"
-updated: "2026-05-17T00:00:00Z"
+updated: "2026-05-19"
 ---
 
 # Phase 4 End-to-End UAT
 
 This script validates the completed Python ingestion and indexing path against the retained local Docker volumes from earlier phases.
+
+Final manual UAT evidence from 2026-05-19 is recorded in `04-UAT-EVIDENCE.md`. P1, P2, P3, and Scenarios 2 through 6 passed; Scenario 1 was skipped because the retained Phase 3 AMQP messages were lost before the Phase 4.5 pivot.
 
 ## Preconditions
 
@@ -404,10 +407,12 @@ Fill this table during the run.
 ## Summary
 
 total: 9
-passed: 0
-issues: 0
-pending: 9
-skipped: 0
+passed: 8
+issues: 5
+pending: 0
+skipped: 1
 blocked: 0
 
 ## Gaps
+
+See `04-UAT-EVIDENCE.md` for the exact document IDs, timestamps, observed terminal states, fixes made during UAT, and Phase 5 deferred bug list.
