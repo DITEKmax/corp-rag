@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-05-19T20:46:18.010Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-05-19T20:53:32.617Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 36
-  completed_plans: 30
-  percent: 83
+  completed_plans: 31
+  percent: 86
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 05 (retrieval-guards-query-api) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-05-19
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 30
+- Total plans completed: 31
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -52,6 +52,7 @@ Progress: [████████░░] 83%
 **Recent completed plans:** Phase 04 P01-P09 complete. Phase 04 UAT passed on 2026-05-19 with evidence in `.planning/phases/04-python-ingestion-indexing/04-UAT-EVIDENCE.md`.
 | Phase 05 P01 | 27 min | 4 tasks | 18 files |
 | Phase 05 P02 | 16 min | 3 tasks + prerequisite fix | 14 files |
+| Phase 05 P03 | 7 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -113,10 +114,13 @@ Recent locked decisions affecting current work:
 - [Phase 05]: Input guard is deterministic for MVP and short-circuits with refused QueryResult objects before retrieval or generation. - Plan 05-02 reuses corpus sanitizer prompt-injection constants and adds query-specific out-of-scope and policy buckets.
 - [Phase 05]: Query routing is rules-first; rules return confidence 1.0 and skip OpenRouter, while ambiguous questions use DeepSeek strict JSON schema fallback. - Low confidence, malformed output, and classifier dependency failure become UNSUPPORTED with no retrieval.
 - [Phase 05]: AI-service `RetrieverType` contract is aligned to public values `HYBRID` and `GRAPH`. - Plan 05-02 corrected stale AI-service-only enum values before domain adapter work.
+- [Phase 05]: Qdrant hybrid retrieval uses named dense and sparse prefetches fused with RRF while applying Java-provided access filters inside Qdrant. - Plan 05-03 pushes accessLevel/docType and optional department conditions into storage before payloads return.
+- [Phase 05]: Hybrid retrieval distinguishes zero permitted chunks from embedding or vector dependency failure. - RetrievalResult carries candidates, metadata, and optional failure reason for orchestration.
+- [Phase 05]: Flagged chunks are downranked, not excluded, and sanitizer flags remain on candidates. - Plan 05-03 multiplies flagged scores by the 0.5 default and preserves flags for output guard handling.
 
 ### Pending Todos
 
-- Execute Phase 5 Plan 05-03: access-filtered Qdrant hybrid retrieval.
+- Execute Phase 5 Plan 05-04: access-filtered Neo4j graph retrieval.
 - Seed or upload a fresh indexed corpus before live Phase 5 retrieval/UAT; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
 
 ### Blockers/Concerns
@@ -140,6 +144,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-19T20:46:18.010Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-05-19T20:53:32.617Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
