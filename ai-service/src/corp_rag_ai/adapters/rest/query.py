@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
+
+from corp_rag_ai.config import get_settings
 from corp_rag_ai.contracts.generated import ai_service_v1 as contract
+from corp_rag_ai.contracts.generated import error_codes
 from corp_rag_ai.domain.guard import GuardTier, GuardVerdict
 from corp_rag_ai.domain.query import (
     AccessFilter,
@@ -10,7 +17,70 @@ from corp_rag_ai.domain.query import (
     QueryRoute,
     RetrievalOptions,
 )
-from corp_rag_ai.domain.retrieval import RetrieverType
+from corp_rag_ai.domain.retrieval import RetrievalMetadata, RetrieverType
+
+
+QUERY_TIMEOUT_WARNING = "query_timeout"
+router = APIRouter(tags=["query"])
+
+
+@router.post("/v1/query", response_model=None)
+async def post_query(payload: contract.QueryRequest, request: Request) -> contract.QueryResponse | JSONResponse:
+    settings = _settings(request)
+    try:
+        query = query_input_from_contract(
+            payload,
+            default_top_k=settings.query_default_top_k,
+            max_top_k=settings.query_max_top_k,
+            default_reranker_enabled=settings.reranker_enabled,
+        )
+    except ValueError as exc:
+        return _problem(
+            status_code=400,
+            error_code=error_codes.INVALID_QUERY,
+            title="Invalid query",
+            detail=str(exc),
+            correlation_id=getattr(payload, "correlationId", None),
+        )
+
+    service = getattr(request.app.state, "query_service", None)
+    if service is None:
+        return _problem(
+            status_code=503,
+            error_code=error_codes.AI_SERVICE_UNAVAILABLE,
+            title="AI service unavailable",
+            detail="query service is not configured",
+            correlation_id=query.correlation_id,
+        )
+
+    try:
+        result = await asyncio.wait_for(service.answer(query), timeout=settings.query_timeout_seconds)
+    except TimeoutError:
+        result = QueryResult.refused(
+            query=query,
+            reason=QUERY_TIMEOUT_WARNING,
+            answer="Query processing timed out before an answer could be produced.",
+            retrieval_meta=RetrievalMetadata(
+                route=QueryRoute.UNSUPPORTED,
+                retrievers_attempted=(),
+                retrievers_used=(),
+                degradation_warnings=(QUERY_TIMEOUT_WARNING,),
+                latency_ms=int(settings.query_timeout_seconds * 1000),
+                chunks_considered=0,
+                chunks_returned=0,
+                reranker_used=False,
+                model_id=settings.deepseek_model_id,
+            ),
+        )
+    except Exception:
+        return _problem(
+            status_code=503,
+            error_code=error_codes.AI_SERVICE_UNAVAILABLE,
+            title="AI service unavailable",
+            detail="query service failed before producing a safe response",
+            correlation_id=query.correlation_id,
+        )
+    return query_result_to_contract(result)
 
 
 def query_input_from_contract(
@@ -104,3 +174,30 @@ def _guard_verdict_to_contract(verdict: GuardVerdict | None) -> contract.GuardVe
 def _enum_value(value: object) -> str:
     raw = getattr(value, "value", value)
     return str(raw)
+
+
+def _settings(request: Request):
+    return getattr(request.app.state, "settings", get_settings())
+
+
+def _problem(
+    *,
+    status_code: int,
+    error_code: str,
+    title: str,
+    detail: str,
+    correlation_id,
+) -> JSONResponse:
+    problem = contract.ProblemDetail(
+        type=f"https://corp-rag.local/problems/{error_code.lower().replace('_', '-')}",
+        title=title,
+        status=status_code,
+        detail=detail,
+        errorCode=error_code,
+        correlationId=correlation_id,
+    )
+    return JSONResponse(
+        status_code=status_code,
+        content=problem.model_dump(mode="json", exclude_none=True),
+        media_type="application/problem+json",
+    )

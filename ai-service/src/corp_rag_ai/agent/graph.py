@@ -5,6 +5,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
+from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
@@ -221,7 +222,7 @@ class _QueryGraphNodes:
                 citations=citations,
                 confidence=_final_confidence(state, synthesis),
                 conversation_id=state["query"].conversation_id,
-                message_id=state["query"].correlation_id,
+                message_id=uuid4(),
                 retrieval_meta=self._metadata(state),
                 guard_verdict=None,
             ),

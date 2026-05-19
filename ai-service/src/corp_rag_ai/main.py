@@ -10,6 +10,7 @@ from corp_rag_ai.adapters.amqp.messages import InboundEvent
 from corp_rag_ai.adapters.amqp.publisher import DocumentResultPublisher
 from corp_rag_ai.adapters.minio import MinioDocumentStore
 from corp_rag_ai.adapters.rest.chunks import router as chunk_detail_router
+from corp_rag_ai.adapters.rest.query import router as query_router
 from corp_rag_ai.config import get_settings
 from corp_rag_ai.pipeline.indexing.embedding import LocalBgeM3Embedder
 from corp_rag_ai.pipeline.indexing.entity_extractor import DeepSeekEntityExtractor
@@ -25,6 +26,7 @@ from corp_rag_ai.repositories.ingestion_state import (
     ParentChunkRepository,
     ProcessedEventRepository,
 )
+from corp_rag_ai.service.query import QueryRuntime, build_query_runtime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,9 +41,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     graph_index: Neo4jGraphIndex | None = None
     qdrant_index: QdrantVectorIndex | None = None
     database_engine = None
+    query_runtime: QueryRuntime | None = None
 
     try:
         try:
+            app.state.settings = settings
+            query_runtime = build_query_runtime(settings)
+            app.state.query_service = query_runtime.service
+            app.state.query_router_configured = True
+            app.state.reranker_configured = settings.reranker_enabled
+            app.state.llm_configured = settings.openrouter_api_key is not None
+
             if settings.neo4j_initialize_schema:
                 logger.info("LIFESPAN: neo4j_init begin")
                 try:
@@ -199,6 +209,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await graph_index.close()
             if database_engine is not None:
                 await database_engine.dispose()
+            if query_runtime is not None:
+                await query_runtime.close()
     except Exception:
         logger.exception("LIFESPAN: failed")
         raise
@@ -320,6 +332,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(chunk_detail_router)
+app.include_router(query_router)
 
 
 @app.get("/health", tags=["platform"])
@@ -339,4 +352,8 @@ async def diagnostics() -> dict[str, bool]:
         "amqp_runtime": getattr(app.state, "amqp_runtime", None) is not None,
         "qdrant_index": getattr(app.state, "qdrant_index", None) is not None,
         "graph_index": getattr(app.state, "graph_index", None) is not None,
+        "query_service": getattr(app.state, "query_service", None) is not None,
+        "query_router": bool(getattr(app.state, "query_router_configured", False)),
+        "reranker_configured": bool(getattr(app.state, "reranker_configured", False)),
+        "llm_reachable": bool(getattr(app.state, "llm_configured", False)),
     }
