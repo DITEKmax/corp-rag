@@ -15,6 +15,7 @@ from corp_rag_ai.domain.exceptions import (
     StageFailure,
     stage_failure,
 )
+from corp_rag_ai.domain.query import AccessFilter
 from corp_rag_ai.pipeline.indexing.embedding import BGE_M3_DENSE_DIMENSION
 from corp_rag_ai.pipeline.indexing.embedding import EmbeddingVector
 
@@ -163,6 +164,43 @@ class QdrantVectorIndex:
         except Exception as exc:  # pragma: no cover - exact Qdrant exceptions vary
             raise _vector_failure(exc) from exc
 
+    async def query_hybrid(
+        self,
+        *,
+        query_embedding: EmbeddingVector,
+        access_filter: AccessFilter,
+        limit: int,
+        prefetch_limit: int,
+    ) -> Any:
+        qdrant_filter = qdrant_filter_from_access_filter(access_filter)
+        try:
+            return await self._client.query_points(
+                collection_name=self._collection_name,
+                prefetch=[
+                    models.Prefetch(
+                        query=list(query_embedding.dense),
+                        using=DENSE_VECTOR_NAME,
+                        filter=qdrant_filter,
+                        limit=prefetch_limit,
+                    ),
+                    models.Prefetch(
+                        query=sparse_vector_from_lexical_weights(query_embedding.sparse),
+                        using=SPARSE_VECTOR_NAME,
+                        filter=qdrant_filter,
+                        limit=prefetch_limit,
+                    ),
+                ],
+                query=models.FusionQuery(fusion=models.Fusion.RRF),
+                query_filter=qdrant_filter,
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+            )
+        except StageFailure:
+            raise
+        except Exception as exc:  # pragma: no cover - exact Qdrant exceptions vary
+            raise _vector_failure(exc) from exc
+
 
 def document_filter(document_id: UUID | str) -> models.Filter:
     return models.Filter(
@@ -173,6 +211,27 @@ def document_filter(document_id: UUID | str) -> models.Filter:
             )
         ]
     )
+
+
+def qdrant_filter_from_access_filter(access_filter: AccessFilter) -> models.Filter:
+    must: list[models.FieldCondition] = [
+        models.FieldCondition(
+            key="accessLevel",
+            match=models.MatchAny(any=list(access_filter.access_levels)),
+        ),
+        models.FieldCondition(
+            key="docType",
+            match=models.MatchAny(any=list(access_filter.doc_types)),
+        ),
+    ]
+    if access_filter.departments:
+        must.append(
+            models.FieldCondition(
+                key="department",
+                match=models.MatchAny(any=list(access_filter.departments)),
+            )
+        )
+    return models.Filter(must=must)
 
 
 def sparse_vector_from_lexical_weights(weights: Mapping[int | str, float]) -> models.SparseVector:
