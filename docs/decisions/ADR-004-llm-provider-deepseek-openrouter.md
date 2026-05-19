@@ -27,7 +27,7 @@ The Python service uses the OpenAI Python SDK with `base_url=https://openrouter.
 |---|---|---|
 | Keep previous hosted Flash path | Rejected | Policy-level quota block in the target environment and billing/regional risk |
 | Use an older Flash model from the same provider | Rejected | Same provider-policy risk and slower model path |
-| DeepSeek V3 via OpenRouter | Rejected for primary | Older, more expensive, and no 1M context; remains a known fallback option if needed |
+| Older DeepSeek OpenRouter model | Rejected for primary | Older, more expensive, and no 1M context; remains a known fallback option if needed |
 | Claude/OpenAI direct | Rejected | Higher quality but no suitable free tier for the project constraints |
 | Local LLM through Ollama/llama.cpp | Rejected | 16GB RAM is not enough for a serious local LLM plus local bge-m3 in the MVP stack |
 

@@ -734,7 +734,7 @@ output_guard
 | Узел | Вход | Выход | Что делает |
 |---|---|---|---|
 | `input_guard` | `query` | `guard_verdict`, `blocked` | Tier-0 regex → если чисто, Tier-1 LLM-классификатор |
-| `query_router` | `query` | `query_class`, `retrievers_to_use` | LLM-классификация (DeepSeek, JSON output) на 5 классов |
+| `query_router` | `query` | `query_class`, `retrievers_to_use` | Rules-first classification with DeepSeek JSON fallback on 5 classes |
 | `hybrid` | `query`, `access_filter` | `retrieved_chunks` | bge-m3 dense + sparse → Qdrant hybrid query → top-20 |
 | `graph_local` | `query`, `access_filter` | `retrieved_chunks` | top-k entity по эмбеддингу → 1–2 hop соседи в Neo4j → связанные чанки |
 | `graph_global` | `query`, `access_filter` | `retrieved_chunks` | LLM извлекает темы → embedding тем → top-k кластеров в графе → саммари |
@@ -1045,7 +1045,7 @@ User       Frontend       Java              Postgres
 
 - `POST /query` — основной endpoint
   - Request: `QueryRequest { query, userId, conversationId?, accessFilter: { maxAccessLevel, allowedDepartments, allowedDocTypes } }`
-  - Response: `QueryResponse { answer, citations: [{docId, chunkId, section, quote}], confidence, answered, retrievalMeta: { router: "hybrid|graph_local|...", topK: 5, latencies: {...} }, guardVerdict?: {class, reasons} }`
+  - Response: `QueryResponse { answer, citations: [{documentId, chunkId: UUID, sectionPath, quote, snippet?, pageNumber?, score, accessLevel}], confidence, answered, retrievalMeta: { route, retrieversAttempted, retrieversUsed, degradationWarnings, chunksConsidered, chunksReturned, rerankerUsed, modelId }, guardVerdict? }`
 - `GET /documents/{docId}/chunks/{chunkId}` — отдать конкретный чанк (для citation viewer)
 - `GET /health` — liveness
 - `GET /ready` — readiness (qdrant, neo4j, llm connectivity)
@@ -1456,7 +1456,7 @@ CREATE TABLE ingestion_state (
   - `new instructions?:`
   - `system prompt`
 - При попадании → блок, log, audit.
-- Применяется **также к каждому чанку при индексации** (corpus sanitizer). Чанки с инъекциями помечаются `isSanitized=false, sanitizerFlags=[...]` и **исключаются** из retrieval до ручной проверки.
+- Применяется **также к каждому чанку при индексации** (corpus sanitizer). Чанки с инъекциями помечаются `isSanitized=false, sanitizerFlags=[...]`, остаются indexable, но в Phase 05 downrank'ятся при retrieval; если финальный evidence set состоит только из flagged chunks, output guard отказывает.
 
 #### Tier-1: LLM-классификатор
 - DeepSeek V4 Flash via OpenRouter, JSON mode.
@@ -1524,7 +1524,7 @@ CREATE TABLE ingestion_state (
 #### 11.1.3 Sanitization
 - Каждый чанк прогоняется через regex_guard.
 - Подозрительные чанки помечаются `isSanitized=false, sanitizerFlags=["ignore_instructions"]`.
-- В retrieval фильтр `must`: `isSanitized=true`.
+- В retrieval flagged chunks не фильтруются `must isSanitized=true`; они downrank'ятся через score multiplier, а output guard отказывает при unsafe-evidence-only наборе.
 
 #### 11.1.4 Embedding
 - bge-m3 выдаёт **одновременно** dense (1024) + learned sparse (token_id → weight).
