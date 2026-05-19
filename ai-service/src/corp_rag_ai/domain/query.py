@@ -38,6 +38,11 @@ class RefusalReason(str, Enum):
     NO_EVIDENCE = "no_evidence"
     WEAK_EVIDENCE = "weak_evidence"
     DEPENDENCY_UNAVAILABLE = "dependency_unavailable"
+    GENERATION_UNAVAILABLE = "generation_unavailable"
+    VECTOR_RETRIEVAL_UNAVAILABLE = "vector_retrieval_unavailable"
+    GRAPH_RETRIEVAL_UNAVAILABLE = "graph_retrieval_unavailable"
+    EMBEDDING_UNAVAILABLE = "embedding_unavailable"
+    UNSAFE_EVIDENCE_ONLY = "unsafe_evidence_only"
 
 
 @dataclass(frozen=True, slots=True)
