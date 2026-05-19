@@ -74,7 +74,7 @@ paths:
            или Graph RAG (Neo4j), в зависимости от route. Применяется
            `AccessFilter` на уровне БД.
         4. **Reranking** — cross-encoder rerank финальных чанков.
-        5. **Synthesis** — генерация ответа Gemini Flash Lite с XML-изоляцией
+        5. **Synthesis** — генерация ответа DeepSeek V4 Flash с XML-изоляцией
            контекста.
         6. **Output guard** — проверка наличия цитат, PII, format compliance.
 
@@ -135,15 +135,19 @@ paths:
                     citations:
                       - documentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
                         documentTitle: "Регламент отпусков 2026"
-                        chunkId: "ch-001-042"
+                        chunkId: "11111111-1111-4111-8111-111111111042"
+                        sectionPath: "HR > Leave > Annual leave"
                         quote: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день."
+                        snippet: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день."
                         pageNumber: 4
                         score: 0.92
                         accessLevel: INTERNAL
                       - documentId: "d8f3a1c2-e89b-12d3-a456-426614174001"
                         documentTitle: "Положение об оплате труда"
-                        chunkId: "ch-002-017"
+                        chunkId: "22222222-2222-4222-8222-222222222017"
+                        sectionPath: "Compensation > Work schedule"
                         quote: "За работу с ненормированным рабочим днём предоставляется дополнительный отпуск не менее 3 календарных дней."
+                        snippet: "За работу с ненормированным рабочим днём предоставляется дополнительный отпуск не менее 3 календарных дней."
                         pageNumber: 12
                         score: 0.81
                         accessLevel: INTERNAL
@@ -153,12 +157,14 @@ paths:
                     guardVerdict: null
                     retrievalMeta:
                       route: FACTUAL
-                      retrievers: [HYBRID]
+                      retrieversAttempted: [HYBRID]
+                      retrieversUsed: [HYBRID]
+                      degradationWarnings: []
                       latencyMs: 1342
                       chunksConsidered: 10
                       chunksReturned: 2
                       rerankerUsed: true
-                      llmModel: "gemini-2.0-flash-lite"
+                      modelId: "deepseek/deepseek-v4-flash:free"
                 outOfScopeAnswer:
                   summary: Ответ отсутствует — нет релевантной информации в корпусе
                   value:
@@ -171,12 +177,14 @@ paths:
                     guardVerdict: null
                     retrievalMeta:
                       route: UNSUPPORTED
-                      retrievers: [HYBRID]
+                      retrieversAttempted: []
+                      retrieversUsed: []
+                      degradationWarnings: []
                       latencyMs: 845
                       chunksConsidered: 10
                       chunksReturned: 0
                       rerankerUsed: false
-                      llmModel: "gemini-2.0-flash-lite"
+                      modelId: "deepseek/deepseek-v4-flash:free"
         '400':
           description: Невалидный запрос
           content:
@@ -250,9 +258,9 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^ch-\d{3}-\d{3,}$'
-          description: Идентификатор чанка в формате `ch-NNN-MMM` (parent-child иерархия).
-          example: "ch-001-042"
+            format: uuid
+          description: UUID идентификатор child chunk, совпадающий с Qdrant point ID.
+          example: "11111111-1111-4111-8111-111111111042"
       responses:
         '200':
           description: Детали чанка
@@ -264,8 +272,8 @@ paths:
                 typicalChunk:
                   value:
                     documentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
-                    chunkId: "ch-001-042"
-                    parentChunkId: "ch-001"
+                    chunkId: "11111111-1111-4111-8111-111111111042"
+                    parentChunkId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0001"
                     content: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день. Дни предоставляются по графику, утверждённому руководителем подразделения не позднее 1 декабря предыдущего года."
                     pageNumber: 4
                     sectionTitle: "Раздел 3. Право на отпуск"
@@ -285,8 +293,8 @@ paths:
                     type: "https://corp-rag.local/problems/chunk-not-found"
                     title: "Фрагмент документа не найден"
                     status: 404
-                    detail: "Чанк ch-001-042 не найден в документе d8f3a1c2-e89b-12d3-a456-426614174000"
-                    instance: "/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000/chunks/ch-001-042"
+                    detail: "Чанк 11111111-1111-4111-8111-111111111042 не найден в документе d8f3a1c2-e89b-12d3-a456-426614174000"
+                    instance: "/v1/documents/d8f3a1c2-e89b-12d3-a456-426614174000/chunks/11111111-1111-4111-8111-111111111042"
                     errorCode: "CHUNK_NOT_FOUND"
                     correlationId: "550e8400-e29b-41d4-a716-446655440013"
         '500':
@@ -453,7 +461,7 @@ components:
       description: |
         Уровень защитной системы, на котором сработал guard:
         - `TIER_0_REGEX` — простые regex-паттерны (быстро, дёшево)
-        - `TIER_1_LLM` — LLM-классификатор (DeepSeek V3 через OpenRouter)
+        - `TIER_1_LLM` — LLM-классификатор (DeepSeek V4 Flash через OpenRouter)
         - `OUTPUT_CHECK` — проверка выхода (наличие citations, PII)
       enum: [TIER_0_REGEX, TIER_1_LLM, OUTPUT_CHECK]
 
@@ -597,6 +605,7 @@ components:
         - documentId
         - documentTitle
         - chunkId
+        - sectionPath
         - quote
         - score
         - accessLevel
@@ -611,15 +620,23 @@ components:
           example: "Регламент отпусков 2026"
         chunkId:
           type: string
-          pattern: '^ch-\d{3}-\d{3,}$'
-          description: Идентификатор чанка в формате `ch-NNN-MMM`.
-          example: "ch-001-042"
+          format: uuid
+          description: UUID child chunk ID and Qdrant point ID.
+          example: "11111111-1111-4111-8111-111111111042"
+        sectionPath:
+          type: string
+          description: Hierarchical source section path for citation display.
+          example: "HR > Leave > Annual leave"
         quote:
           type: string
           description: |
             Текст цитаты из чанка. Не обязательно полный текст чанка —
             может быть extractive summary, длиной 1-3 предложения.
           maxLength: 1000
+        snippet:
+          type: string
+          description: Short UI snippet around the cited span. May duplicate `quote` when no narrower snippet is available.
+          maxLength: 500
         pageNumber:
           type: integer
           nullable: true
@@ -674,21 +691,31 @@ components:
         UI ("ответ основан на 2 источниках"), и evaluation/ablation.
       required:
         - route
-        - retrievers
+        - retrieversAttempted
+        - retrieversUsed
         - latencyMs
         - chunksConsidered
         - chunksReturned
         - rerankerUsed
-        - llmModel
+        - modelId
       properties:
         route:
           $ref: '#/components/schemas/QueryRoute'
-        retrievers:
+        retrieversAttempted:
           type: array
-          description: Список retriever'ов, использованных в этом запросе.
+          description: Retriever'ы, которые pipeline попытался использовать для выбранного route.
           items:
             $ref: '#/components/schemas/RetrieverType'
-          minItems: 1
+        retrieversUsed:
+          type: array
+          description: Retriever'ы, которые реально вернули evidence после degraded-mode decisions.
+          items:
+            $ref: '#/components/schemas/RetrieverType'
+        degradationWarnings:
+          type: array
+          description: Explicit degraded-mode warnings surfaced to Java audit/UI.
+          items:
+            type: string
         latencyMs:
           type: integer
           format: int64
@@ -708,10 +735,10 @@ components:
         rerankerUsed:
           type: boolean
           description: Был ли применён reranker (bge-reranker-v2-m3).
-        llmModel:
+        modelId:
           type: string
-          description: Имя LLM-модели, использованной для генерации ответа.
-          example: "gemini-2.0-flash-lite"
+          description: LLM model ID used for routing, guard, or answer synthesis when applicable.
+          example: "deepseek/deepseek-v4-flash:free"
 
     QueryResponse:
       type: object
@@ -795,12 +822,12 @@ components:
           format: uuid
         chunkId:
           type: string
-          pattern: '^ch-\d{3}-\d{3,}$'
+          format: uuid
         parentChunkId:
           type: string
           nullable: true
           description: ID parent-чанка, если применима parent-document стратегия.
-          pattern: '^ch-\d{3}$'
+          format: uuid
         content:
           type: string
           description: Полный текст чанка.

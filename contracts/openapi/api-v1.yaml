@@ -1241,20 +1241,34 @@ paths:
                 citations:
                   - documentId: "d8f3a1c2-e89b-12d3-a456-426614174000"
                     documentTitle: "Регламент отпусков 2026"
-                    chunkId: "ch-001-042"
+                    chunkId: "11111111-1111-4111-8111-111111111042"
+                    sectionPath: "HR > Leave > Annual leave"
                     quote: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день."
+                    snippet: "Сотрудникам со стажем работы в компании от 5 лет включительно полагается ежегодный отпуск 31 календарный день."
                     pageNumber: 4
                     score: 0.92
                     accessLevel: "INTERNAL"
                   - documentId: "d8f3a1c2-e89b-12d3-a456-426614174001"
                     documentTitle: "Положение об оплате труда"
-                    chunkId: "ch-002-017"
+                    chunkId: "22222222-2222-4222-8222-222222222017"
+                    sectionPath: "Compensation > Work schedule"
                     quote: "За работу с ненормированным рабочим днём предоставляется дополнительный отпуск не менее 3 календарных дней."
+                    snippet: "За работу с ненормированным рабочим днём предоставляется дополнительный отпуск не менее 3 календарных дней."
                     pageNumber: 12
                     score: 0.81
                     accessLevel: "INTERNAL"
                 confidence: 0.88
                 guardVerdict: null
+                retrievalMeta:
+                  route: FACTUAL
+                  retrieversAttempted: [HYBRID]
+                  retrieversUsed: [HYBRID]
+                  degradationWarnings: []
+                  latencyMs: 1342
+                  chunksConsidered: 10
+                  chunksReturned: 2
+                  rerankerUsed: true
+                  modelId: "deepseek/deepseek-v4-flash:free"
                 _links:
                   self: { href: "/api/v1/chat/query" }
                   conversation: { href: "/api/v1/chat/conversations/c1234567-e89b-12d3-a456-426614174000" }
@@ -2216,7 +2230,7 @@ components:
 
     ChatQueryResponse:
       type: object
-      required: [conversationId, messageId, answered, answer, citations, confidence, _links]
+      required: [conversationId, messageId, answered, answer, citations, confidence, retrievalMeta, _links]
       properties:
         conversationId:
           type: string
@@ -2242,14 +2256,24 @@ components:
           allOf:
             - $ref: '#/components/schemas/GuardVerdict'
           nullable: true
+        retrievalMeta:
+          $ref: '#/components/schemas/RetrievalMeta'
         _links:
           $ref: '#/components/schemas/HateoasLinks'
 
     # ===== Shared with ai-service-v1.yaml — duplicated by design =====
 
+    QueryRoute:
+      type: string
+      enum: [FACTUAL, AGGREGATION, MULTI_HOP, COMPARISON, UNSUPPORTED]
+
+    RetrieverType:
+      type: string
+      enum: [HYBRID, GRAPH]
+
     Citation:
       type: object
-      required: [documentId, documentTitle, chunkId, quote, score, accessLevel]
+      required: [documentId, documentTitle, chunkId, sectionPath, quote, score, accessLevel]
       properties:
         documentId:
           type: string
@@ -2258,10 +2282,17 @@ components:
           type: string
         chunkId:
           type: string
-          pattern: '^ch-\d{3}-\d{3,}$'
+          format: uuid
+        sectionPath:
+          type: string
+          description: Hierarchical source section path for citation display.
+          example: "HR > Leave > Annual leave"
         quote:
           type: string
           maxLength: 1000
+        snippet:
+          type: string
+          maxLength: 500
         pageNumber:
           type: integer
           nullable: true
@@ -2292,6 +2323,40 @@ components:
           minimum: 0
           maximum: 1
 
+    RetrievalMeta:
+      type: object
+      required: [route, retrieversAttempted, retrieversUsed, latencyMs, chunksConsidered, chunksReturned, rerankerUsed, modelId]
+      properties:
+        route:
+          $ref: '#/components/schemas/QueryRoute'
+        retrieversAttempted:
+          type: array
+          items:
+            $ref: '#/components/schemas/RetrieverType'
+        retrieversUsed:
+          type: array
+          items:
+            $ref: '#/components/schemas/RetrieverType'
+        degradationWarnings:
+          type: array
+          items:
+            type: string
+        latencyMs:
+          type: integer
+          format: int64
+          minimum: 0
+        chunksConsidered:
+          type: integer
+          minimum: 0
+        chunksReturned:
+          type: integer
+          minimum: 0
+        rerankerUsed:
+          type: boolean
+        modelId:
+          type: string
+          example: "deepseek/deepseek-v4-flash:free"
+
     ChunkDetail:
       type: object
       required: [documentId, chunkId, content, language, accessLevel, department, docType]
@@ -2301,10 +2366,11 @@ components:
           format: uuid
         chunkId:
           type: string
-          pattern: '^ch-\d{3}-\d{3,}$'
+          format: uuid
         parentChunkId:
           type: string
           nullable: true
+          format: uuid
         content:
           type: string
           maxLength: 8000
