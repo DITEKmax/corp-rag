@@ -86,6 +86,8 @@ class Settings(BaseSettings):
         validation_alias="DEEPSEEK_MODEL_ID",
     )
     query_timeout_seconds: int = Field(default=30, validation_alias="AI_QUERY_TIMEOUT_SECONDS")
+    query_default_top_k: int = Field(default=10, validation_alias="AI_QUERY_DEFAULT_TOP_K")
+    query_max_top_k: int = Field(default=20, validation_alias="AI_QUERY_MAX_TOP_K")
     router_confidence_threshold: float = Field(default=0.65, validation_alias="AI_ROUTER_CONFIDENCE_THRESHOLD")
     reranker_enabled: bool = Field(default=True, validation_alias="AI_RERANKER_ENABLED")
     reranker_model: str = Field(default="BAAI/bge-reranker-v2-m3", validation_alias="AI_RERANKER_MODEL")
