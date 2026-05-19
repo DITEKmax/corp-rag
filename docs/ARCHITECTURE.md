@@ -191,6 +191,42 @@
 | Input guard classifier | `deepseek/deepseek-v4-flash:free` via OpenRouter | same provider simplicity |
 | Output guard / synthesizer | `deepseek/deepseek-v4-flash:free` via OpenRouter | one SDK, one API key, one failure surface |
 
+### 3.3.1 Phase 5 Query Implementation Status
+
+Phase 5 implements the Python side of the synchronous Java-to-Python query path.
+Java remains responsible for browser-facing auth, access-filter resolution,
+rate limiting, audit persistence, chat conversations, and frontend APIs.
+Python now exposes `POST /v1/query` for Java to call with a Java-resolved
+`AccessFilter`.
+
+Implemented Python query flow:
+
+1. Deterministic input guard rejects prompt-injection, out-of-scope, and policy
+   requests before retrieval.
+2. Rules-first query router selects `FACTUAL`, `AGGREGATION`, `MULTI_HOP`,
+   `COMPARISON`, or `UNSUPPORTED`; DeepSeek/OpenRouter strict JSON fallback is
+   used only when rules cannot classify.
+3. `FACTUAL` and current `COMPARISON` routes use Qdrant hybrid retrieval with
+   access filters pushed into payload filters.
+4. `AGGREGATION` and `MULTI_HOP` routes use Neo4j graph retrieval filtered
+   through accessible `Document` evidence.
+5. Parent context is loaded from AI Postgres, reranked with local
+   `BAAI/bge-reranker-v2-m3` when enabled, packed under token limits, and sent
+   to DeepSeek/OpenRouter for strict cited synthesis.
+6. Output guard blocks missing/invalid citations, leak-like output, and
+   unsafe-evidence-only answers.
+7. The response is a contract `QueryResponse` with `answered`, `answer`,
+   child-UUID `citations`, `confidence`, optional `guardVerdict`, and
+   `retrievalMeta`.
+
+Diagnostics include `query_service`, `query_router`, `reranker_configured`, and
+`llm_reachable`. These are cheap readiness/configuration indicators and do not
+perform live OpenRouter calls.
+
+Phase 6 consumes this Python response shape to build Java chat persistence,
+audit rows, browser chat UI, and source-viewer behavior. Those Java/frontend
+features are not part of Phase 5.
+
 ### 3.4 Инфраструктура (Docker Compose)
 
 | Сервис | Образ | Порты |

@@ -97,6 +97,8 @@ Phase 5 query behavior is configured through environment-backed settings:
 
 `/diagnostics` includes query readiness fields: `query_service`, `query_router`, `reranker_configured`, and `llm_reachable`. The LLM field is a cheap configured-state indicator and does not make a live OpenRouter call.
 
+Java chat persistence, Java audit rows for query outcomes, and browser chat/source-viewer UI are Phase 6 responsibilities. Python now returns enough answer, citation, guard, and retrieval metadata for Java to persist and display.
+
 Optional query live smokes:
 
 ```powershell

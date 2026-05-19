@@ -14,8 +14,8 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - [x] **Phase 2: Identity, Users & Access Control** - Java authentication, users, roles, permissions, and access filters work.
 - [x] **Phase 3: Documents, Events & Audit** - Java can manage documents and exchange indexing events safely. (completed 2026-05-17)
 - [x] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status. (completed 2026-05-19)
-- [ ] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers. (next)
-- [ ] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows.
+- [x] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers. (completed 2026-05-19)
+- [ ] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows. (next)
 - [ ] **Phase 7: Evaluation & Observability** - Quality, safety, ablation, traces, and metrics are measurable.
 - [ ] **Phase 8: Delivery Polish & Demo Readiness** - Production-like compose, seed corpus, final regression, README, and demo assets are ready.
 
@@ -150,7 +150,8 @@ Plans:
   3. Query router selects retrieval strategy for factual, aggregation, multi-hop, comparison, or unsupported queries.
   4. Parent resolution and reranking produce compact, relevant context for generation.
   5. Query response includes answer, citations, confidence, answered flag, guard verdict when relevant, and retrieval metadata.
-**Plans**: 8 plans
+**Plans**: 8/8 plans complete
+**Status:** Complete - mocked query pipeline verification passed; live UAT path and optional smokes documented for fresh-corpus runs.
 Plans:
 
 **Wave 1**
@@ -173,7 +174,7 @@ Plans:
 - [x] 05-07-PLAN.md - Wire LangGraph orchestration and Python `/v1/query`.
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 05-08-PLAN.md - Add Phase 5 UAT, live smoke helpers, and handoff docs.
+- [x] 05-08-PLAN.md - Add Phase 5 UAT, live smoke helpers, and handoff docs.
 
 ### Phase 6: Chat & Frontend Experience
 **Goal**: Users can complete the core workflows in the browser: login, chat with citations, inspect sources, and perform admin tasks.
@@ -221,7 +222,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
-| 5. Retrieval, Guards & Query API | 7/8 | In progress | - |
-| 6. Chat & Frontend Experience | 0/TBD | Not started | - |
+| 5. Retrieval, Guards & Query API | 8/8 | Complete | 2026-05-19 |
+| 6. Chat & Frontend Experience | 0/TBD | Next | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |

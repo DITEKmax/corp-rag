@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-05-19T21:26:08.421Z"
+stopped_at: Completed 05-08-PLAN.md
+last_updated: "2026-05-19T21:32:10.566Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 36
-  completed_plans: 35
-  percent: 97
+  completed_plans: 36
+  percent: 100
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 05 — retrieval-guards-query-api
+**Current focus:** Phase 06 — chat-frontend-experience
 
 ## Current Position
 
-Phase: 05 (retrieval-guards-query-api) — EXECUTING
-Plan: 8 of 8
-Status: Ready to execute
+Phase: 06 (chat-frontend-experience) — READY
+Plan: TBD
+Status: Ready for planning
 Last activity: 2026-05-19
 
-Progress: [█████████░] 97%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 35
+- Total plans completed: 36
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -57,6 +57,7 @@ Progress: [█████████░] 97%
 | Phase 05 P05 | 6 min | 3 tasks | 12 files |
 | Phase 05 P06 | 5 min | 3 tasks | 10 files |
 | Phase 05 P07 | 17 min | 3 tasks | 15 files |
+| Phase 05 P08 | 6 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -133,16 +134,19 @@ Recent locked decisions affecting current work:
 - [Phase 05]: LangGraph orchestration remains thin and service primitives own behavior. - Plan 05-07 added typed graph state and mocked skip-path tests for guard and unsupported routes.
 - [Phase 05]: Python `/v1/query` returns contract QueryResponse for safe success/refusal/timeout outcomes and Problem Details for boundary/configuration failures. - Plan 05-07 enforces the 30-second default timeout in the adapter.
 - [Phase 05]: Query diagnostics are cheap readiness indicators, not live dependency probes. - Plan 05-07 exposes query_service, query_router, reranker_configured, and llm_reachable from local runtime state.
+- [Phase 05]: Live query UAT requires a fresh indexed corpus because the Phase 4 TechCorp document was deleted. - Plan 05-08 documents the seed/upload path and gates optional live smokes with AI_QUERY_LIVE_CORPUS_READY.
+- [Phase 05]: Query live smokes are optional integration tests and skip by default. - They require AI_QUERY_LIVE_SMOKE_ENABLED, OPENROUTER_API_KEY, a running Python AI service, and fresh corpus readiness.
+- [Phase 05]: Phase 6 owns Java chat persistence, query audit rows, browser chat UI, and source-viewer behavior. - Python now returns enough answer/citation/guard/retrieval metadata for those layers.
 
 ### Pending Todos
 
-- Execute Phase 5 Plan 05-08: UAT, live smoke helpers, and handoff docs.
-- Seed or upload a fresh indexed corpus before live Phase 5 retrieval/UAT; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
+- Plan Phase 6: Chat & Frontend Experience.
+- Run Phase 05 live query UAT from `05-UAT.md` when OpenRouter credentials, Docker stack, and a fresh indexed corpus are available.
 
 ### Blockers/Concerns
 
-- No blocker for 05-08 implementation.
-- Live query validation still needs a fresh indexed corpus.
+- No blocker for Phase 6 planning.
+- Live Phase 05 query UAT was not executed in this automated pass; it requires OpenRouter credentials, a running Docker stack, and a fresh indexed corpus.
 
 ## Deferred Items
 
@@ -160,6 +164,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-19T21:26:08.421Z
-Stopped at: Completed 05-07-PLAN.md
+Last session: 2026-05-19T21:32:10.566Z
+Stopped at: Completed 05-08-PLAN.md
 Resume file: None
