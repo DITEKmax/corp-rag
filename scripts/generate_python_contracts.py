@@ -60,6 +60,17 @@ def type_for(schema: dict[str, Any] | None) -> str:
         return "Any"
     if "$ref" in schema:
         return ref_name(str(schema["$ref"]))
+    if "allOf" in schema:
+        composed = []
+        for part in schema["allOf"]:
+            annotation = type_for(part)
+            if annotation != "Any" and annotation not in composed:
+                composed.append(annotation)
+        if len(composed) == 1:
+            return composed[0]
+        if composed:
+            return " | ".join(composed)
+        return "Any"
     if "enum" in schema:
         return literal_type(schema["enum"])
     schema_type = schema.get("type")
