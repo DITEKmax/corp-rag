@@ -185,6 +185,13 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       DEEPSEEK_MODEL_ID: ${DEEPSEEK_MODEL_ID:-deepseek/deepseek-v4-flash:free}
+      AI_QUERY_TIMEOUT_SECONDS: ${AI_QUERY_TIMEOUT_SECONDS:-30}
+      AI_ROUTER_CONFIDENCE_THRESHOLD: ${AI_ROUTER_CONFIDENCE_THRESHOLD:-0.65}
+      AI_RERANKER_ENABLED: ${AI_RERANKER_ENABLED:-true}
+      AI_RERANKER_MODEL: ${AI_RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      AI_CONTEXT_TOKEN_CAP: ${AI_CONTEXT_TOKEN_CAP:-4000}
+      AI_WEAK_EVIDENCE_THRESHOLD: ${AI_WEAK_EVIDENCE_THRESHOLD:-0.4}
+      AI_FLAGGED_CHUNK_SCORE_MULTIPLIER: ${AI_FLAGGED_CHUNK_SCORE_MULTIPLIER:-0.5}
       LANGFUSE_HOST: ${LANGFUSE_HOST_INTERNAL:-http://langfuse:3000}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-local-placeholder}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-local-placeholder}
@@ -195,8 +202,8 @@ services:
       - "${PYTHON_AI_PORT:-8000}:8000"
     volumes:
       - bge-m3-cache:/root/.cache/huggingface
-    mem_limit: 4g
-    mem_reservation: 3g
+    mem_limit: 6g
+    mem_reservation: 4g
     depends_on:
       postgres:
         condition: service_healthy

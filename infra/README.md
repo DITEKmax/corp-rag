@@ -61,7 +61,19 @@ docker compose --env-file infra/.env -f infra/docker-compose.yml ps
 
 Do not run `docker compose down -v` or data reset scripts before Scenario 1 in `.planning/phases/04-python-ingestion-indexing/04-UAT.md`. Retained RabbitMQ messages from Phase 3 are intentionally consumed by `python-ai` as the first end-to-end smoke.
 
-`python-ai` mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` so local `BAAI/bge-m3` model weights survive container recreation. Docker Desktop should have enough memory for the whole stack plus the `python-ai` 3 GB reservation and 4 GB limit.
+`python-ai` mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` so local `BAAI/bge-m3` and reranker model weights survive container recreation. Docker Desktop should have enough memory for the whole stack plus the `python-ai` 4 GB reservation and 6 GB limit.
+
+Phase 5 query defaults are surfaced through Compose and both env examples:
+
+| Setting | Default |
+|---|---|
+| `AI_QUERY_TIMEOUT_SECONDS` | `30` |
+| `AI_ROUTER_CONFIDENCE_THRESHOLD` | `0.65` |
+| `AI_RERANKER_ENABLED` | `true` |
+| `AI_RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` |
+| `AI_CONTEXT_TOKEN_CAP` | `4000` |
+| `AI_WEAK_EVIDENCE_THRESHOLD` | `0.4` |
+| `AI_FLAGGED_CHUNK_SCORE_MULTIPLIER` | `0.5` |
 
 Live graph extraction requires `OPENROUTER_API_KEY` in the environment used by Compose:
 

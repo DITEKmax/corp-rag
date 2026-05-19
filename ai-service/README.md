@@ -33,7 +33,7 @@ uv run pytest
 
 Phase 4 uses local `FlagEmbedding` for `BAAI/bge-m3` dense+sparse embeddings. The first live smoke or first container run can download about 2.3 GB of model weights into the Hugging Face cache.
 
-Docker Compose mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` for `python-ai`. Keep that volume between runs so the model is not downloaded repeatedly. The compose service reserves 3 GB and caps `python-ai` at 4 GB; Docker Desktop should have additional headroom for Java, Postgres, Qdrant, Neo4j, MinIO, RabbitMQ, and Langfuse.
+Docker Compose mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` for `python-ai`. Keep that volume between runs so the model is not downloaded repeatedly. The compose service reserves 4 GB and caps `python-ai` at 6 GB because Phase 5 adds the local bge reranker; Docker Desktop should have additional headroom for Java, Postgres, Qdrant, Neo4j, MinIO, RabbitMQ, and Langfuse.
 
 Do not clear retained Docker volumes before the end-of-Phase 4 UAT. The retained RabbitMQ messages from Phase 3 are part of the first UAT scenario.
 
@@ -77,6 +77,20 @@ Set `DEEPSEEK_MODEL_ID` only when overriding to a paid tier:
 |---|---|
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
 | `DEEPSEEK_MODEL_ID` | `deepseek/deepseek-v4-flash:free` |
+
+## Query Runtime Defaults
+
+Phase 5 query behavior is configured through environment-backed settings:
+
+| Setting | Default |
+|---|---|
+| `AI_QUERY_TIMEOUT_SECONDS` | `30` |
+| `AI_ROUTER_CONFIDENCE_THRESHOLD` | `0.65` |
+| `AI_RERANKER_ENABLED` | `true` |
+| `AI_RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` |
+| `AI_CONTEXT_TOKEN_CAP` | `4000` |
+| `AI_WEAK_EVIDENCE_THRESHOLD` | `0.4` |
+| `AI_FLAGGED_CHUNK_SCORE_MULTIPLIER` | `0.5` |
 
 PowerShell:
 

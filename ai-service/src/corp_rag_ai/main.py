@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from corp_rag_ai.adapters.amqp.connection import AmqpConnectionManager
-from corp_rag_ai.adapters.amqp.consumer import DocumentEventConsumerRuntime
+from corp_rag_ai.adapters.amqp.consumer import DocumentEventConsumerRuntime, IdempotentEventDispatcher
 from corp_rag_ai.adapters.amqp.messages import InboundEvent
 from corp_rag_ai.adapters.amqp.publisher import DocumentResultPublisher
 from corp_rag_ai.adapters.minio import MinioDocumentStore
@@ -136,40 +136,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     logger.info("LIFESPAN: amqp entity_extractor created")
 
                     async def uploaded_handler(event: InboundEvent) -> None:
-                        async with session_scope(session_factory) as session:
-                            service = DocumentIngestionService(
-                                object_store=object_store,
-                                parser=parser,
-                                chunker=chunker,
-                                sanitizer=sanitizer,
-                                vector_index=qdrant_index,
-                                entity_extractor=entity_extractor,
-                                entity_embedder=embedder,
-                                graph_index=graph_index,
-                                publisher=publisher,
-                                processed_events=ProcessedEventRepository(session),
-                                document_states=DocumentIndexStateRepository(session),
-                                parent_chunks=ParentChunkRepository(session),
-                            )
-                            await service.handle_uploaded(event)
+                        await _handle_uploaded_idempotently(
+                            event,
+                            session_factory=session_factory,
+                            object_store=object_store,
+                            parser=parser,
+                            chunker=chunker,
+                            sanitizer=sanitizer,
+                            vector_index=qdrant_index,
+                            entity_extractor=entity_extractor,
+                            embedder=embedder,
+                            graph_index=graph_index,
+                            publisher=publisher,
+                        )
 
                     async def deleted_handler(event: InboundEvent) -> None:
-                        async with session_scope(session_factory) as session:
-                            service = DocumentIngestionService(
-                                object_store=object_store,
-                                parser=parser,
-                                chunker=chunker,
-                                sanitizer=sanitizer,
-                                vector_index=qdrant_index,
-                                entity_extractor=entity_extractor,
-                                entity_embedder=embedder,
-                                graph_index=graph_index,
-                                publisher=publisher,
-                                processed_events=ProcessedEventRepository(session),
-                                document_states=DocumentIndexStateRepository(session),
-                                parent_chunks=ParentChunkRepository(session),
-                            )
-                            await service.handle_deleted(event)
+                        await _handle_deleted_idempotently(
+                            event,
+                            session_factory=session_factory,
+                            object_store=object_store,
+                            parser=parser,
+                            chunker=chunker,
+                            sanitizer=sanitizer,
+                            vector_index=qdrant_index,
+                            entity_extractor=entity_extractor,
+                            embedder=embedder,
+                            graph_index=graph_index,
+                            publisher=publisher,
+                        )
 
                     logger.info("LIFESPAN: amqp handlers defined")
 
@@ -207,6 +201,108 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception:
         logger.exception("LIFESPAN: failed")
         raise
+
+
+async def _handle_uploaded_idempotently(
+    event: InboundEvent,
+    *,
+    session_factory,
+    object_store,
+    parser,
+    chunker,
+    sanitizer,
+    vector_index,
+    entity_extractor,
+    embedder,
+    graph_index,
+    publisher,
+) -> None:
+    async with session_scope(session_factory) as session:
+        processed_events = ProcessedEventRepository(session)
+
+        async def business_handler(inner_event: InboundEvent) -> None:
+            service = _build_ingestion_service(
+                object_store=object_store,
+                parser=parser,
+                chunker=chunker,
+                sanitizer=sanitizer,
+                vector_index=vector_index,
+                entity_extractor=entity_extractor,
+                embedder=embedder,
+                graph_index=graph_index,
+                publisher=publisher,
+                processed_events=processed_events,
+                session=session,
+            )
+            await service.handle_uploaded(inner_event)
+
+        await IdempotentEventDispatcher(processed_events, business_handler)(event)
+
+
+async def _handle_deleted_idempotently(
+    event: InboundEvent,
+    *,
+    session_factory,
+    object_store,
+    parser,
+    chunker,
+    sanitizer,
+    vector_index,
+    entity_extractor,
+    embedder,
+    graph_index,
+    publisher,
+) -> None:
+    async with session_scope(session_factory) as session:
+        processed_events = ProcessedEventRepository(session)
+
+        async def business_handler(inner_event: InboundEvent) -> None:
+            service = _build_ingestion_service(
+                object_store=object_store,
+                parser=parser,
+                chunker=chunker,
+                sanitizer=sanitizer,
+                vector_index=vector_index,
+                entity_extractor=entity_extractor,
+                embedder=embedder,
+                graph_index=graph_index,
+                publisher=publisher,
+                processed_events=processed_events,
+                session=session,
+            )
+            await service.handle_deleted(inner_event)
+
+        await IdempotentEventDispatcher(processed_events, business_handler)(event)
+
+
+def _build_ingestion_service(
+    *,
+    object_store,
+    parser,
+    chunker,
+    sanitizer,
+    vector_index,
+    entity_extractor,
+    embedder,
+    graph_index,
+    publisher,
+    processed_events,
+    session,
+) -> DocumentIngestionService:
+    return DocumentIngestionService(
+        object_store=object_store,
+        parser=parser,
+        chunker=chunker,
+        sanitizer=sanitizer,
+        vector_index=vector_index,
+        entity_extractor=entity_extractor,
+        entity_embedder=embedder,
+        graph_index=graph_index,
+        publisher=publisher,
+        processed_events=processed_events,
+        document_states=DocumentIndexStateRepository(session),
+        parent_chunks=ParentChunkRepository(session),
+    )
 
 
 def _channel_number(channel) -> object:
