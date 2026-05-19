@@ -46,7 +46,8 @@ safety, and final orchestration rather than by one monolithic query endpoint.
   percent memory use before adding a reranker. Phase 05 should bump the local
   contour to 6 GiB limit and 4 GiB reservation before loading the reranker.
 - `langgraph` is not yet a dependency. Add it only when wiring the full graph,
-  after query primitives have deterministic unit coverage.
+  after query primitives have deterministic unit coverage, and pin execution
+  to `langgraph>=0.2,<0.3`.
 
 ## B. External API Notes
 
@@ -87,6 +88,11 @@ state updates, `add_conditional_edges` for dynamic routing, and a required
 `compile()` step before invocation. The docs explicitly support `TypedDict` and
 Pydantic states.
 
+Planning was checked against the `langgraph 0.2.76` release line and current
+LangChain Graph API docs for `StateGraph`, `add_conditional_edges`, and
+`compile()`. If upgrading beyond `langgraph>=0.2,<0.3`, re-check those
+signatures before implementation.
+
 Implication: use a small internal `TypedDict`/dataclass state for the query
 graph. Keep the graph as orchestration only; guards, retrievers, reranker, and
 synthesizer should stay testable outside LangGraph.
@@ -94,6 +100,8 @@ synthesizer should stay testable outside LangGraph.
 Primary source:
 
 - LangGraph Graph API overview: https://docs.langchain.com/oss/python/langgraph/graph-api
+- LangGraph Graph API usage: https://docs.langchain.com/oss/python/langgraph/use-graph-api
+- LangGraph 0.2.76 release metadata: https://pypi.org/project/langgraph/0.2.76/
 
 ### OpenRouter structured outputs
 
@@ -145,4 +153,3 @@ Primary source:
 | 05-08 | 7 | Phase 05 verification, UAT docs, and live smoke helpers |
 
 ## RESEARCH COMPLETE
-
