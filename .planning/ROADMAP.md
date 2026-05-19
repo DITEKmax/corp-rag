@@ -150,7 +150,30 @@ Plans:
   3. Query router selects retrieval strategy for factual, aggregation, multi-hop, comparison, or unsupported queries.
   4. Parent resolution and reranking produce compact, relevant context for generation.
   5. Query response includes answer, citations, confidence, answered flag, guard verdict when relevant, and retrieval metadata.
-**Plans**: TBD
+**Plans**: 8 plans
+Plans:
+
+**Wave 1**
+- [ ] 05-01-PLAN.md - Establish query contracts, ADRs, runtime contour, and duplicate idempotency prerequisite.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 05-02-PLAN.md - Add query domain, input guard, and rules/LLM router.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 05-03-PLAN.md - Implement access-filtered Qdrant hybrid retrieval.
+- [ ] 05-04-PLAN.md - Implement access-filtered Neo4j graph retrieval.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 05-05-PLAN.md - Add parent resolution, reranking, context packing, and citation lookup.
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 05-06-PLAN.md - Add cited synthesis, output guard, confidence, and degradation policy.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 05-07-PLAN.md - Wire LangGraph orchestration and Python `/v1/query`.
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 05-08-PLAN.md - Add Phase 5 UAT, live smoke helpers, and handoff docs.
 
 ### Phase 6: Chat & Frontend Experience
 **Goal**: Users can complete the core workflows in the browser: login, chat with citations, inspect sources, and perform admin tasks.
@@ -198,7 +221,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Identity, Users & Access Control | 7/7 | Complete | 2026-05-12 |
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
-| 5. Retrieval, Guards & Query API | 0/TBD | Next | - |
+| 5. Retrieval, Guards & Query API | 0/8 | Ready to execute | - |
 | 6. Chat & Frontend Experience | 0/TBD | Not started | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |
