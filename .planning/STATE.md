@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-05-19T20:58:15.621Z"
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-05-19T21:04:23.359Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 36
-  completed_plans: 32
-  percent: 89
+  completed_plans: 33
+  percent: 92
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 05 (retrieval-guards-query-api) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-05-19
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -54,6 +54,7 @@ Progress: [█████████░] 89%
 | Phase 05 P02 | 16 min | 3 tasks + prerequisite fix | 14 files |
 | Phase 05 P03 | 7 min | 3 tasks | 6 files |
 | Phase 05 P04 | 5 min | 3 tasks | 5 files |
+| Phase 05 P05 | 6 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -121,10 +122,13 @@ Recent locked decisions affecting current work:
 - [Phase 05]: Neo4j graph retrieval filters through accessible Document evidence before returning any entity or relation evidence. - Plan 05-04 added read-side Cypher helpers and graph retriever tests for MENTIONED_IN/EVIDENCE document backing.
 - [Phase 05]: Multi-hop graph retrieval is capped at 3 hops; explicit deeper requests short-circuit before Neo4j. - Plan 05-04 returns unsupported_graph_depth metadata for over-cap requests.
 - [Phase 05]: Factual route does not depend on Neo4j availability, while graph-first routes report graph_retrieval_unavailable on dependency failure. - This implements the route-specific degraded-mode matrix for graph retrieval.
+- [Phase 05]: Parent chunks are context units fetched from AI Postgres, while child chunks remain citation IDs. - Plan 05-05 added ParentResolver and parent chunk read methods without storing parent context in Qdrant.
+- [Phase 05]: Local reranker soft-degrades to raw retrieval order when disabled or unavailable. - RerankOutcome records reranker_used and warnings so confidence can distinguish normalized reranker scores from raw retrieval scores.
+- [Phase 05]: Packed evidence context uses XML-style boundaries and child-level CitationDrafts. - ContextPacker prefers parent-boundary truncation and only truncates a single oversized parent as a last resort.
 
 ### Pending Todos
 
-- Execute Phase 5 Plan 05-05: parent resolution, reranking, context packing, and citation lookup.
+- Execute Phase 5 Plan 05-06: synthesis, output guard, confidence, and degradation policy.
 - Seed or upload a fresh indexed corpus before live Phase 5 retrieval/UAT; the TechCorp UAT happy-path document was deleted during Scenario 6 cleanup.
 
 ### Blockers/Concerns
@@ -148,6 +152,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-19T20:58:15.621Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-05-19T21:04:23.359Z
+Stopped at: Completed 05-05-PLAN.md
 Resume file: None
