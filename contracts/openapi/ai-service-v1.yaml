@@ -446,10 +446,8 @@ components:
       description: |
         Тип retriever'а, использованного в пайплайне:
         - `HYBRID` — bge-m3 dense + sparse через Qdrant с RRF
-        - `GRAPH_LOCAL` — entity-based поиск в Neo4j (один entity)
-        - `GRAPH_GLOBAL` — community-based поиск в Neo4j (multi-entity)
-        - `BM25_BASELINE` — только для ablation, не используется в production
-      enum: [HYBRID, GRAPH_LOCAL, GRAPH_GLOBAL, BM25_BASELINE]
+        - `GRAPH` — graph-based поиск в Neo4j
+      enum: [HYBRID, GRAPH]
 
     ConversationRole:
       type: string
