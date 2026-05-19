@@ -9,6 +9,7 @@ from corp_rag_ai.adapters.amqp.consumer import DocumentEventConsumerRuntime, Ide
 from corp_rag_ai.adapters.amqp.messages import InboundEvent
 from corp_rag_ai.adapters.amqp.publisher import DocumentResultPublisher
 from corp_rag_ai.adapters.minio import MinioDocumentStore
+from corp_rag_ai.adapters.rest.chunks import router as chunk_detail_router
 from corp_rag_ai.config import get_settings
 from corp_rag_ai.pipeline.indexing.embedding import LocalBgeM3Embedder
 from corp_rag_ai.pipeline.indexing.entity_extractor import DeepSeekEntityExtractor
@@ -318,6 +319,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.include_router(chunk_detail_router)
 
 
 @app.get("/health", tags=["platform"])
