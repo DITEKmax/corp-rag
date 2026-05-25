@@ -29,8 +29,19 @@ def document_access_predicate(alias: str = "d") -> str:
 
 def aggregation_query() -> str:
     return f"""
+WITH $queryTerms AS queryTerms
 MATCH (e:Entity)-[mention:MENTIONED_IN]->(d:Document)
 WHERE {document_access_predicate("d")}
+WITH e, mention, d, queryTerms,
+     [term IN queryTerms WHERE
+        toLower(d.title) CONTAINS term OR
+        toLower(e.name) CONTAINS term OR
+        toLower(coalesce(e.type, '')) CONTAINS term OR
+        toLower(coalesce(d.department, '')) CONTAINS term
+     ] AS matchedTerms
+WHERE size(queryTerms) > 0 AND size(matchedTerms) > 0
+WITH e, mention, d, matchedTerms,
+     toFloat(size(matchedTerms)) / toFloat(size(queryTerms)) AS queryMatchScore
 RETURN mention.chunkId AS chunkId,
        mention.parentChunkId AS parentChunkId,
        mention.sectionPath AS sectionPath,
@@ -40,8 +51,9 @@ RETURN mention.chunkId AS chunkId,
        e.name AS entityName,
        e.type AS entityType,
        'entity:' + e.name AS graphPath,
-       0.75 AS score
-ORDER BY e.name
+       matchedTerms AS matchedTerms,
+       queryMatchScore AS score
+ORDER BY queryMatchScore DESC, e.name
 LIMIT $limit
 """
 

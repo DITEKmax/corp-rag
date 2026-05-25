@@ -81,10 +81,18 @@ def _document_backed_candidate(candidate: RetrievalCandidate, parent: ParentChun
     parent_text = parent.content.strip()
     if not parent_text:
         return candidate
+    metadata = _document_backed_graph_metadata(candidate)
     graph_path = str(candidate.metadata.get("graphPath") or "").strip()
     if _is_internal_graph_text(candidate.content, graph_path) or _is_internal_graph_text(candidate.snippet, graph_path):
-        return replace(candidate, content=parent_text, snippet=parent_text)
-    return candidate
+        return replace(candidate, content=parent_text, snippet=parent_text, metadata=metadata)
+    return replace(candidate, metadata=metadata)
+
+
+def _document_backed_graph_metadata(candidate: RetrievalCandidate) -> dict[str, object]:
+    metadata = dict(candidate.metadata)
+    metadata["documentBackedGraph"] = True
+    metadata.setdefault("graphRetrievalScore", candidate.score)
+    return metadata
 
 
 def _is_internal_graph_text(value: str | None, graph_path: str) -> bool:

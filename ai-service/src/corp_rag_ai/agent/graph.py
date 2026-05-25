@@ -351,14 +351,29 @@ def _evidence_state(state: QueryGraphState) -> EvidenceState:
     reranked = state.get("rerank_outcome")
     retrieval = state.get("retrieval_result")
     candidates = reranked.candidates if reranked is not None else ()
+    route = _route(state)
     return EvidenceState(
         has_vector_evidence=any(candidate.retriever is RetrieverType.HYBRID for candidate in candidates),
         has_graph_evidence=any(candidate.retriever is RetrieverType.GRAPH for candidate in candidates),
-        top_score=max((candidate.score for candidate in candidates), default=0.0),
+        top_score=max((_evidence_confidence(candidate, route=route) for candidate in candidates), default=0.0),
         reranker_used=reranked.reranker_used if reranked is not None else False,
         chunks_considered=retrieval.metadata.chunks_considered if retrieval is not None else 0,
         chunks_returned=len(candidates),
     )
+
+
+def _evidence_confidence(candidate, *, route: QueryRoute) -> float:
+    score = candidate.score
+    if (
+        route is not QueryRoute.AGGREGATION
+        or candidate.retriever is not RetrieverType.GRAPH
+        or candidate.metadata.get("documentBackedGraph") is not True
+    ):
+        return score
+    graph_score = candidate.metadata.get("graphRetrievalScore")
+    if not isinstance(graph_score, (int, float)):
+        return score
+    return max(score, float(graph_score))
 
 
 def _select_citations(result: SynthesisResult, citations: tuple[CitationDraft, ...]) -> tuple[CitationDraft, ...]:

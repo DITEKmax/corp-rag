@@ -77,6 +77,8 @@ async def test_graph_candidate_without_document_text_is_enriched_from_parent_con
     assert enriched.snippet == parent_text
     assert enriched.retriever is RetrieverType.GRAPH
     assert enriched.metadata["graphPath"] == "entity:CloudSec Inc"
+    assert enriched.metadata["documentBackedGraph"] is True
+    assert enriched.metadata["graphRetrievalScore"] == 0.75
     assert result.contexts[0].children == (enriched,)
     assert not enriched.content.startswith("entity:")
 

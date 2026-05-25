@@ -23,6 +23,31 @@ from corp_rag_ai.pipeline.retrieval.graph_query_helpers import (
 DEFAULT_GRAPH_LIMIT = 20
 DEFAULT_MAX_GRAPH_HOPS = 3
 
+_AGGREGATION_STOPWORDS = {
+    "about",
+    "all",
+    "and",
+    "any",
+    "are",
+    "count",
+    "department",
+    "did",
+    "does",
+    "for",
+    "from",
+    "how",
+    "many",
+    "much",
+    "number",
+    "operate",
+    "the",
+    "there",
+    "total",
+    "what",
+    "which",
+    "with",
+}
+
 
 class GraphRetriever:
     def __init__(
@@ -85,6 +110,7 @@ class GraphRetriever:
         params = graph_access_params(query.access_filter)
         params["limit"] = self._limit
         if route is QueryRoute.AGGREGATION:
+            params["queryTerms"] = _aggregation_query_terms(query.message)
             return aggregation_query(), params
         if route is QueryRoute.MULTI_HOP:
             return multi_hop_query(self._max_hops), params
@@ -129,6 +155,8 @@ def _candidate_from_record(record: Mapping[str, object]) -> RetrievalCandidate:
         "entityName": entity_name,
         "relationType": relation_type,
         "candidateGroup": entity_name or relation_type,
+        "graphRetrievalScore": float(record.get("score", 0.0) or 0.0),
+        "matchedTerms": tuple(str(term) for term in record.get("matchedTerms", ()) if str(term).strip()),
     }
     return RetrievalCandidate(
         chunk_id=UUID(str(record["chunkId"])),
@@ -208,6 +236,31 @@ def _comparison_entity_names(message: str) -> list[str]:
             continue
         names.append(part)
     return names[:6]
+
+
+def _aggregation_query_terms(message: str) -> list[str]:
+    terms: list[str] = []
+    for match in re.finditer(r"[A-Za-z0-9]+", message):
+        raw = match.group(0)
+        term = raw.lower()
+        if term in _AGGREGATION_STOPWORDS:
+            continue
+        if len(term) < 3 and not (len(term) >= 2 and raw.isupper()):
+            continue
+        normalized = _normalize_aggregation_term(term)
+        if normalized not in terms:
+            terms.append(normalized)
+    return terms[:8]
+
+
+def _normalize_aggregation_term(term: str) -> str:
+    if len(term) > 4 and term.endswith("ies"):
+        return f"{term[:-3]}y"
+    if len(term) > 4 and term.endswith("ves"):
+        return f"{term[:-3]}ve"
+    if len(term) > 3 and term.endswith("s") and not term.endswith("ss"):
+        return term[:-1]
+    return term
 
 
 def _section_path(value: object) -> tuple[str, ...]:

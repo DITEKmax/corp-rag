@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from uuid import UUID
 
 from corp_rag_ai.agent import QueryGraphComponents, build_query_graph
@@ -262,6 +263,38 @@ async def test_pipeline_duplicate_graph_mentions_are_deduped_before_rerank() -> 
     assert result.citations[0].quote == parent_text
 
 
+async def test_pipeline_query_matched_graph_score_prevents_false_weak_evidence_refusal() -> None:
+    parent_text = "CloudSec Inc and LegalCorp LLP are approved vendors."
+    graph_marker = _candidate(
+        RetrieverType.GRAPH,
+        chunk_id=LIVE_GRAPH_CHUNK_ID,
+        parent_id=LIVE_GRAPH_PARENT_ID,
+        content="entity:CloudSec Inc",
+        score=0.75,
+        metadata={"graphPath": "entity:CloudSec Inc", "graphRetrievalScore": 0.75, "matchedTerms": ("approved", "vendor")},
+    )
+    components = _components(
+        graph_result=_retrieval_result(QueryRoute.AGGREGATION, RetrieverType.GRAPH, graph_marker),
+        parent_repo=_ParentRepo({LIVE_GRAPH_PARENT_ID: _parent(LIVE_GRAPH_PARENT_ID, content=parent_text)}),
+        reranker_mode="low_score",
+        synthesis_result=SynthesisResult(
+            answered=True,
+            answer="There are two approved vendors [1].",
+            citation_indexes=(1,),
+            confidence_hint=0.9,
+        ),
+        final_top_n=1,
+    )
+    service = _service(components)
+
+    result = await service.answer(_query("How many vendors are approved in total?"))
+
+    assert result.answered is True
+    assert result.confidence == 0.75
+    assert result.citations[0].quote == parent_text
+    assert result.retrieval_meta.reranker_used is True
+
+
 async def test_pipeline_vector_dependency_failure_maps_to_refusal() -> None:
     components = _components(
         hybrid_result=RetrievalResult(
@@ -357,6 +390,11 @@ class _Reranker:
             )
         if self.mode == "reorder":
             return RerankOutcome(candidates=tuple(reversed(candidates))[:top_n], reranker_used=True)
+        if self.mode == "low_score":
+            return RerankOutcome(
+                candidates=tuple(replace(candidate, score=0.38) for candidate in candidates[:top_n]),
+                reranker_used=True,
+            )
         return RerankOutcome(candidates=candidates[:top_n], reranker_used=True)
 
 
@@ -429,6 +467,7 @@ def _candidate(
     parent_id: UUID = PARENT_ID,
     content: str = "Vacation policy child quote.",
     score: float = 0.8,
+    metadata: dict[str, object] | None = None,
 ) -> RetrievalCandidate:
     return RetrievalCandidate(
         chunk_id=chunk_id,
@@ -441,6 +480,7 @@ def _candidate(
         score=score,
         access_level="INTERNAL",
         retriever=retriever,
+        metadata=metadata or {},
     )
 
 

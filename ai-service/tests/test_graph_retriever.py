@@ -34,6 +34,7 @@ async def test_aggregation_query_filters_through_accessible_document_evidence() 
     assert params["docTypes"] == ["POLICY"]
     assert params["departments"] == ["HR"]
     assert params["departmentWildcard"] is False
+    assert params["queryTerms"] == ["hr", "policy"]
 
     assert result.failed is False
     assert result.metadata.retrievers_attempted == (RetrieverType.GRAPH,)
@@ -46,6 +47,22 @@ async def test_aggregation_query_filters_through_accessible_document_evidence() 
     assert candidate.retriever is RetrieverType.GRAPH
     assert candidate.metadata["graphPath"] == "entity:Vacation Policy"
     assert candidate.metadata["candidateGroup"] == "Vacation Policy"
+    assert candidate.metadata["graphRetrievalScore"] == 0.75
+
+
+def test_aggregation_query_uses_query_terms_instead_of_constant_evidence() -> None:
+    session = _FakeGraphSession([])
+    retriever = GraphRetriever(_FakeDriver(session))
+
+    cypher, params = retriever._query_and_params(
+        _query("How many aircraft does the Aviation department operate?"),
+        QueryRoute.AGGREGATION,
+    )
+
+    assert "size(queryTerms) > 0 AND size(matchedTerms) > 0" in cypher
+    assert "queryMatchScore AS score" in cypher
+    assert "0.75 AS score" not in cypher
+    assert params["queryTerms"] == ["aircraft", "aviation"]
 
 
 async def test_graph_candidate_keeps_graph_path_internal_and_prefers_document_text_when_returned() -> None:
