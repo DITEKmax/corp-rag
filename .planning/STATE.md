@@ -150,6 +150,7 @@ Recent locked decisions affecting current work:
 
 - Plan Phase 6: Chat & Frontend Experience.
 - Keep PH5.1-DEF-B as info-level reproducibility debt: restore a pinned uv base image when ghcr.io is reachable from Docker or a mirror is configured.
+- See `.planning/BACKLOG.md` for non-blocking Phase 5 / 5.1 follow-ups. Important current manual state: if `ai-service/Dockerfile` is reset to the committed ghcr.io base while the Docker daemon still cannot reach ghcr.io, manually reapply the temporary Docker Hub `astral/uv:python3.12-bookworm` workaround or fix registry/mirror access before rebuilding `python-ai`.
 
 ### Blockers/Concerns
 
@@ -169,6 +170,7 @@ Recent locked decisions affecting current work:
 | Phase 5 | Audit Docling dependency surface; direct dependency is `docling`, while `docling-slim` appears transitively in `uv.lock`. | Backlog | Phase 4 UAT |
 | Phase 5 | Consider bumping `python-ai` memory limit from 4 GiB to 6 GiB before reranker/query work. | Closed in 05-01 | Phase 4 UAT |
 | Phase 5/7 | Decide orphan Neo4j entity cleanup strategy; retrieval must filter through accessible Document evidence. | Backlog | Phase 4 UAT Scenario 6 |
+| Phase 5/5.1 | Track UAT/re-UAT follow-ups including DEF-B uv base reproducibility, synthesis variance, lexical graph matching, reranker score stability, entity extraction flakiness, timeout defaults, Qdrant degraded metadata, orphan cleanup, Qdrant version alignment, and HF model pre-warm. | Backlog | `.planning/BACKLOG.md` |
 
 ## Session Continuity
 
