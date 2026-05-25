@@ -48,6 +48,27 @@ async def test_aggregation_query_filters_through_accessible_document_evidence() 
     assert candidate.metadata["candidateGroup"] == "Vacation Policy"
 
 
+async def test_graph_candidate_keeps_graph_path_internal_and_prefers_document_text_when_returned() -> None:
+    session = _FakeGraphSession(
+        [
+            _record(
+                entityName="CloudSec Inc",
+                graphPath="entity:CloudSec Inc",
+                documentText="CloudSec Inc is approved for endpoint monitoring.",
+            )
+        ]
+    )
+    retriever = GraphRetriever(_FakeDriver(session))
+
+    result = await retriever.retrieve(_query("How many vendors are approved?"), route=QueryRoute.AGGREGATION)
+
+    candidate = result.candidates[0]
+    assert candidate.content == "CloudSec Inc is approved for endpoint monitoring."
+    assert candidate.snippet == "CloudSec Inc is approved for endpoint monitoring."
+    assert candidate.metadata["graphPath"] == "entity:CloudSec Inc"
+    assert not candidate.snippet.startswith("entity:")
+
+
 async def test_empty_departments_are_wildcard_only_for_department() -> None:
     access_filter = AccessFilter(access_levels=("PUBLIC",), departments=(), doc_types=("REPORT",))
     params = graph_access_params(access_filter)
@@ -209,6 +230,7 @@ def _record(
     entityName: str = "Vacation Policy",
     relationType: str | None = None,
     graphPath: str = "entity:Vacation Policy",
+    documentText: str | None = None,
 ) -> dict[str, object]:
     return {
         "chunkId": str(CHUNK_ID),
@@ -220,5 +242,6 @@ def _record(
         "entityName": entityName,
         "relationType": relationType,
         "graphPath": graphPath,
+        "documentText": documentText,
         "score": 0.75,
     }

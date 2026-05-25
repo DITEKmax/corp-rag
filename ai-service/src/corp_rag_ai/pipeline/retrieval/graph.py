@@ -123,6 +123,7 @@ def _candidate_from_record(record: Mapping[str, object]) -> RetrievalCandidate:
     graph_path = str(record.get("graphPath") or "").strip()
     entity_name = record.get("entityName")
     relation_type = record.get("relationType")
+    document_text = _document_text(record)
     metadata = {
         "graphPath": graph_path,
         "entityName": entity_name,
@@ -135,8 +136,8 @@ def _candidate_from_record(record: Mapping[str, object]) -> RetrievalCandidate:
         document_id=UUID(str(record["documentId"])),
         document_title=str(record.get("documentTitle", "")),
         section_path=_section_path(record.get("sectionPath")),
-        content=graph_path or str(record.get("relationDescription") or entity_name or ""),
-        snippet=graph_path or None,
+        content=document_text or graph_path or str(record.get("relationDescription") or entity_name or ""),
+        snippet=document_text or None,
         score=float(record.get("score", 0.0) or 0.0),
         access_level=str(record.get("accessLevel", "")),
         retriever=RetrieverType.GRAPH,
@@ -219,3 +220,11 @@ def _section_path(value: object) -> tuple[str, ...]:
 
 def _optional_uuid(value: object) -> UUID | None:
     return UUID(str(value)) if value else None
+
+
+def _document_text(record: Mapping[str, object]) -> str:
+    for key in ("documentText", "chunkText", "content", "snippet"):
+        value = record.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
