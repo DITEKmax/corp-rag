@@ -1,4 +1,5 @@
-FROM ghcr.io/astral-sh/uv:0.5.26-python3.12-bookworm AS builder
+# TEMP workaround: ghcr.io unreachable from Docker daemon; revert to pinned ghcr.io/astral-sh/uv:0.5.26-python3.12-bookworm when reachable or a registry mirror is configured (see BACKLOG BL-01).
+FROM astral/uv:python3.12-bookworm AS builder
 
 WORKDIR /repo
 
@@ -17,7 +18,8 @@ RUN rm -rf /repo/ai-service/src/corp_rag_ai/contracts/generated \
     && python /repo/scripts/generate_python_contracts.py \
     && python /repo/scripts/generate_constants.py
 
-FROM ghcr.io/astral-sh/uv:0.5.26-python3.12-bookworm AS runtime
+# TEMP workaround: ghcr.io unreachable from Docker daemon; revert to pinned ghcr.io/astral-sh/uv:0.5.26-python3.12-bookworm when reachable or a registry mirror is configured (see BACKLOG BL-01).
+FROM astral/uv:python3.12-bookworm AS runtime
 
 WORKDIR /app
 
