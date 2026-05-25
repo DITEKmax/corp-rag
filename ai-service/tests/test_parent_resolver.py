@@ -81,6 +81,20 @@ async def test_graph_candidate_without_document_text_is_enriched_from_parent_con
     assert not enriched.content.startswith("entity:")
 
 
+async def test_duplicate_graph_mentions_for_same_child_are_deduped_before_rerank() -> None:
+    parent_text = "CloudSec Inc and LegalCorp LLP are approved vendors."
+    resolver = ParentResolver(_ParentRepo({LIVE_GRAPH_PARENT: _parent(LIVE_GRAPH_PARENT, parent_text)}))
+    first = _graph_candidate("CloudSec Inc")
+    duplicate = _graph_candidate("LegalCorp LLP")
+
+    result = await resolver.resolve((first, duplicate))
+
+    assert len(result.citation_candidates) == 1
+    assert result.citation_candidates[0].chunk_id == LIVE_GRAPH_CHILD
+    assert result.citation_candidates[0].content == parent_text
+    assert result.contexts[0].children == (result.citation_candidates[0],)
+
+
 class _ParentRepo:
     def __init__(self, parents: dict[UUID, ParentChunkRecord]) -> None:
         self.parents = parents
@@ -113,6 +127,22 @@ def _candidate(chunk_id: UUID, *, parent_id: UUID, score: float) -> RetrievalCan
         score=score,
         access_level="INTERNAL",
         retriever=RetrieverType.HYBRID,
+    )
+
+
+def _graph_candidate(entity_name: str) -> RetrievalCandidate:
+    return RetrievalCandidate(
+        chunk_id=LIVE_GRAPH_CHILD,
+        parent_chunk_id=LIVE_GRAPH_PARENT,
+        document_id=DOCUMENT_ID,
+        document_title="Vendor Approvals",
+        section_path=("Compliance",),
+        content=f"entity:{entity_name}",
+        snippet=None,
+        score=0.75,
+        access_level="INTERNAL",
+        retriever=RetrieverType.GRAPH,
+        metadata={"graphPath": f"entity:{entity_name}", "candidateGroup": entity_name},
     )
 
 

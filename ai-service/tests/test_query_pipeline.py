@@ -229,6 +229,39 @@ async def test_pipeline_graph_parent_text_reaches_reranker_and_final_citations_w
     assert _inline_refs_are_valid(result.answer, citation_count=len(result.citations))
 
 
+async def test_pipeline_duplicate_graph_mentions_are_deduped_before_rerank() -> None:
+    parent_text = "CloudSec Inc and LegalCorp LLP are approved vendors."
+    first = _candidate(
+        RetrieverType.GRAPH,
+        chunk_id=LIVE_GRAPH_CHUNK_ID,
+        parent_id=LIVE_GRAPH_PARENT_ID,
+        content="entity:CloudSec Inc",
+        score=0.75,
+    )
+    duplicate = _candidate(
+        RetrieverType.GRAPH,
+        chunk_id=LIVE_GRAPH_CHUNK_ID,
+        parent_id=LIVE_GRAPH_PARENT_ID,
+        content="entity:LegalCorp LLP",
+        score=0.75,
+    )
+    components = _components(
+        graph_result=_retrieval_result(QueryRoute.AGGREGATION, RetrieverType.GRAPH, (first, duplicate)),
+        parent_repo=_ParentRepo({LIVE_GRAPH_PARENT_ID: _parent(LIVE_GRAPH_PARENT_ID, content=parent_text)}),
+        final_top_n=5,
+    )
+    service = _service(components)
+
+    result = await service.answer(_query("How many vendors are approved in total?"))
+
+    assert result.answered is True
+    assert len(components.reranker.seen_candidates) == 1
+    assert components.reranker.seen_candidates[0].chunk_id == LIVE_GRAPH_CHUNK_ID
+    assert components.reranker.seen_candidates[0].content == parent_text
+    assert len(result.citations) == 1
+    assert result.citations[0].quote == parent_text
+
+
 async def test_pipeline_vector_dependency_failure_maps_to_refusal() -> None:
     components = _components(
         hybrid_result=RetrievalResult(

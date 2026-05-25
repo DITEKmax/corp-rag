@@ -43,9 +43,12 @@ class ParentResolver:
         warnings: list[str] = []
 
         citation_candidates: list[RetrievalCandidate] = []
+        seen_chunk_ids: set[UUID] = set()
         for candidate in candidates:
             if candidate.parent_chunk_id is None:
                 warnings.append(f"{MISSING_PARENT_WARNING}:{candidate.chunk_id}")
+                continue
+            if candidate.chunk_id in seen_chunk_ids:
                 continue
             parent = parents.get(candidate.parent_chunk_id)
             if parent is None:
@@ -54,6 +57,7 @@ class ParentResolver:
             enriched = _document_backed_candidate(candidate, parent)
             children_by_parent[candidate.parent_chunk_id].append(enriched)
             citation_candidates.append(enriched)
+            seen_chunk_ids.add(candidate.chunk_id)
 
         contexts = [
             ResolvedParentContext(
