@@ -213,19 +213,32 @@ class _QueryGraphNodes:
                 ),
             }
 
-        citations = _select_citations(synthesis, packed.citations)
+        citations = packed.citations
+        final_result = QueryResult(
+            answered=True,
+            answer=synthesis.answer,
+            citations=citations,
+            confidence=_final_confidence(state, synthesis),
+            conversation_id=state["query"].conversation_id,
+            message_id=uuid4(),
+            retrieval_meta=self._metadata(state),
+            guard_verdict=None,
+        )
+        if not _answer_refs_are_valid(final_result.answer, citation_count=len(final_result.citations)):
+            final_verdict = GuardVerdict.rejected(reason=GuardReason.INVALID_CITATIONS, tier=GuardTier.OUTPUT_CHECK)
+            return {
+                "output_guard_verdict": final_verdict,
+                "final_result": self._refusal(
+                    state,
+                    reason=_output_refusal_reason(final_verdict),
+                    answer=OUTPUT_GUARD_ANSWER,
+                    guard_verdict=final_verdict,
+                    warnings=(_enum_value(final_verdict.reason),),
+                ),
+            }
         return {
             "output_guard_verdict": verdict,
-            "final_result": QueryResult(
-                answered=True,
-                answer=synthesis.answer,
-                citations=citations,
-                confidence=_final_confidence(state, synthesis),
-                conversation_id=state["query"].conversation_id,
-                message_id=uuid4(),
-                retrieval_meta=self._metadata(state),
-                guard_verdict=None,
-            ),
+            "final_result": final_result,
         }
 
     async def finalize(self, state: QueryGraphState) -> QueryGraphState:
@@ -357,6 +370,10 @@ def _select_citations(result: SynthesisResult, citations: tuple[CitationDraft, .
             if citation not in selected:
                 selected.append(citation)
     return tuple(selected)
+
+
+def _answer_refs_are_valid(answer: str, *, citation_count: int) -> bool:
+    return all(1 <= int(match) <= citation_count for match in re.findall(r"\[(\d+)\]", answer))
 
 
 def _final_confidence(state: QueryGraphState, synthesis: SynthesisResult) -> float:

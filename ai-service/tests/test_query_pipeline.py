@@ -29,6 +29,9 @@ DOCUMENT_ID = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
 PARENT_ID = UUID("22222222-2222-4222-8222-222222222017")
 CHUNK_ID = UUID("11111111-1111-4111-8111-111111111042")
 SECOND_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111043")
+THIRD_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111044")
+FOURTH_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111045")
+FIFTH_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111046")
 
 
 async def test_pipeline_guarded_rejection_skips_route_and_retrieval() -> None:
@@ -157,6 +160,37 @@ async def test_pipeline_warm_successful_reranker_keeps_used_metadata_and_reorder
     assert result.citations[0].chunk_id == SECOND_CHUNK_ID
 
 
+async def test_pipeline_graph_answer_returns_full_final_citation_index_space_after_rerank_reduction() -> None:
+    candidates = (
+        _candidate(RetrieverType.GRAPH, chunk_id=CHUNK_ID, content="Graph evidence one.", score=0.8),
+        _candidate(RetrieverType.GRAPH, chunk_id=SECOND_CHUNK_ID, content="Graph evidence two.", score=0.7),
+        _candidate(RetrieverType.GRAPH, chunk_id=THIRD_CHUNK_ID, content="Graph evidence three.", score=0.6),
+        _candidate(RetrieverType.GRAPH, chunk_id=FOURTH_CHUNK_ID, content="Graph evidence four.", score=0.5),
+        _candidate(RetrieverType.GRAPH, chunk_id=FIFTH_CHUNK_ID, content="Graph evidence five.", score=0.4),
+    )
+    components = _components(
+        graph_result=_retrieval_result(QueryRoute.AGGREGATION, RetrieverType.GRAPH, candidates),
+        reranker_mode="reorder",
+        synthesis_result=SynthesisResult(
+            answered=True,
+            answer="There are four citeable graph facts [4].",
+            citation_indexes=(4,),
+            confidence_hint=0.9,
+        ),
+        final_top_n=4,
+    )
+    service = _service(components)
+
+    result = await service.answer(_query("How many HR policies exist?"))
+
+    assert result.answered is True
+    assert result.answer == "There are four citeable graph facts [4]."
+    assert result.retrieval_meta.route == "AGGREGATION"
+    assert len(result.citations) == 4
+    assert result.citations[3].chunk_id == SECOND_CHUNK_ID
+    assert _inline_refs_are_valid(result.answer, citation_count=len(result.citations))
+
+
 async def test_pipeline_vector_dependency_failure_maps_to_refusal() -> None:
     components = _components(
         hybrid_result=RetrievalResult(
@@ -192,6 +226,7 @@ def _components(
     hybrid_result: RetrievalResult | None = None,
     graph_result: RetrievalResult | None = None,
     reranker_mode: str = "normal",
+    synthesis_result: SynthesisResult | None = None,
     final_top_n: int = 1,
 ) -> QueryGraphComponents:
     return QueryGraphComponents(
@@ -206,7 +241,7 @@ def _components(
         parent_resolver=ParentResolver(_ParentRepo()),
         reranker=_Reranker(reranker_mode),
         context_packer=ContextPacker(token_cap=4000),
-        synthesizer=_Synthesizer(),
+        synthesizer=_Synthesizer(synthesis_result),
         output_guard=OutputGuard(),
         model_id="deepseek-test",
         final_top_n=final_top_n,
@@ -251,11 +286,14 @@ class _Reranker:
 
 
 class _Synthesizer:
-    def __init__(self) -> None:
+    def __init__(self, result: SynthesisResult | None = None) -> None:
+        self.result = result
         self.calls = 0
 
     async def synthesize(self, _query: QueryInput, _context) -> SynthesisResult:
         self.calls += 1
+        if self.result is not None:
+            return self.result
         return SynthesisResult(
             answered=True,
             answer="Vacation is governed by the policy [1].",
@@ -323,6 +361,12 @@ def _candidate(
         access_level="INTERNAL",
         retriever=retriever,
     )
+
+
+def _inline_refs_are_valid(answer: str, *, citation_count: int) -> bool:
+    import re
+
+    return all(1 <= int(match) <= citation_count for match in re.findall(r"\[(\d+)\]", answer))
 
 
 def _parent(parent_id: UUID) -> ParentChunkRecord:

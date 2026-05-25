@@ -24,6 +24,17 @@ def test_invalid_citation_refs_are_blocked() -> None:
     assert verdict.reason is GuardReason.INVALID_CITATIONS
 
 
+def test_ref_to_second_citation_is_blocked_when_only_one_citation_exists() -> None:
+    verdict = OutputGuard().validate(
+        SynthesisResult(answered=True, answer="The policy says this [2].", citation_indexes=(2,), confidence_hint=0.8),
+        citations=(_citation(),),
+        evidence=(_candidate(),),
+    )
+
+    assert verdict.blocked is True
+    assert verdict.reason is GuardReason.INVALID_CITATIONS
+
+
 def test_factual_answer_without_refs_is_blocked_for_missing_citations() -> None:
     verdict = OutputGuard().validate(
         SynthesisResult(answered=True, answer="Employees receive annual leave after approval.", citation_indexes=(), confidence_hint=0.8),
