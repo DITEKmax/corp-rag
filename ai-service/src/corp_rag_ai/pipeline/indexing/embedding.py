@@ -158,6 +158,8 @@ def _parse_embedding_output(
         dense_tuple = tuple(float(value) for value in _to_python_list(dense))
         if len(dense_tuple) != dense_dimension:
             raise EmbeddingOutputError(f"dense vector dimension must be {dense_dimension}")
+        if not any(value != 0.0 for value in dense_tuple):
+            raise EmbeddingOutputError("dense vector must not be all zero")
         sparse_dict = _normalize_sparse_weights(sparse)
         if not sparse_dict:
             raise EmbeddingOutputError("sparse lexical weights must not be empty")
@@ -170,10 +172,18 @@ def _normalize_sparse_weights(value: Any) -> dict[int, float]:
         raise EmbeddingOutputError("sparse lexical weights must be a mapping")
     sparse: dict[int, float] = {}
     for raw_index, raw_weight in value.items():
-        weight = float(raw_weight)
+        try:
+            index = int(raw_index)
+            weight = float(raw_weight)
+        except (TypeError, ValueError) as exc:
+            raise EmbeddingOutputError("sparse lexical weights must use integer token ids and numeric weights") from exc
+        if index < 0:
+            raise EmbeddingOutputError("sparse lexical weight token ids must be non-negative")
         if weight == 0.0:
             continue
-        sparse[int(raw_index)] = weight
+        if weight < 0.0:
+            raise EmbeddingOutputError("sparse lexical weights must be positive")
+        sparse[index] = weight
     return sparse
 
 

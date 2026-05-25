@@ -51,6 +51,9 @@ def test_embedder_batches_dense_sparse_local_model_calls_without_downloading_wei
     assert len(vectors) == 33
     assert len(vectors[0].dense) == BGE_M3_DENSE_DIMENSION
     assert vectors[0].sparse == {11: 0.25, 42: 0.75}
+    assert any(value != 0.0 for value in vectors[0].dense)
+    assert all(isinstance(token_id, int) and token_id >= 0 for token_id in vectors[0].sparse)
+    assert all(weight > 0.0 for weight in vectors[0].sparse.values())
     assert [len(call["sentences"]) for call in model.calls] == [1, 32, 1]
     assert all(call["return_dense"] is True for call in model.calls)
     assert all(call["return_sparse"] is True for call in model.calls)
@@ -76,6 +79,38 @@ def test_missing_sparse_weights_map_to_non_retryable_embedding_stage_failure() -
     embedder = LocalBgeM3Embedder(
         model_factory=lambda _name, _use_fp16: _FakeBgeM3Model(
             {"dense_vecs": [[0.1] * BGE_M3_DENSE_DIMENSION], "lexical_weights": [{}]}
+        )
+    )
+
+    with pytest.raises(StageFailure) as exc_info:
+        embedder.preflight()
+
+    failure = exc_info.value
+    assert failure.stage == IndexingStage.EMBEDDING
+    assert failure.error_code == INDEXING_PIPELINE_ERROR
+    assert failure.retryable is False
+
+
+def test_all_zero_dense_vector_maps_to_non_retryable_embedding_stage_failure() -> None:
+    embedder = LocalBgeM3Embedder(
+        model_factory=lambda _name, _use_fp16: _FakeBgeM3Model(
+            {"dense_vecs": [[0.0] * BGE_M3_DENSE_DIMENSION], "lexical_weights": [{"11": 0.25}]}
+        )
+    )
+
+    with pytest.raises(StageFailure) as exc_info:
+        embedder.preflight()
+
+    failure = exc_info.value
+    assert failure.stage == IndexingStage.EMBEDDING
+    assert failure.error_code == INDEXING_PIPELINE_ERROR
+    assert failure.retryable is False
+
+
+def test_invalid_sparse_weights_map_to_non_retryable_embedding_stage_failure() -> None:
+    embedder = LocalBgeM3Embedder(
+        model_factory=lambda _name, _use_fp16: _FakeBgeM3Model(
+            {"dense_vecs": [[0.1] * BGE_M3_DENSE_DIMENSION], "lexical_weights": [{"11": -0.25}]}
         )
     )
 
