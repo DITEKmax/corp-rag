@@ -89,11 +89,17 @@ Phase 5 query behavior is configured through environment-backed settings:
 | `AI_ROUTER_CONFIDENCE_THRESHOLD` | `0.65` |
 | `AI_RERANKER_ENABLED` | `true` |
 | `AI_RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` |
+| `AI_RERANKER_TIMEOUT_SECONDS` | `25` |
+| `AI_RERANKER_LOAD_TIMEOUT_SECONDS` | `28` |
 | `AI_CONTEXT_TOKEN_CAP` | `4000` |
 | `AI_WEAK_EVIDENCE_THRESHOLD` | `0.4` |
 | `AI_FLAGGED_CHUNK_SCORE_MULTIPLIER` | `0.5` |
 
 `POST /v1/query` accepts Java-resolved `accessFilter` values and returns `QueryResponse` with `answered`, `answer`, child-UUID `citations`, `confidence`, optional `guardVerdict`, and `retrievalMeta`. Safe refusals and timeouts are returned as `answered=false`; invalid boundary/configuration failures return Problem Details.
+
+`AI_QUERY_TIMEOUT_SECONDS` is the outer REST request budget. The reranker has smaller internal budgets: `AI_RERANKER_TIMEOUT_SECONDS` bounds warm `compute_score(...)` work, and `AI_RERANKER_LOAD_TIMEOUT_SECONDS` bounds lazy local model load. Both must be strictly below `AI_QUERY_TIMEOUT_SECONDS`; startup settings validation fails if the effective reranker step budget is greater than or equal to the query timeout. When a reranker budget expires, the query keeps the raw retrieval order, returns `rerankerUsed=false`, and includes `reranker_unavailable` in `retrievalMeta.degradationWarnings`.
+
+The default warm scoring budget is 25 seconds because local CPU scoring for `BAAI/bge-reranker-v2-m3` can be slow but must still leave room inside the 30 second request timeout. The lazy load budget is 28 seconds to give cold load slightly more headroom without letting reranking occupy the whole request. Cold first load can still exceed the warm scoring path on local CPU hardware, so Phase 5.1 UAT should pre-warm the reranker with one untimed query before timing Scenario 3.
 
 `/diagnostics` includes query readiness fields: `query_service`, `query_router`, `reranker_configured`, and `llm_reachable`. The LLM field is a cheap configured-state indicator and does not make a live OpenRouter call.
 
