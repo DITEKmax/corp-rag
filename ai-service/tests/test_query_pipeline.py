@@ -28,6 +28,7 @@ CONVERSATION_ID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
 DOCUMENT_ID = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
 PARENT_ID = UUID("22222222-2222-4222-8222-222222222017")
 CHUNK_ID = UUID("11111111-1111-4111-8111-111111111042")
+SECOND_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111043")
 
 
 async def test_pipeline_guarded_rejection_skips_route_and_retrieval() -> None:
@@ -118,17 +119,42 @@ async def test_pipeline_no_evidence_refuses_before_generation() -> None:
 
 
 async def test_pipeline_reranker_degraded_factual_answer_preserves_warning() -> None:
+    raw_first = _candidate(RetrieverType.HYBRID, chunk_id=CHUNK_ID, content="Raw first evidence.", score=0.8)
+    raw_second = _candidate(RetrieverType.HYBRID, chunk_id=SECOND_CHUNK_ID, content="Raw second evidence.", score=0.7)
     components = _components(
-        hybrid_result=_retrieval_result(QueryRoute.FACTUAL, RetrieverType.HYBRID, _candidate(RetrieverType.HYBRID)),
+        hybrid_result=_retrieval_result(QueryRoute.FACTUAL, RetrieverType.HYBRID, (raw_first, raw_second)),
         reranker_mode="degraded",
+        final_top_n=2,
     )
     service = _service(components)
 
     result = await service.answer(_query("What is the vacation policy?"))
 
     assert result.answered is True
+    assert result.retrieval_meta.route == "FACTUAL"
+    assert result.citations[0].chunk_id == CHUNK_ID
+    assert result.retrieval_meta.chunks_returned == 2
     assert result.retrieval_meta.reranker_used is False
     assert RERANKER_UNAVAILABLE_WARNING in result.retrieval_meta.degradation_warnings
+    assert "query_timeout" not in result.retrieval_meta.degradation_warnings
+
+
+async def test_pipeline_warm_successful_reranker_keeps_used_metadata_and_reordered_candidates() -> None:
+    raw_first = _candidate(RetrieverType.HYBRID, chunk_id=CHUNK_ID, content="Raw first evidence.", score=0.8)
+    raw_second = _candidate(RetrieverType.HYBRID, chunk_id=SECOND_CHUNK_ID, content="Raw second evidence.", score=0.7)
+    components = _components(
+        hybrid_result=_retrieval_result(QueryRoute.FACTUAL, RetrieverType.HYBRID, (raw_first, raw_second)),
+        reranker_mode="reorder",
+        final_top_n=2,
+    )
+    service = _service(components)
+
+    result = await service.answer(_query("What is the vacation policy?"))
+
+    assert result.answered is True
+    assert result.retrieval_meta.reranker_used is True
+    assert RERANKER_UNAVAILABLE_WARNING not in result.retrieval_meta.degradation_warnings
+    assert result.citations[0].chunk_id == SECOND_CHUNK_ID
 
 
 async def test_pipeline_vector_dependency_failure_maps_to_refusal() -> None:
@@ -166,6 +192,7 @@ def _components(
     hybrid_result: RetrievalResult | None = None,
     graph_result: RetrievalResult | None = None,
     reranker_mode: str = "normal",
+    final_top_n: int = 1,
 ) -> QueryGraphComponents:
     return QueryGraphComponents(
         input_guard=InputGuard(model_id="deepseek-test"),
@@ -182,7 +209,7 @@ def _components(
         synthesizer=_Synthesizer(),
         output_guard=OutputGuard(),
         model_id="deepseek-test",
-        final_top_n=1,
+        final_top_n=final_top_n,
         clock=lambda: 0.0,
     )
 
@@ -218,6 +245,8 @@ class _Reranker:
                 reranker_used=False,
                 warnings=(RERANKER_UNAVAILABLE_WARNING,),
             )
+        if self.mode == "reorder":
+            return RerankOutcome(candidates=tuple(reversed(candidates))[:top_n], reranker_used=True)
         return RerankOutcome(candidates=candidates[:top_n], reranker_used=True)
 
 
@@ -250,8 +279,17 @@ def _query(message: str) -> QueryInput:
     )
 
 
-def _retrieval_result(route: QueryRoute, retriever: RetrieverType, candidate: RetrievalCandidate | None) -> RetrievalResult:
-    candidates = () if candidate is None else (candidate,)
+def _retrieval_result(
+    route: QueryRoute,
+    retriever: RetrieverType,
+    candidate: RetrievalCandidate | tuple[RetrievalCandidate, ...] | None,
+) -> RetrievalResult:
+    if candidate is None:
+        candidates = ()
+    elif isinstance(candidate, tuple):
+        candidates = candidate
+    else:
+        candidates = (candidate,)
     return RetrievalResult(
         candidates=candidates,
         metadata=RetrievalMetadata(
@@ -266,15 +304,21 @@ def _retrieval_result(route: QueryRoute, retriever: RetrieverType, candidate: Re
     )
 
 
-def _candidate(retriever: RetrieverType, *, score: float = 0.8) -> RetrievalCandidate:
+def _candidate(
+    retriever: RetrieverType,
+    *,
+    chunk_id: UUID = CHUNK_ID,
+    content: str = "Vacation policy child quote.",
+    score: float = 0.8,
+) -> RetrievalCandidate:
     return RetrievalCandidate(
-        chunk_id=CHUNK_ID,
+        chunk_id=chunk_id,
         parent_chunk_id=PARENT_ID,
         document_id=DOCUMENT_ID,
         document_title="Vacation Policy",
         section_path=("HR", "Leave"),
-        content="Vacation policy child quote.",
-        snippet="Vacation policy child quote.",
+        content=content,
+        snippet=content,
         score=score,
         access_level="INTERNAL",
         retriever=retriever,
