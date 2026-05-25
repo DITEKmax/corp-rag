@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import AnyHttpUrl, Field, SecretStr
+from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -85,13 +85,15 @@ class Settings(BaseSettings):
         default="deepseek/deepseek-v4-flash:free",
         validation_alias="DEEPSEEK_MODEL_ID",
     )
-    query_timeout_seconds: int = Field(default=30, validation_alias="AI_QUERY_TIMEOUT_SECONDS")
+    query_timeout_seconds: float = Field(default=30.0, validation_alias="AI_QUERY_TIMEOUT_SECONDS")
     query_default_top_k: int = Field(default=10, validation_alias="AI_QUERY_DEFAULT_TOP_K")
     query_max_top_k: int = Field(default=20, validation_alias="AI_QUERY_MAX_TOP_K")
     router_confidence_threshold: float = Field(default=0.65, validation_alias="AI_ROUTER_CONFIDENCE_THRESHOLD")
     reranker_enabled: bool = Field(default=True, validation_alias="AI_RERANKER_ENABLED")
     reranker_model: str = Field(default="BAAI/bge-reranker-v2-m3", validation_alias="AI_RERANKER_MODEL")
     reranker_concurrency: int = Field(default=1, validation_alias="AI_RERANKER_CONCURRENCY")
+    reranker_timeout_seconds: float = Field(default=25.0, validation_alias="AI_RERANKER_TIMEOUT_SECONDS")
+    reranker_load_timeout_seconds: float = Field(default=28.0, validation_alias="AI_RERANKER_LOAD_TIMEOUT_SECONDS")
     query_final_top_n: int = Field(default=5, validation_alias="AI_QUERY_FINAL_TOP_N")
     context_token_cap: int = Field(default=4000, validation_alias="AI_CONTEXT_TOKEN_CAP")
     weak_evidence_threshold: float = Field(default=0.4, validation_alias="AI_WEAK_EVIDENCE_THRESHOLD")
@@ -109,6 +111,23 @@ class Settings(BaseSettings):
         default="local-langfuse-secret-key",
         validation_alias="LANGFUSE_SECRET_KEY",
     )
+
+    @model_validator(mode="after")
+    def validate_timeout_budgets(self) -> "Settings":
+        if self.query_timeout_seconds <= 0:
+            raise ValueError("AI_QUERY_TIMEOUT_SECONDS must be positive")
+        if self.reranker_timeout_seconds <= 0:
+            raise ValueError("AI_RERANKER_TIMEOUT_SECONDS must be positive")
+        if self.reranker_load_timeout_seconds <= 0:
+            raise ValueError("AI_RERANKER_LOAD_TIMEOUT_SECONDS must be positive")
+
+        reranker_step_budget = max(self.reranker_timeout_seconds, self.reranker_load_timeout_seconds)
+        if reranker_step_budget >= self.query_timeout_seconds:
+            raise ValueError(
+                "reranker step budget must be strictly less than AI_QUERY_TIMEOUT_SECONDS "
+                "(check AI_RERANKER_TIMEOUT_SECONDS and AI_RERANKER_LOAD_TIMEOUT_SECONDS)"
+            )
+        return self
 
 
 @lru_cache

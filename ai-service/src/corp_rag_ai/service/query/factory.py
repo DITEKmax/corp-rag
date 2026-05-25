@@ -85,6 +85,8 @@ def build_query_runtime(settings: Settings) -> QueryRuntime:
             enabled=settings.reranker_enabled,
             model_name=settings.reranker_model,
             concurrency=settings.reranker_concurrency,
+            timeout_seconds=settings.reranker_timeout_seconds,
+            load_timeout_seconds=settings.reranker_load_timeout_seconds,
         ),
         context_packer=ContextPacker(token_cap=settings.context_token_cap),
         synthesizer=DeepSeekAnswerSynthesizer(

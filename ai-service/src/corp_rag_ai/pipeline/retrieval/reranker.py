@@ -34,14 +34,22 @@ class LocalReranker:
         model_name: str = "BAAI/bge-reranker-v2-m3",
         model_factory: RerankerFactory | None = None,
         concurrency: int = 1,
+        timeout_seconds: float = 25.0,
+        load_timeout_seconds: float = 28.0,
     ) -> None:
         if concurrency < 1:
             raise ValueError("reranker concurrency must be positive")
+        if timeout_seconds <= 0:
+            raise ValueError("reranker timeout must be positive")
+        if load_timeout_seconds <= 0:
+            raise ValueError("reranker load timeout must be positive")
         self._enabled = enabled
         self._model_name = model_name
         self._model_factory = model_factory or _load_flag_reranker
         self._semaphore = asyncio.Semaphore(concurrency)
         self._model: _RerankerModel | None = None
+        self._timeout_seconds = timeout_seconds
+        self._load_timeout_seconds = load_timeout_seconds
 
     async def rerank(
         self,
@@ -62,9 +70,17 @@ class LocalReranker:
             )
         try:
             async with self._semaphore:
-                model = await asyncio.to_thread(self._get_model)
+                loop = asyncio.get_running_loop()
+                deadline = loop.time() + max(self._timeout_seconds, self._load_timeout_seconds)
+                model = await asyncio.wait_for(
+                    asyncio.to_thread(self._get_model),
+                    timeout=min(self._load_timeout_seconds, _remaining_seconds(deadline, loop)),
+                )
                 pairs = [(query, candidate.content) for candidate in candidates]
-                scores = await asyncio.to_thread(model.compute_score, pairs, normalize=True)
+                scores = await asyncio.wait_for(
+                    asyncio.to_thread(model.compute_score, pairs, normalize=True),
+                    timeout=min(self._timeout_seconds, _remaining_seconds(deadline, loop)),
+                )
         except Exception:
             return RerankOutcome(
                 candidates=candidates[:top_n],
@@ -94,3 +110,7 @@ def _load_flag_reranker(model_name: str) -> _RerankerModel:
 
 def _clamp_score(score: float) -> float:
     return min(1.0, max(0.0, float(score)))
+
+
+def _remaining_seconds(deadline: float, loop: asyncio.AbstractEventLoop) -> float:
+    return max(0.001, deadline - loop.time())

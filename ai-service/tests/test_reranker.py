@@ -5,14 +5,16 @@ import time
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
+from corp_rag_ai.config import Settings
 from corp_rag_ai.domain.retrieval import RetrievalCandidate, RetrieverType
+from corp_rag_ai.pipeline.indexing.embedding import model_cache_available
 from corp_rag_ai.pipeline.retrieval.reranker import (
     RERANKER_DISABLED_WARNING,
     RERANKER_UNAVAILABLE_WARNING,
     LocalReranker,
 )
-from corp_rag_ai.pipeline.indexing.embedding import model_cache_available
 
 
 DOCUMENT_ID = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
@@ -59,6 +61,86 @@ async def test_unavailable_reranker_keeps_candidates_without_reporting_reranker_
     assert outcome.warnings == (RERANKER_UNAVAILABLE_WARNING,)
     assert [candidate.content for candidate in outcome.candidates] == ["first"]
     assert outcome.candidates[0].score == 0.8
+
+
+async def test_reranker_load_timeout_soft_degrades_to_raw_candidates() -> None:
+    reranker = LocalReranker(
+        model_factory=lambda _name: _sleep_then_model(0.05),
+        timeout_seconds=0.02,
+        load_timeout_seconds=0.01,
+    )
+
+    outcome = await reranker.rerank(
+        query="q",
+        candidates=(_candidate("first", 0.8), _candidate("second", 0.7)),
+        top_n=1,
+    )
+
+    assert outcome.reranker_used is False
+    assert outcome.warnings == (RERANKER_UNAVAILABLE_WARNING,)
+    assert [candidate.content for candidate in outcome.candidates] == ["first"]
+    assert outcome.candidates[0].score == 0.8
+
+
+async def test_reranker_score_timeout_soft_degrades_to_raw_candidates() -> None:
+    reranker = LocalReranker(
+        model_factory=lambda _name: _SlowScoringReranker(delay_seconds=0.05),
+        timeout_seconds=0.01,
+        load_timeout_seconds=0.02,
+    )
+
+    outcome = await reranker.rerank(
+        query="q",
+        candidates=(_candidate("first", 0.8), _candidate("second", 0.7)),
+        top_n=2,
+    )
+
+    assert outcome.reranker_used is False
+    assert outcome.warnings == (RERANKER_UNAVAILABLE_WARNING,)
+    assert [candidate.content for candidate in outcome.candidates] == ["first", "second"]
+    assert [candidate.score for candidate in outcome.candidates] == [0.8, 0.7]
+
+
+async def test_warm_working_reranker_is_not_falsely_degraded_by_timeout() -> None:
+    model = _FakeReranker([1.0])
+    factory_calls = 0
+
+    def factory(_name: str) -> _FakeReranker:
+        nonlocal factory_calls
+        factory_calls += 1
+        return model
+
+    reranker = LocalReranker(model_factory=factory, timeout_seconds=0.5, load_timeout_seconds=0.5)
+    await reranker.rerank(query="q", candidates=(_candidate("warmup", 0.5),), top_n=1)
+
+    model.scores = [0.2, 0.95]
+    outcome = await reranker.rerank(
+        query="q",
+        candidates=(_candidate("first", 0.8), _candidate("second", 0.7)),
+        top_n=2,
+    )
+
+    assert factory_calls == 1
+    assert outcome.reranker_used is True
+    assert RERANKER_UNAVAILABLE_WARNING not in outcome.warnings
+    assert [candidate.content for candidate in outcome.candidates] == ["second", "first"]
+    assert [candidate.score for candidate in outcome.candidates] == [0.95, 0.2]
+
+
+def test_reranker_step_budget_must_stay_below_query_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_QUERY_TIMEOUT_SECONDS", "25")
+    monkeypatch.setenv("AI_RERANKER_TIMEOUT_SECONDS", "25")
+    monkeypatch.setenv("AI_RERANKER_LOAD_TIMEOUT_SECONDS", "20")
+
+    with pytest.raises(ValidationError, match="strictly less than AI_QUERY_TIMEOUT_SECONDS"):
+        Settings(_env_file=None)
+
+    monkeypatch.setenv("AI_QUERY_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("AI_RERANKER_TIMEOUT_SECONDS", "25")
+    monkeypatch.setenv("AI_RERANKER_LOAD_TIMEOUT_SECONDS", "30")
+
+    with pytest.raises(ValidationError, match="strictly less than AI_QUERY_TIMEOUT_SECONDS"):
+        Settings(_env_file=None)
 
 
 async def test_reranker_semaphore_serializes_concurrent_scoring() -> None:
@@ -116,6 +198,15 @@ class _FailingReranker:
         raise RuntimeError("reranker unavailable")
 
 
+class _SlowScoringReranker:
+    def __init__(self, *, delay_seconds: float) -> None:
+        self._delay_seconds = delay_seconds
+
+    def compute_score(self, pairs, *, normalize: bool):
+        time.sleep(self._delay_seconds)
+        return [0.5 for _ in pairs]
+
+
 class _BlockingReranker:
     def __init__(self) -> None:
         self.active = 0
@@ -145,6 +236,11 @@ def _first_score(scores) -> float:
     if isinstance(scores, list | tuple):
         return float(scores[0])
     return float(scores)
+
+
+def _sleep_then_model(delay_seconds: float) -> _FakeReranker:
+    time.sleep(delay_seconds)
+    return _FakeReranker([1.0])
 
 
 def _candidate(content: str, score: float) -> RetrievalCandidate:
