@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from corp_rag_ai.pipeline.retrieval.reranker import (
     RERANKER_UNAVAILABLE_WARNING,
     LocalReranker,
 )
+from corp_rag_ai.pipeline.indexing.embedding import model_cache_available
 
 
 DOCUMENT_ID = UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
@@ -72,6 +74,33 @@ async def test_reranker_semaphore_serializes_concurrent_scoring() -> None:
     assert model.calls == 2
 
 
+@pytest.mark.integration
+def test_live_flag_reranker_scores_query_passage_pair(monkeypatch: pytest.MonkeyPatch) -> None:
+    model_name = os.environ.get("AI_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+    cache_dir = os.environ.get("AI_RERANKER_MODEL_CACHE_DIR") or os.environ.get("AI_EMBEDDING_MODEL_CACHE_DIR")
+    if cache_dir:
+        monkeypatch.setenv("HF_HOME", cache_dir)
+
+    live_download_enabled = os.environ.get("AI_RERANKER_LIVE_SMOKE_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if not live_download_enabled and not model_cache_available(model_name=model_name, cache_dir=cache_dir):
+        pytest.skip("AI_RERANKER_LIVE_SMOKE_ENABLED=true or a cached reranker model is required")
+
+    from FlagEmbedding import FlagReranker
+
+    scores = FlagReranker(model_name).compute_score(
+        [("vacation policy", "Employees request annual vacation after manager approval.")],
+        normalize=True,
+    )
+
+    score = _first_score(scores)
+    assert 0.0 <= score <= 1.0
+
+
 class _FakeReranker:
     def __init__(self, scores: list[float]) -> None:
         self.scores = scores
@@ -106,6 +135,16 @@ async def asyncio_gather(*awaitables) -> None:
     import asyncio
 
     await asyncio.gather(*awaitables)
+
+
+def _first_score(scores) -> float:
+    if isinstance(scores, (int, float)):
+        return float(scores)
+    if hasattr(scores, "tolist"):
+        scores = scores.tolist()
+    if isinstance(scores, list | tuple):
+        return float(scores[0])
+    return float(scores)
 
 
 def _candidate(content: str, score: float) -> RetrievalCandidate:
