@@ -195,7 +195,7 @@ Plans:
 - [x] 05.1-01-PLAN.md - Fix reranker dependency compatibility and prove bge-m3 embedding still works.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 05.1-02-PLAN.md - Bound reranker runtime failures and preserve soft-degraded answers.
+- [x] 05.1-02-PLAN.md - Bound reranker runtime failures and preserve soft-degraded answers.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 05.1-03-PLAN.md - Repair graph-route citation index mapping and final citation validation.
@@ -250,7 +250,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 �
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
 | 5. Retrieval, Guards & Query API | 8/8 | Complete | 2026-05-19 |
-| 5.1. Phase 5 UAT Fix Wave | 1/4 | In Progress | - |
+| 5.1. Phase 5 UAT Fix Wave | 2/4 | In Progress | - |
 | 6. Chat & Frontend Experience | 0/TBD | Blocked by Phase 5.1 | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |
