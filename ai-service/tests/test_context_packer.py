@@ -30,10 +30,33 @@ def test_context_packer_uses_xml_evidence_boundaries_and_child_citation_ids() ->
 
     assert packed.text.startswith("<evidence>")
     assert '<source index="1" parentChunkId="' in packed.text
+    assert '<citation index="1" chunkId="' in packed.text
+    assert "<quote>Child A quote</quote>" in packed.text
     assert "<text>Parent A context</text>" in packed.text
     assert [citation.chunk_id for citation in packed.citations] == [CHILD_A, CHILD_B]
     assert all(citation.chunk_id not in {PARENT_A, PARENT_B} for citation in packed.citations)
     assert [citation.quote for citation in packed.citations] == ["Child A quote", "Child B quote"]
+
+
+def test_graph_citation_quote_uses_parent_document_text_instead_of_graph_marker() -> None:
+    child = _candidate(CHILD_A, PARENT_A, "entity:CloudSec Inc", 0.9, retriever=RetrieverType.GRAPH)
+    resolution = ParentResolution(
+        contexts=(
+            ResolvedParentContext(
+                parent=_parent(PARENT_A, "CloudSec Inc is approved for endpoint monitoring."),
+                children=(child,),
+                max_child_score=0.9,
+            ),
+        ),
+        citation_candidates=(child,),
+    )
+
+    packed = ContextPacker(token_cap=4000).pack(resolution, (child,))
+
+    assert packed.citations[0].quote == "CloudSec Inc is approved for endpoint monitoring."
+    assert packed.citations[0].snippet == "CloudSec Inc is approved for endpoint monitoring."
+    assert not packed.citations[0].quote.startswith("entity:")
+    assert "<quote>CloudSec Inc is approved for endpoint monitoring.</quote>" in packed.text
 
 
 def test_context_packer_prefers_parent_boundaries_and_truncates_single_oversized_parent() -> None:
@@ -62,7 +85,14 @@ def _parent(parent_id: UUID, content: str) -> ParentChunkRecord:
     )
 
 
-def _candidate(chunk_id: UUID, parent_id: UUID, content: str, score: float) -> RetrievalCandidate:
+def _candidate(
+    chunk_id: UUID,
+    parent_id: UUID,
+    content: str,
+    score: float,
+    *,
+    retriever: RetrieverType = RetrieverType.HYBRID,
+) -> RetrievalCandidate:
     return RetrievalCandidate(
         chunk_id=chunk_id,
         parent_chunk_id=parent_id,
@@ -73,5 +103,5 @@ def _candidate(chunk_id: UUID, parent_id: UUID, content: str, score: float) -> R
         snippet=content,
         score=score,
         access_level="INTERNAL",
-        retriever=RetrieverType.HYBRID,
+        retriever=retriever,
     )

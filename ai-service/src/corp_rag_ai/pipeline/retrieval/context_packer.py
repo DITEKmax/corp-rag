@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import tiktoken
 
-from corp_rag_ai.domain.retrieval import CitationDraft, RetrievalCandidate
+from corp_rag_ai.domain.retrieval import CitationDraft, RetrievalCandidate, RetrieverType
 from corp_rag_ai.pipeline.retrieval.parent_resolver import ParentResolution, ResolvedParentContext
 
 OVERSIZED_PARENT_TRUNCATED = "oversized_parent_truncated"
@@ -26,6 +26,7 @@ class ContextPacker:
 
     def pack(self, resolution: ParentResolution, ranked_children: tuple[RetrievalCandidate, ...]) -> PackedContext:
         citation_order = {candidate.chunk_id: index for index, candidate in enumerate(ranked_children)}
+        citation_index_by_chunk_id = {candidate.chunk_id: index + 1 for index, candidate in enumerate(ranked_children)}
         contexts = sorted(
             resolution.contexts,
             key=lambda context: max((citation_order.get(child.chunk_id, 10_000) for child in context.children), default=10_000),
@@ -35,7 +36,7 @@ class ContextPacker:
         token_total = 0
 
         for context in contexts:
-            source_text = _source_block(len(included) + 1, context)
+            source_text = _source_block(len(included) + 1, context, citation_index_by_chunk_id)
             source_tokens = _count_tokens(source_text)
             if token_total + source_tokens <= self._token_cap:
                 included.append(context)
@@ -60,43 +61,73 @@ class ContextPacker:
                 warnings.append(OVERSIZED_PARENT_TRUNCATED)
             break
 
-        text = "<evidence>\n" + "\n".join(_source_block(index, context) for index, context in enumerate(included, 1)) + "\n</evidence>"
+        text = (
+            "<evidence>\n"
+            + "\n".join(_source_block(index, context, citation_index_by_chunk_id) for index, context in enumerate(included, 1))
+            + "\n</evidence>"
+        )
         included_child_ids = {child.chunk_id for context in included for child in context.children}
+        parent_text_by_child_id = {
+            child.chunk_id: context.parent.content
+            for context in included
+            for child in context.children
+        }
         citations = tuple(
-            _citation_from_candidate(candidate)
+            _citation_from_candidate(candidate, parent_text=parent_text_by_child_id.get(candidate.chunk_id))
             for candidate in ranked_children
             if candidate.chunk_id in included_child_ids
         )
         return PackedContext(text=text, citations=citations, token_count=_count_tokens(text), warnings=tuple(warnings))
 
 
-def _source_block(index: int, context: ResolvedParentContext) -> str:
+def _source_block(
+    index: int,
+    context: ResolvedParentContext,
+    citation_index_by_chunk_id: dict[object, int],
+) -> str:
     child_ids = ",".join(str(child.chunk_id) for child in context.children)
     section = " > ".join(context.parent.section_path)
+    citations = "\n".join(
+        _citation_block(child, citation_index_by_chunk_id[child.chunk_id], parent_text=context.parent.content)
+        for child in context.children
+        if child.chunk_id in citation_index_by_chunk_id
+    )
     return (
         f'<source index="{index}" parentChunkId="{context.parent.parent_chunk_id}" childChunkIds="{child_ids}">\n'
         f"<section>{section}</section>\n"
+        f"<citations>\n{citations}\n</citations>\n"
         f"<text>{context.parent.content}</text>\n"
         "</source>"
     )
 
 
-def _citation_from_candidate(candidate: RetrievalCandidate) -> CitationDraft:
+def _citation_block(candidate: RetrievalCandidate, index: int, *, parent_text: str) -> str:
+    return (
+        f'<citation index="{index}" chunkId="{candidate.chunk_id}">\n'
+        f"<quote>{_quote(candidate, parent_text=parent_text, max_length=300)}</quote>\n"
+        "</citation>"
+    )
+
+
+def _citation_from_candidate(candidate: RetrievalCandidate, *, parent_text: str | None = None) -> CitationDraft:
     return CitationDraft(
         document_id=candidate.document_id,
         document_title=candidate.document_title,
         chunk_id=candidate.chunk_id,
         section_path=candidate.section_path,
-        quote=_quote(candidate),
-        snippet=_quote(candidate, max_length=200),
+        quote=_quote(candidate, parent_text=parent_text),
+        snippet=_quote(candidate, parent_text=parent_text, max_length=200),
         page_number=candidate.page_number,
         score=candidate.score,
         access_level=candidate.access_level,
     )
 
 
-def _quote(candidate: RetrievalCandidate, *, max_length: int = 200) -> str:
-    text = (candidate.snippet or candidate.content).strip()
+def _quote(candidate: RetrievalCandidate, *, parent_text: str | None = None, max_length: int = 200) -> str:
+    if candidate.retriever is RetrieverType.GRAPH and parent_text and parent_text.strip():
+        text = parent_text.strip()
+    else:
+        text = (candidate.snippet or candidate.content).strip()
     return text[:max_length]
 
 
