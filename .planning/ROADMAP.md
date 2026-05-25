@@ -2,7 +2,7 @@
 
 ## Overview
 
-This roadmap turns the ingested architecture, ADRs, and implementation breakdown into eight coherent delivery phases. It starts with local infrastructure and contracts, builds the Java enterprise backbone, adds asynchronous document indexing, delivers the Python RAG pipeline and guarded query API, then finishes with the user-facing chat/admin experience, evaluation evidence, and production-like demo readiness.
+This roadmap turns the ingested architecture, ADRs, and implementation breakdown into eight planned delivery phases, plus decimal insertion phases when UAT or urgent findings need closure before the next planned phase. It starts with local infrastructure and contracts, builds the Java enterprise backbone, adds asynchronous document indexing, delivers the Python RAG pipeline and guarded query API, then finishes with the user-facing chat/admin experience, evaluation evidence, and production-like demo readiness.
 
 ## Phases
 
@@ -15,7 +15,8 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - [x] **Phase 3: Documents, Events & Audit** - Java can manage documents and exchange indexing events safely. (completed 2026-05-17)
 - [x] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status. (completed 2026-05-19)
 - [x] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers. (completed 2026-05-19)
-- [ ] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows. (next)
+- [ ] **Phase 5.1: Phase 5 UAT Fix Wave (INSERTED)** - Reranker runs reliably, reranker failures soft-degrade, graph-route citations/snippets are user-facing safe, and live re-UAT closes the findings. (in progress)
+- [ ] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows. (blocked on Phase 5.1)
 - [ ] **Phase 7: Evaluation & Observability** - Quality, safety, ablation, traces, and metrics are measurable.
 - [ ] **Phase 8: Delivery Polish & Demo Readiness** - Production-like compose, seed corpus, final regression, README, and demo assets are ready.
 
@@ -176,9 +177,35 @@ Plans:
 **Wave 7** *(blocked on Wave 6 completion)*
 - [x] 05-08-PLAN.md - Add Phase 5 UAT, live smoke helpers, and handoff docs.
 
+### Phase 5.1: Phase 5 UAT Fix Wave (INSERTED)
+**Goal**: Close the high-priority Phase 5 live UAT findings before Phase 6 builds a user-facing chat UI on top of query answers.
+**Depends on**: Phase 5
+**Requirements**: RET-04, AGT-03, SEC-01
+**Success Criteria** (what must be TRUE):
+  1. Local `BAAI/bge-reranker-v2-m3` scoring works with the resolved Python dependency set while bge-m3 dense+sparse embeddings still pass.
+  2. Reranker load/scoring exceptions or step timeouts soft-degrade to raw retrieval order with explicit metadata, not whole-query timeout.
+  3. Final answer `[N]` references always map to the returned `citations` array after final response assembly.
+  4. Graph aggregation answers return citeable document-text evidence for answerable questions, and out-of-range refs are blocked or repaired before `answered=true`.
+  5. Graph citation `quote`/`snippet` fields show document text rather than `entity:X` markers.
+  6. Phase 5 live re-UAT passes Scenario 3, Scenario 4 Probe B/C, and quick non-regression for Scenarios 1, 2, 5, and 6 with `AI_RERANKER_ENABLED=true`.
+**Plans:** 4 plans
+Plans:
+
+**Wave 1**
+- [x] 05.1-01-PLAN.md - Fix reranker dependency compatibility and prove bge-m3 embedding still works.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 05.1-02-PLAN.md - Bound reranker runtime failures and preserve soft-degraded answers.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 05.1-03-PLAN.md - Repair graph-route citation index mapping and final citation validation.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 05.1-04-PLAN.md - Rebuild and rerun live Phase 5 UAT with reranker enabled.
+
 ### Phase 6: Chat & Frontend Experience
 **Goal**: Users can complete the core workflows in the browser: login, chat with citations, inspect sources, and perform admin tasks.
-**Depends on**: Phase 5
+**Depends on**: Phase 5.1
 **Requirements**: CHAT-01, CHAT-02, UI-01, UI-02, UI-03
 **Success Criteria** (what must be TRUE):
   1. User can create or continue a private conversation and see persisted message history.
@@ -214,7 +241,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -223,6 +250,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Documents, Events & Audit | 6/6 | Complete | 2026-05-17 |
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
 | 5. Retrieval, Guards & Query API | 8/8 | Complete | 2026-05-19 |
-| 6. Chat & Frontend Experience | 0/TBD | Next | - |
+| 5.1. Phase 5 UAT Fix Wave | 1/4 | In Progress | - |
+| 6. Chat & Frontend Experience | 0/TBD | Blocked by Phase 5.1 | - |
 | 7. Evaluation & Observability | 0/TBD | Not started | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |

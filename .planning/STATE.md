@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-08-PLAN.md
-last_updated: "2026-05-19T21:32:10.566Z"
-last_activity: 2026-05-19
+stopped_at: Completed 05.1-01-PLAN.md
+last_updated: "2026-05-25T19:26:38.347Z"
+last_activity: 2026-05-25
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 5
-  total_plans: 36
-  completed_plans: 36
-  percent: 100
+  total_plans: 40
+  completed_plans: 37
+  percent: 93
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 06 — chat-frontend-experience
+**Current focus:** Phase 05.1 — phase-5-uat-fix-wave
 
 ## Current Position
 
-Phase: 06 (chat-frontend-experience) — READY
-Plan: TBD
-Status: Ready for planning
-Last activity: 2026-05-19
+Phase: 05.1 (phase-5-uat-fix-wave) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-05-25
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [██████████] 100%
 | Phase 05 P06 | 5 min | 3 tasks | 10 files |
 | Phase 05 P07 | 17 min | 3 tasks | 15 files |
 | Phase 05 P08 | 6 min | 3 tasks | 8 files |
+| Phase 05.1 P01 | 20 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -140,13 +141,13 @@ Recent locked decisions affecting current work:
 
 ### Pending Todos
 
-- Plan Phase 6: Chat & Frontend Experience.
-- Run Phase 05 live query UAT from `05-UAT.md` when OpenRouter credentials, Docker stack, and a fresh indexed corpus are available.
+- Execute Phase 5.1: Phase 5 UAT Fix Wave (`05.1-01` -> `05.1-02` -> `05.1-03` -> `05.1-04` live re-UAT).
+- After Phase 5.1 verification, resume Phase 6: Chat & Frontend Experience.
 
 ### Blockers/Concerns
 
-- No blocker for Phase 6 planning.
-- Live Phase 05 query UAT was not executed in this automated pass; it requires OpenRouter credentials, a running Docker stack, and a fresh indexed corpus.
+- Phase 6 is blocked on Phase 5.1 because the chat UI would otherwise expose degraded reranker behavior, graph citation index mismatches, and graph citation snippets that can show entity markers rather than document text.
+- Phase 5 UAT evidence is recorded in `.planning/phases/05-retrieval-guards-query-api/05-UAT-EVIDENCE.md`; the high-priority fix list is recorded in `.planning/phases/05-retrieval-guards-query-api/PHASE5-UAT-FIX-REPORT.md`.
 
 ## Deferred Items
 
@@ -164,6 +165,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-19T21:32:10.566Z
-Stopped at: Completed 05-08-PLAN.md
+Last session: 2026-05-25T19:26:37.791Z
+Stopped at: Completed 05.1-01-PLAN.md
 Resume file: None

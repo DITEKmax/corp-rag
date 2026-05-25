@@ -42,7 +42,7 @@
 - [ ] **RET-01**: Hybrid retriever queries Qdrant with dense+sparse bge-m3 vectors and RRF fusion.
 - [ ] **RET-02**: Retrieval applies access filters in Qdrant and Neo4j so unauthorized chunks cannot be returned.
 - [ ] **RET-03**: Graph retrievers support local and global entity-based retrieval for multi-hop, aggregation, and comparison questions.
-- [ ] **RET-04**: Parent resolver and reranker reduce retrieved evidence to the final context.
+- [x] **RET-04**: Parent resolver and reranker reduce retrieved evidence to the final context.
 - [ ] **AGT-01**: Query router classifies factual, aggregation, multi-hop, comparison, and unsupported queries.
 - [ ] **AGT-02**: LangGraph orchestrates guard, retrieval, rerank, synthesis, and output guard nodes.
 - [ ] **AGT-03**: Answer generation returns cited structured output with answer, citations, confidence, answered flag, and retrieval metadata.
@@ -112,7 +112,7 @@
 | RET-01 | Phase 5 | Pending |
 | RET-02 | Phase 5 | Pending |
 | RET-03 | Phase 5 | Pending |
-| RET-04 | Phase 5 | Pending |
+| RET-04 | Phase 5 | Complete |
 | AGT-01 | Phase 5 | Pending |
 | AGT-02 | Phase 5 | Pending |
 | AGT-03 | Phase 5 | Pending |
