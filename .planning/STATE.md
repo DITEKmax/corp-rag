@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05.1-02-PLAN.md
-last_updated: "2026-05-25T19:49:02.274Z"
+stopped_at: Completed 05.1-03-PLAN.md
+last_updated: "2026-05-25T20:04:26.344Z"
 last_activity: 2026-05-25
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 40
-  completed_plans: 38
-  percent: 95
+  completed_plans: 39
+  percent: 98
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 05.1 (phase-5-uat-fix-wave) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-25
 
-Progress: [██████████] 95%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [██████████] 95%
 | Phase 05 P08 | 6 min | 3 tasks | 8 files |
 | Phase 05.1 P01 | 20 min | 3 tasks | 5 files |
 | Phase 05.1-phase-5-uat-fix-wave P02 | 32min | 3 tasks | 12 files |
+| Phase 05.1-phase-5-uat-fix-wave P03 | 25 | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,7 @@ Recent locked decisions affecting current work:
 - [Phase 05]: Query live smokes are optional integration tests and skip by default. - They require AI_QUERY_LIVE_SMOKE_ENABLED, OPENROUTER_API_KEY, a running Python AI service, and fresh corpus readiness.
 - [Phase 05]: Phase 6 owns Java chat persistence, query audit rows, browser chat UI, and source-viewer behavior. - Python now returns enough answer/citation/guard/retrieval metadata for those layers.
 - [Phase 05.1]: 05.1-02: Reranker load/scoring budgets fail fast when max(load, score) is greater than or equal to AI_QUERY_TIMEOUT_SECONDS; timeout failures soft-degrade with reranker_unavailable and 05.1-04 must pre-warm before timed Scenario 3.
+- [Phase 05.1]: 05.1-03: Final query responses return the full packed citation index space and validate inline refs against the final REST citations array; graph citations resolve user-facing quote/snippet from document text rather than graph markers.
 
 ### Pending Todos
 
@@ -167,6 +169,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-25T19:49:02.254Z
-Stopped at: Completed 05.1-02-PLAN.md
+Last session: 2026-05-25T20:04:26.318Z
+Stopped at: Completed 05.1-03-PLAN.md
 Resume file: None

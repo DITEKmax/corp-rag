@@ -46,7 +46,7 @@
 - [ ] **AGT-01**: Query router classifies factual, aggregation, multi-hop, comparison, and unsupported queries.
 - [ ] **AGT-02**: LangGraph orchestrates guard, retrieval, rerank, synthesis, and output guard nodes.
 - [x] **AGT-03**: Answer generation returns cited structured output with answer, citations, confidence, answered flag, and retrieval metadata.
-- [ ] **SEC-01**: Guard stack blocks known prompt injection patterns, classifies unsafe requests, isolates retrieved context, and checks outputs.
+- [x] **SEC-01**: Guard stack blocks known prompt injection patterns, classifies unsafe requests, isolates retrieved context, and checks outputs.
 
 ### Chat and Frontend
 
@@ -116,7 +116,7 @@
 | AGT-01 | Phase 5 | Pending |
 | AGT-02 | Phase 5 | Pending |
 | AGT-03 | Phase 5 | Complete |
-| SEC-01 | Phase 5 | Pending |
+| SEC-01 | Phase 5 | Complete |
 | CHAT-01 | Phase 6 | Pending |
 | CHAT-02 | Phase 6 | Pending |
 | UI-01 | Phase 6 | Pending |
