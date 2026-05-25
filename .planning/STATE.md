@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 05.1-03-PLAN.md
-last_updated: "2026-05-25T20:04:26.344Z"
-last_activity: 2026-05-25
+status: ready
+stopped_at: Completed 05.1-05-SUMMARY.md
+last_updated: "2026-05-26T00:00:00.000Z"
+last_activity: 2026-05-26
 progress:
   total_phases: 9
-  completed_phases: 5
-  total_plans: 40
-  completed_plans: 39
-  percent: 98
+  completed_phases: 6
+  total_plans: 41
+  completed_plans: 41
+  percent: 100
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 05.1 — phase-5-uat-fix-wave
+**Current focus:** Phase 06 — Chat & Frontend Experience
 
 ## Current Position
 
-Phase: 05.1 (phase-5-uat-fix-wave) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-05-25
+Phase: 06 (Chat & Frontend Experience) — READY
+Plan: TBD
+Status: Phase 5.1 complete; ready to plan/execute Phase 6
+Last activity: 2026-05-26
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 36
+- Total plans completed: 41
 - Average duration: N/A
 - Total execution time: 0 hours
 
@@ -61,6 +61,8 @@ Progress: [██████████] 98%
 | Phase 05.1 P01 | 20 min | 3 tasks | 5 files |
 | Phase 05.1-phase-5-uat-fix-wave P02 | 32min | 3 tasks | 12 files |
 | Phase 05.1-phase-5-uat-fix-wave P03 | 25 | 3 tasks | 9 files |
+| Phase 05.1-phase-5-uat-fix-wave P04 | live UAT | 4 tasks | evidence |
+| Phase 05.1-phase-5-uat-fix-wave P05 | live UAT follow-up | 4 tasks | graph text/citation fix |
 
 ## Accumulated Context
 
@@ -142,15 +144,16 @@ Recent locked decisions affecting current work:
 - [Phase 05]: Phase 6 owns Java chat persistence, query audit rows, browser chat UI, and source-viewer behavior. - Python now returns enough answer/citation/guard/retrieval metadata for those layers.
 - [Phase 05.1]: 05.1-02: Reranker load/scoring budgets fail fast when max(load, score) is greater than or equal to AI_QUERY_TIMEOUT_SECONDS; timeout failures soft-degrade with reranker_unavailable and 05.1-04 must pre-warm before timed Scenario 3.
 - [Phase 05.1]: 05.1-03: Final query responses return the full packed citation index space and validate inline refs against the final REST citations array; graph citations resolve user-facing quote/snippet from document text rather than graph markers.
+- [Phase 05.1]: 05.1-05 resolves graph citation/scoring text from the existing parent chunk store before reranking instead of requiring Neo4j relationship text or a corpus reindex. Aggregation graph score is query-term matched, not a hardcoded confidence bypass; absent graph evidence still refuses.
 
 ### Pending Todos
 
-- Execute Phase 5.1: Phase 5 UAT Fix Wave (`05.1-01` -> `05.1-02` -> `05.1-03` -> `05.1-04` live re-UAT).
-- After Phase 5.1 verification, resume Phase 6: Chat & Frontend Experience.
+- Plan Phase 6: Chat & Frontend Experience.
+- Keep PH5.1-DEF-B as info-level reproducibility debt: restore a pinned uv base image when ghcr.io is reachable from Docker or a mirror is configured.
 
 ### Blockers/Concerns
 
-- Phase 6 is blocked on Phase 5.1 because the chat UI would otherwise expose degraded reranker behavior, graph citation index mismatches, and graph citation snippets that can show entity markers rather than document text.
+- No current Phase 6 blocker from Phase 5.1. DEF-A is closed by live Probe B/C evidence; DEF-B remains non-blocking Docker base-image reproducibility debt.
 - Phase 5 UAT evidence is recorded in `.planning/phases/05-retrieval-guards-query-api/05-UAT-EVIDENCE.md`; the high-priority fix list is recorded in `.planning/phases/05-retrieval-guards-query-api/PHASE5-UAT-FIX-REPORT.md`.
 
 ## Deferred Items
@@ -169,6 +172,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-25T20:04:26.318Z
-Stopped at: Completed 05.1-03-PLAN.md
+Last session: 2026-05-26T00:00:00.000Z
+Stopped at: Completed 05.1-05-SUMMARY.md
 Resume file: None

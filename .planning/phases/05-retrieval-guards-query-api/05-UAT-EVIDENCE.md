@@ -148,6 +148,17 @@ Observation: `degradationWarnings` contained only `reranker_disabled`, not `vect
 - Paid model override flows correctly through `.env` -> compose -> config (`modelId` confirmed in responses).
 - Graph aggregation answers over Neo4j work end-to-end and survive a Qdrant outage.
 
+## Phase 5.1 Follow-up Closure
+
+See `.planning/phases/05.1-phase-5-uat-fix-wave/05.1-UAT-EVIDENCE.md` for the final live fix-wave evidence.
+
+As of 2026-05-26:
+- PH5-UAT-DEF-02 and PH5-UAT-DEF-03 are closed: `BAAI/bge-reranker-v2-m3` works on `transformers==4.57.6`, warm Scenario 3 returns `rerankerUsed=true`, and runtime timeout paths soft-degrade.
+- PH5-UAT-DEF-04 is closed for answerable graph aggregation: Probe B/C return `answered=true` with valid `[N]` refs against the final REST citations array.
+- PH5-UAT-DEF-06 is closed: graph citation `quote`/`snippet` fields resolve to document text from parent chunks, not `entity:X` markers.
+- S5 no-evidence still refuses honestly, including a graph-style aviation aggregation probe that returns zero graph rows with wildcard departments.
+- PH5.1-DEF-B remains open as non-blocking reproducibility debt: the Dockerfile currently uses Docker Hub `astral/uv:python3.12-bookworm` because ghcr.io is unreachable from the Docker daemon; Python package versions remain pinned by `uv.lock`.
+
 ## Summary
 
 total: 10
