@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 from uuid import UUID
 
 from corp_rag_ai.domain.ingestion_state import ParentChunkRecord
-from corp_rag_ai.domain.retrieval import RetrievalCandidate
+from corp_rag_ai.domain.retrieval import RetrievalCandidate, RetrieverType
 
 MISSING_PARENT_WARNING = "missing_parent_context"
 
@@ -42,14 +42,18 @@ class ParentResolver:
         children_by_parent: dict[UUID, list[RetrievalCandidate]] = defaultdict(list)
         warnings: list[str] = []
 
+        citation_candidates: list[RetrievalCandidate] = []
         for candidate in candidates:
             if candidate.parent_chunk_id is None:
                 warnings.append(f"{MISSING_PARENT_WARNING}:{candidate.chunk_id}")
                 continue
-            if candidate.parent_chunk_id not in parents:
+            parent = parents.get(candidate.parent_chunk_id)
+            if parent is None:
                 warnings.append(f"{MISSING_PARENT_WARNING}:{candidate.parent_chunk_id}")
                 continue
-            children_by_parent[candidate.parent_chunk_id].append(candidate)
+            enriched = _document_backed_candidate(candidate, parent)
+            children_by_parent[candidate.parent_chunk_id].append(enriched)
+            citation_candidates.append(enriched)
 
         contexts = [
             ResolvedParentContext(
@@ -60,12 +64,27 @@ class ParentResolver:
             for parent_id, children in children_by_parent.items()
         ]
         contexts.sort(key=lambda item: item.max_child_score, reverse=True)
-        usable_parent_ids = {context.parent.parent_chunk_id for context in contexts}
-        citation_candidates = tuple(
-            candidate for candidate in candidates if candidate.parent_chunk_id in usable_parent_ids
-        )
         return ParentResolution(
             contexts=tuple(contexts),
-            citation_candidates=citation_candidates,
+            citation_candidates=tuple(citation_candidates),
             warnings=tuple(warnings),
         )
+
+
+def _document_backed_candidate(candidate: RetrievalCandidate, parent: ParentChunkRecord) -> RetrievalCandidate:
+    if candidate.retriever is not RetrieverType.GRAPH:
+        return candidate
+    parent_text = parent.content.strip()
+    if not parent_text:
+        return candidate
+    graph_path = str(candidate.metadata.get("graphPath") or "").strip()
+    if _is_internal_graph_text(candidate.content, graph_path) or _is_internal_graph_text(candidate.snippet, graph_path):
+        return replace(candidate, content=parent_text, snippet=parent_text)
+    return candidate
+
+
+def _is_internal_graph_text(value: str | None, graph_path: str) -> bool:
+    text = (value or "").strip()
+    if not text:
+        return True
+    return text.startswith(("entity:", "comparison:")) or bool(graph_path and text == graph_path)

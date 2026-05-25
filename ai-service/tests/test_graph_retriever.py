@@ -8,7 +8,7 @@ import pytest
 from corp_rag_ai.domain.query import AccessFilter, QueryInput, QueryRoute
 from corp_rag_ai.domain.retrieval import RetrievalFailureReason, RetrieverType
 from corp_rag_ai.pipeline.retrieval.graph import GraphRetriever
-from corp_rag_ai.pipeline.retrieval.graph_query_helpers import graph_access_params
+from corp_rag_ai.pipeline.retrieval.graph_query_helpers import aggregation_query, comparison_query, graph_access_params, multi_hop_query
 
 
 USER_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
@@ -166,6 +166,12 @@ def test_graph_queries_do_not_return_entity_only_evidence() -> None:
     assert "->(d:Document)" in cypher
     assert "d.accessLevel IN $accessLevels" in cypher
     assert params["accessLevels"] == ["PUBLIC", "INTERNAL"]
+
+
+def test_graph_queries_do_not_read_missing_relationship_text_properties() -> None:
+    for cypher in (aggregation_query(), multi_hop_query(3), comparison_query()):
+        assert "mention.text" not in cypher
+        assert "evidence.text" not in cypher
 
 
 class _FakeGraphSession:

@@ -13,6 +13,8 @@ PARENT_B = UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 CHILD_A = UUID("11111111-1111-4111-8111-111111111042")
 CHILD_B = UUID("22222222-2222-4222-8222-222222222017")
 MISSING_PARENT = UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
+LIVE_GRAPH_CHILD = UUID("5e627834-1111-4111-8111-111111111047")
+LIVE_GRAPH_PARENT = UUID("5e627834-2222-4222-8222-222222222048")
 
 
 async def test_parent_resolver_dedupes_orders_by_max_child_score_and_preserves_child_citations() -> None:
@@ -48,6 +50,37 @@ async def test_missing_parent_warns_and_excludes_only_that_parent_from_context()
     assert result.warnings == (f"{MISSING_PARENT_WARNING}:{MISSING_PARENT}",)
 
 
+async def test_graph_candidate_without_document_text_is_enriched_from_parent_context_before_rerank() -> None:
+    parent_text = "CloudSec Inc is approved for endpoint monitoring under the vendor policy."
+    resolver = ParentResolver(_ParentRepo({LIVE_GRAPH_PARENT: _parent(LIVE_GRAPH_PARENT, parent_text)}))
+    graph_marker = RetrievalCandidate(
+        chunk_id=LIVE_GRAPH_CHILD,
+        parent_chunk_id=LIVE_GRAPH_PARENT,
+        document_id=DOCUMENT_ID,
+        document_title="Vendor Approvals",
+        section_path=("Compliance",),
+        content="entity:CloudSec Inc",
+        snippet=None,
+        score=0.75,
+        access_level="INTERNAL",
+        retriever=RetrieverType.GRAPH,
+        metadata={"graphPath": "entity:CloudSec Inc", "candidateGroup": "CloudSec Inc"},
+    )
+
+    result = await resolver.resolve((graph_marker,))
+
+    assert repo_parent_ids(result) == (LIVE_GRAPH_PARENT,)
+    enriched = result.citation_candidates[0]
+    assert enriched.chunk_id == LIVE_GRAPH_CHILD
+    assert enriched.parent_chunk_id == LIVE_GRAPH_PARENT
+    assert enriched.content == parent_text
+    assert enriched.snippet == parent_text
+    assert enriched.retriever is RetrieverType.GRAPH
+    assert enriched.metadata["graphPath"] == "entity:CloudSec Inc"
+    assert result.contexts[0].children == (enriched,)
+    assert not enriched.content.startswith("entity:")
+
+
 class _ParentRepo:
     def __init__(self, parents: dict[UUID, ParentChunkRecord]) -> None:
         self.parents = parents
@@ -81,3 +114,7 @@ def _candidate(chunk_id: UUID, *, parent_id: UUID, score: float) -> RetrievalCan
         access_level="INTERNAL",
         retriever=RetrieverType.HYBRID,
     )
+
+
+def repo_parent_ids(result) -> tuple[UUID, ...]:
+    return tuple(context.parent.parent_chunk_id for context in result.contexts)

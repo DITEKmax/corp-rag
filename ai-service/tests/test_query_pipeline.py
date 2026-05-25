@@ -32,6 +32,8 @@ SECOND_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111043")
 THIRD_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111044")
 FOURTH_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111045")
 FIFTH_CHUNK_ID = UUID("11111111-1111-4111-8111-111111111046")
+LIVE_GRAPH_CHUNK_ID = UUID("5e627834-1111-4111-8111-111111111047")
+LIVE_GRAPH_PARENT_ID = UUID("5e627834-2222-4222-8222-222222222048")
 
 
 async def test_pipeline_guarded_rejection_skips_route_and_retrieval() -> None:
@@ -191,6 +193,42 @@ async def test_pipeline_graph_answer_returns_full_final_citation_index_space_aft
     assert _inline_refs_are_valid(result.answer, citation_count=len(result.citations))
 
 
+async def test_pipeline_graph_parent_text_reaches_reranker_and_final_citations_without_relationship_text() -> None:
+    parent_text = "CloudSec Inc is approved for endpoint monitoring under the vendor policy."
+    graph_marker = _candidate(
+        RetrieverType.GRAPH,
+        chunk_id=LIVE_GRAPH_CHUNK_ID,
+        parent_id=LIVE_GRAPH_PARENT_ID,
+        content="entity:CloudSec Inc",
+        score=0.75,
+    )
+    parent_repo = _ParentRepo({LIVE_GRAPH_PARENT_ID: _parent(LIVE_GRAPH_PARENT_ID, content=parent_text)})
+    components = _components(
+        graph_result=_retrieval_result(QueryRoute.AGGREGATION, RetrieverType.GRAPH, graph_marker),
+        parent_repo=parent_repo,
+        synthesis_result=SynthesisResult(
+            answered=True,
+            answer="CloudSec Inc is approved as a vendor [1].",
+            citation_indexes=(1,),
+            confidence_hint=0.9,
+        ),
+        final_top_n=1,
+    )
+    service = _service(components)
+
+    result = await service.answer(_query("How many vendors are approved in total?"))
+
+    assert components.reranker.seen_candidates[0].chunk_id == LIVE_GRAPH_CHUNK_ID
+    assert components.reranker.seen_candidates[0].content == parent_text
+    assert components.reranker.seen_candidates[0].snippet == parent_text
+    assert result.answered is True
+    assert result.citations[0].chunk_id == LIVE_GRAPH_CHUNK_ID
+    assert result.citations[0].quote == parent_text
+    assert result.citations[0].snippet == parent_text
+    assert not result.citations[0].quote.startswith("entity:")
+    assert _inline_refs_are_valid(result.answer, citation_count=len(result.citations))
+
+
 async def test_pipeline_vector_dependency_failure_maps_to_refusal() -> None:
     components = _components(
         hybrid_result=RetrievalResult(
@@ -227,8 +265,10 @@ def _components(
     graph_result: RetrievalResult | None = None,
     reranker_mode: str = "normal",
     synthesis_result: SynthesisResult | None = None,
+    parent_repo: "_ParentRepo | None" = None,
     final_top_n: int = 1,
 ) -> QueryGraphComponents:
+    reranker = _Reranker(reranker_mode)
     return QueryGraphComponents(
         input_guard=InputGuard(model_id="deepseek-test"),
         router=_CountingRouter(),
@@ -238,8 +278,8 @@ def _components(
         graph_retriever=_Retriever(
             graph_result or _retrieval_result(QueryRoute.AGGREGATION, RetrieverType.GRAPH, _candidate(RetrieverType.GRAPH))
         ),
-        parent_resolver=ParentResolver(_ParentRepo()),
-        reranker=_Reranker(reranker_mode),
+        parent_resolver=ParentResolver(parent_repo or _ParentRepo()),
+        reranker=reranker,
         context_packer=ContextPacker(token_cap=4000),
         synthesizer=_Synthesizer(synthesis_result),
         output_guard=OutputGuard(),
@@ -272,8 +312,10 @@ class _Retriever:
 class _Reranker:
     def __init__(self, mode: str) -> None:
         self.mode = mode
+        self.seen_candidates: tuple[RetrievalCandidate, ...] = ()
 
     async def rerank(self, *, query: str, candidates: tuple[RetrievalCandidate, ...], top_n: int) -> RerankOutcome:
+        self.seen_candidates = candidates
         if self.mode == "degraded":
             return RerankOutcome(
                 candidates=candidates[:top_n],
@@ -303,7 +345,12 @@ class _Synthesizer:
 
 
 class _ParentRepo:
+    def __init__(self, parents: dict[UUID, ParentChunkRecord] | None = None) -> None:
+        self.parents = parents
+
     async def get_by_parent_ids(self, parent_ids: tuple[UUID, ...]) -> dict[UUID, ParentChunkRecord]:
+        if self.parents is not None:
+            return {parent_id: self.parents[parent_id] for parent_id in parent_ids if parent_id in self.parents}
         return {parent_id: _parent(parent_id) for parent_id in parent_ids}
 
 
@@ -346,12 +393,13 @@ def _candidate(
     retriever: RetrieverType,
     *,
     chunk_id: UUID = CHUNK_ID,
+    parent_id: UUID = PARENT_ID,
     content: str = "Vacation policy child quote.",
     score: float = 0.8,
 ) -> RetrievalCandidate:
     return RetrievalCandidate(
         chunk_id=chunk_id,
-        parent_chunk_id=PARENT_ID,
+        parent_chunk_id=parent_id,
         document_id=DOCUMENT_ID,
         document_title="Vacation Policy",
         section_path=("HR", "Leave"),
@@ -369,12 +417,12 @@ def _inline_refs_are_valid(answer: str, *, citation_count: int) -> bool:
     return all(1 <= int(match) <= citation_count for match in re.findall(r"\[(\d+)\]", answer))
 
 
-def _parent(parent_id: UUID) -> ParentChunkRecord:
+def _parent(parent_id: UUID, *, content: str = "Vacation policy parent context.") -> ParentChunkRecord:
     return ParentChunkRecord(
         parent_chunk_id=parent_id,
         document_id=DOCUMENT_ID,
         section_path=("HR", "Leave"),
-        content="Vacation policy parent context.",
+        content=content,
         position=0,
         token_count=10,
     )
