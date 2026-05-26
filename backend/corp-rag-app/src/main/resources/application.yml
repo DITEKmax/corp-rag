@@ -75,6 +75,10 @@ app:
     bucket: ${JAVA_MINIO_BUCKET:corp-rag-documents}
     raw-url-ttl: ${JAVA_MINIO_RAW_URL_TTL:5m}
     initialize-bucket: ${JAVA_MINIO_INITIALIZE_BUCKET:false}
+  ai-service:
+    base-url: ${JAVA_AI_BASE_URL:http://localhost:8000}
+    connect-timeout: ${JAVA_AI_CONNECT_TIMEOUT:2s}
+    read-timeout: ${JAVA_AI_READ_TIMEOUT:150s}
   outbox-publisher:
     enabled: ${JAVA_OUTBOX_PUBLISHER_ENABLED:false}
     batch-size: ${JAVA_OUTBOX_PUBLISHER_BATCH_SIZE:50}

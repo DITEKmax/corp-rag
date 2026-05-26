@@ -48,9 +48,18 @@ public class ProblemDetailsWriter {
             HttpServletRequest request,
             ErrorCodes.ErrorCode errorCode,
             String detail) throws IOException {
+        write(response, request, errorCode, detail, Map.of());
+    }
+
+    public void write(
+            HttpServletResponse response,
+            HttpServletRequest request,
+            ErrorCodes.ErrorCode errorCode,
+            String detail,
+            Map<String, Object> details) throws IOException {
         response.setStatus(errorCode.httpStatus());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        objectMapper.writeValue(response.getOutputStream(), problem(errorCode, detail, request));
+        objectMapper.writeValue(response.getOutputStream(), problem(errorCode, detail, request, details));
     }
 
     private static UUID correlationId() {
