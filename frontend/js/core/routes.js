@@ -1,4 +1,5 @@
 import { placeholderPage } from '../components/views.js';
+import { renderChatPage } from '../pages/chat-page.js';
 import { renderChangePasswordPage } from '../pages/change-password-page.js';
 import { renderLoginPage } from '../pages/login-page.js';
 
@@ -19,7 +20,7 @@ export const routes = [
   {
     path: '#/chat',
     access: 'chat.query',
-    render: () => placeholderPage('Chat', 'Conversation workspace'),
+    render: () => renderChatPage(),
     nav: { show: true, label: 'Chat', section: 'main' },
   },
   {
