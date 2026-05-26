@@ -597,8 +597,9 @@ components:
       type: object
       description: |
         Одна цитата в RAG-ответе. Указывает на конкретный чанк, использованный
-        для генерации ответа. Frontend показывает цитаты как chip'ы под текстом,
-        при клике подгружается ChunkDetail через `GET /chunks/{chunkId}`.
+        для генерации ответа. Frontend показывает цитаты как chip'ы под текстом.
+        Full-content lookup, if wired by Java in a future phase, uses
+        `GET /v1/documents/{documentId}/chunks/{chunkId}`.
       required:
         - documentId
         - documentTitle
