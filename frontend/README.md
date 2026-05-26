@@ -4,39 +4,43 @@ SPA на vanilla HTML5 + CSS3 + JavaScript ES2022+.
 
 **Никакого** Tailwind, никаких фреймворков. BEM-методология для CSS.
 
-Эта папка пустая — здесь появится содержимое в **EPIC 16** (Frontend Foundation).
+Phase 6 содержит рабочую SPA-основу: cookie-auth bootstrap, hash-router,
+chat, quote-only source modal и компактные admin screens.
 
-## Целевая структура
+## Структура
 
 ```
 frontend/
 ├── index.html
-├── public/
-│   └── favicon.ico
-├── src/
-│   ├── styles/                      # CSS по BEM
-│   │   ├── base/
-│   │   ├── layouts/
-│   │   ├── components/
-│   │   └── pages/
-│   ├── scripts/
-│   │   ├── main.js
-│   │   ├── api/                     # client, auth, documents, chat
-│   │   ├── auth/                    # session, guard
-│   │   ├── router/
-│   │   ├── pages/
-│   │   ├── components/
-│   │   └── utils/
-│   └── assets/
+├── js/
+│   ├── api/                         # feature wrappers over core/api-client.js
+│   ├── components/
+│   ├── core/                        # session-state, api-client, router, routes
+│   ├── generated/                   # contract-derived frontend constants
+│   └── pages/
+├── styles/
+│   ├── base.css
+│   ├── app.css
+│   ├── chat.css
+│   └── admin.css
 └── nginx.conf
 ```
 
-Полная структура — см. `docs/ARCHITECTURE.md` раздел 6.
+## Запуск
 
-## Запуск (появится когда будет содержимое)
+Через compose:
 
 ```bash
-# cd frontend
-# python -m http.server 8081
-# или через nginx в docker-compose
+docker compose -f ../infra/docker-compose.yml up -d --build frontend java-backend
+```
+
+Открой http://localhost. По умолчанию frontend обращается к Java по
+`http://localhost:8080/api/v1`; Python напрямую из браузера не вызывается.
+Если нужен другой Java origin, задай `window.CORP_RAG_API_BASE` перед
+`/js/app.js`.
+
+Локальная статическая проверка:
+
+```bash
+node --check js/app.js
 ```

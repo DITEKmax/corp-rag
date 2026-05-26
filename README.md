@@ -50,13 +50,19 @@ corp-rag/
 
 ## Запуск
 
-Появится по мере реализации EPIC 1 (Infrastructure). Пока — см. ROADMAP.md.
+Локальный compose поднимает Java API, Python AI, frontend и инфраструктуру:
 
 ```bash
-# В будущем:
-# cd infra && docker compose up -d
-# (см. CLAUDE.md → раздел Команды)
+docker compose -f infra/docker-compose.yml up -d --build
 ```
+
+Основные URL:
+
+- Frontend: http://localhost
+- Java API: http://localhost:8080
+- Python AI: http://localhost:8000
+
+Frontend вызывает только Java API (`http://localhost:8080/api/v1` по умолчанию). Для другого окружения можно задать `window.CORP_RAG_API_BASE` до загрузки `frontend/js/app.js`.
 
 ## Лицензия
 
