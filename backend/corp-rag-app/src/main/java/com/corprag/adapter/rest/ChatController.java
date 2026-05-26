@@ -1,14 +1,24 @@
 package com.corprag.adapter.rest;
 
+import com.corprag.contracts.api.v1.model.ChatQueryRequest;
+import com.corprag.contracts.api.v1.model.ChatQueryResponse;
 import com.corprag.contracts.api.v1.model.Conversation;
 import com.corprag.contracts.api.v1.model.CreateConversationRequest;
 import com.corprag.contracts.api.v1.model.PagedConversations;
 import com.corprag.contracts.api.v1.model.PagedMessages;
 import com.corprag.security.Permission;
+import com.corprag.security.CorrelationIdFilter;
 import com.corprag.service.chat.ChatConversationService;
+import com.corprag.service.auth.RequestMetadata;
+import com.corprag.service.chat.ChatQueryAuditService;
+import com.corprag.service.chat.ChatQueryService;
+import com.corprag.service.chat.ChatRateLimitProblemWriter;
+import com.corprag.service.chat.ChatRateLimiter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
+import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -26,9 +36,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChatController {
 
     private final ChatConversationService conversationService;
+    private final ChatQueryService queryService;
+    private final ChatRateLimiter rateLimiter;
+    private final ChatRateLimitProblemWriter rateLimitProblemWriter;
+    private final ChatQueryAuditService queryAuditService;
 
-    public ChatController(ChatConversationService conversationService) {
+    public ChatController(
+            ChatConversationService conversationService,
+            ChatQueryService queryService,
+            ChatRateLimiter rateLimiter,
+            ChatRateLimitProblemWriter rateLimitProblemWriter,
+            ChatQueryAuditService queryAuditService) {
         this.conversationService = conversationService;
+        this.queryService = queryService;
+        this.rateLimiter = rateLimiter;
+        this.rateLimitProblemWriter = rateLimitProblemWriter;
+        this.queryAuditService = queryAuditService;
     }
 
     @GetMapping("/conversations")
@@ -79,5 +102,40 @@ public class ChatController {
                 conversationId,
                 page,
                 size));
+    }
+
+    @PostMapping("/query")
+    ResponseEntity<?> chatQuery(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody(required = false) ChatQueryRequest request,
+            HttpServletRequest servletRequest) {
+        JwtAuthorization.requirePermission(jwt, Permission.CHAT_QUERY.value());
+        UUID userId = JwtAuthorization.userId(jwt);
+        RequestMetadata metadata = RequestMetadata.from(servletRequest);
+        ChatRateLimiter.Decision decision = rateLimiter.tryAcquire(userId);
+        if (!decision.allowed()) {
+            queryAuditService.rateLimited(
+                    userId,
+                    Math.toIntExact(decision.retryAfterSeconds()),
+                    metadata.ipAddress(),
+                    metadata.userAgent());
+            return ResponseEntity.status(429)
+                    .header("Retry-After", Long.toString(decision.retryAfterSeconds()))
+                    .body(rateLimitProblemWriter.problem(servletRequest, decision));
+        }
+        ChatQueryResponse response = queryService.query(userId, correlationId(), request, metadata);
+        return ResponseEntity.ok(response);
+    }
+
+    private static UUID correlationId() {
+        String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+        if (correlationId == null || correlationId.isBlank()) {
+            return UUID.randomUUID();
+        }
+        try {
+            return UUID.fromString(correlationId);
+        } catch (IllegalArgumentException ignored) {
+            return UUID.randomUUID();
+        }
     }
 }

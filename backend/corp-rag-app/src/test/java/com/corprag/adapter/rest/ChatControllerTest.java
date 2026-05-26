@@ -17,13 +17,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.corprag.config.AppSecurityProperties;
 import com.corprag.config.SecurityConfig;
 import com.corprag.contracts.api.v1.model.AssistantMessageStatus;
+import com.corprag.contracts.api.v1.model.ChatQueryRequest;
+import com.corprag.contracts.api.v1.model.ChatQueryResponse;
 import com.corprag.contracts.api.v1.model.Conversation;
 import com.corprag.contracts.api.v1.model.ConversationRole;
+import com.corprag.contracts.api.v1.model.HateoasLink;
 import com.corprag.contracts.api.v1.model.Message;
 import com.corprag.contracts.api.v1.model.PagedConversations;
 import com.corprag.contracts.api.v1.model.PagedMessages;
 import com.corprag.contracts.constants.ErrorCodes;
 import com.corprag.service.chat.ChatConversationService;
+import com.corprag.service.chat.ChatQueryAuditService;
+import com.corprag.service.chat.ChatQueryService;
+import com.corprag.service.chat.ChatRateLimitProblemWriter;
+import com.corprag.service.chat.ChatRateLimiter;
 import com.corprag.testsupport.AuthTestFixtures;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -46,7 +53,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
         "app.security.jwt.issuer=corp-rag-test",
         "app.security.cookies.secure=false"
 })
-@Import({ProblemDetailsExceptionHandler.class, ProblemDetailsWriter.class, SecurityConfig.class})
+@Import({ChatRateLimitProblemWriter.class, ProblemDetailsExceptionHandler.class, ProblemDetailsWriter.class, SecurityConfig.class})
 class ChatControllerTest {
 
     private static final UUID CONVERSATION_ID = UUID.fromString("c1234567-e89b-12d3-a456-426614174000");
@@ -61,6 +68,15 @@ class ChatControllerTest {
 
     @MockBean
     private ChatConversationService conversationService;
+
+    @MockBean
+    private ChatQueryService queryService;
+
+    @MockBean
+    private ChatRateLimiter rateLimiter;
+
+    @MockBean
+    private ChatQueryAuditService queryAuditService;
 
     @Test
     void listRequiresChatQueryPermission() throws Exception {
@@ -168,6 +184,52 @@ class ChatControllerTest {
         mockMvc.perform(get("/api/v1/chat/messages/{messageId}/citations", MESSAGE_ID)
                         .with(jwtWith(AuthTestFixtures.PERMISSION_CHAT_QUERY)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void chatQueryRateLimitRunsBeforeQueryServiceAndReturnsRetryAfter() throws Exception {
+        when(rateLimiter.tryAcquire(AuthTestFixtures.ADMIN_USER_ID)).thenReturn(ChatRateLimiter.Decision.denied(12));
+
+        mockMvc.perform(post("/api/v1/chat/query")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"Question?\",\"conversationId\":\"" + CONVERSATION_ID + "\"}")
+                        .with(jwtWith(AuthTestFixtures.PERMISSION_CHAT_QUERY)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "12"))
+                .andExpect(jsonPath("$.errorCode").value("RATE_LIMIT_EXCEEDED"))
+                .andExpect(jsonPath("$.details.retryAfterSeconds").value(12));
+
+        verify(queryAuditService).rateLimited(eq(AuthTestFixtures.ADMIN_USER_ID), eq(12), any(), any());
+        verifyNoInteractions(queryService);
+    }
+
+    @Test
+    void chatQueryPassesCorrelationIdAndReturnsResponse() throws Exception {
+        UUID correlationId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        when(rateLimiter.tryAcquire(AuthTestFixtures.ADMIN_USER_ID)).thenReturn(ChatRateLimiter.Decision.permitted());
+        when(queryService.query(eq(AuthTestFixtures.ADMIN_USER_ID), eq(correlationId), any(), any()))
+                .thenReturn(new ChatQueryResponse()
+                        .conversationId(CONVERSATION_ID)
+                        .messageId(MESSAGE_ID)
+                        .answered(true)
+                        .status(AssistantMessageStatus.ANSWERED)
+                        .answer("Answer [1].")
+                        .links(Map.of("conversation", new HateoasLink().href("/api/v1/chat/conversations/" + CONVERSATION_ID))));
+
+        mockMvc.perform(post("/api/v1/chat/query")
+                        .header("X-Correlation-Id", correlationId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"Question?\",\"conversationId\":\"" + CONVERSATION_ID + "\"}")
+                        .with(jwtWith(AuthTestFixtures.PERMISSION_CHAT_QUERY)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversationId").value(CONVERSATION_ID.toString()))
+                .andExpect(jsonPath("$.messageId").value(MESSAGE_ID.toString()))
+                .andExpect(jsonPath("$.status").value("ANSWERED"))
+                .andExpect(jsonPath("$.answer").value("Answer [1]."));
+
+        ArgumentCaptor<ChatQueryRequest> requestCaptor = ArgumentCaptor.forClass(ChatQueryRequest.class);
+        verify(queryService).query(eq(AuthTestFixtures.ADMIN_USER_ID), eq(correlationId), requestCaptor.capture(), any());
+        org.assertj.core.api.Assertions.assertThat(requestCaptor.getValue().getConversationId()).isEqualTo(CONVERSATION_ID);
     }
 
     private RequestPostProcessor jwtWith(String... permissions) {

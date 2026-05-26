@@ -58,21 +58,14 @@ public class ChatMessageMapper {
                         ? null
                         : com.corprag.contracts.api.v1.model.AssistantMessageStatus.fromValue(message.status().name()))
                 .content(message.content())
-                .citations(toCitations(message.citations()))
+                .citations(toContractCitations(message.citations()))
                 .confidence(toFloat(message.confidence()))
-                .retrievalMeta(toRetrievalMeta(message.retrievalMeta()))
+                .retrievalMeta(toContractRetrievalMeta(message.retrievalMeta()))
                 .createdAt(toOffsetDateTime(message.createdAt()))
                 .links(Map.of("conversation", link("/api/v1/chat/conversations/" + message.conversationId())));
     }
 
-    private static ConversationRole toRole(ChatMessageRole role) {
-        return switch (role) {
-            case USER -> ConversationRole.USER;
-            case ASSISTANT -> ConversationRole.ASSISTANT;
-        };
-    }
-
-    private static List<Citation> toCitations(List<ChatCitationSnapshot> citations) {
+    public List<Citation> toContractCitations(List<ChatCitationSnapshot> citations) {
         if (citations == null) {
             return null;
         }
@@ -81,20 +74,7 @@ public class ChatMessageMapper {
                 .toList();
     }
 
-    private static Citation toCitation(ChatCitationSnapshot citation) {
-        return new Citation()
-                .documentId(citation.documentId())
-                .documentTitle(citation.documentTitle())
-                .chunkId(citation.chunkId())
-                .sectionPath(citation.sectionPath())
-                .quote(citation.quote())
-                .snippet(citation.snippet())
-                .pageNumber(citation.pageNumber())
-                .score(toFloat(citation.score()))
-                .accessLevel(AccessLevel.fromValue(citation.accessLevel().name()));
-    }
-
-    private static RetrievalMeta toRetrievalMeta(ChatRetrievalMetaSnapshot meta) {
+    public RetrievalMeta toContractRetrievalMeta(ChatRetrievalMetaSnapshot meta) {
         if (meta == null) {
             return null;
         }
@@ -108,6 +88,26 @@ public class ChatMessageMapper {
                 .chunksReturned(meta.chunksReturned())
                 .rerankerUsed(meta.rerankerUsed())
                 .modelId(meta.modelId());
+    }
+
+    private static ConversationRole toRole(ChatMessageRole role) {
+        return switch (role) {
+            case USER -> ConversationRole.USER;
+            case ASSISTANT -> ConversationRole.ASSISTANT;
+        };
+    }
+
+    private static Citation toCitation(ChatCitationSnapshot citation) {
+        return new Citation()
+                .documentId(citation.documentId())
+                .documentTitle(citation.documentTitle())
+                .chunkId(citation.chunkId())
+                .sectionPath(citation.sectionPath())
+                .quote(citation.quote())
+                .snippet(citation.snippet())
+                .pageNumber(citation.pageNumber())
+                .score(toFloat(citation.score()))
+                .accessLevel(AccessLevel.fromValue(citation.accessLevel().name()));
     }
 
     private static List<RetrieverType> toRetrieverTypes(List<String> retrievers) {
