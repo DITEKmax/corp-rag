@@ -1,6 +1,6 @@
 import { sessionState } from './session-state.js';
 
-const API_BASE = globalThis.CORP_RAG_API_BASE || 'http://localhost:8080/api/v1';
+const API_BASE = globalThis.CORP_RAG_API_BASE || '/api/v1';
 
 let refreshPromise = null;
 let handlers = {
