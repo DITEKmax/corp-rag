@@ -10,6 +10,7 @@ from corp_rag_ai.adapters.amqp.messages import (
     CORRELATION_ID_HEADER,
     EVENT_TYPE_HEADER,
     EVENT_VERSION_HEADER,
+    _isoformat_utc,
     build_envelope,
     encode_json_bytes,
 )
@@ -47,7 +48,7 @@ class DocumentResultPublisher:
         payload = {
             "documentId": document_id,
             "chunkCount": chunk_count,
-            "indexedAt": indexed_at or datetime.now(UTC),
+            "indexedAt": _isoformat_utc(indexed_at or datetime.now(UTC)),
             "qdrantCollection": qdrant_collection,
             "neo4jEntityCount": neo4j_entity_count,
             "durationMs": duration_ms,
