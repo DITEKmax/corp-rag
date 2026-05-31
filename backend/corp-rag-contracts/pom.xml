@@ -16,6 +16,10 @@
     <name>corp-rag-contracts</name>
     <description>Generated Java DTO and constant contract surface</description>
 
+    <properties>
+        <python.executable>python3</python.executable>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -48,6 +52,20 @@
             <artifactId>jakarta.validation-api</artifactId>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <profile>
+            <id>windows-python-executable</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <python.executable>python</python.executable>
+            </properties>
+        </profile>
+    </profiles>
 
     <build>
         <plugins>
@@ -135,7 +153,7 @@
                             <goal>exec</goal>
                         </goals>
                         <configuration>
-                            <executable>python</executable>
+                            <executable>${python.executable}</executable>
                             <workingDirectory>${project.basedir}/../..</workingDirectory>
                             <arguments>
                                 <argument>scripts/generate_constants.py</argument>

@@ -15,7 +15,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 python3-yaml && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python3 scripts/generate_constants.py
 RUN mvn -q -f backend/pom.xml -pl corp-rag-app -am -DskipTests package
 
 FROM eclipse-temurin:21-jre
