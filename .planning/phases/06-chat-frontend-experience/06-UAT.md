@@ -7,8 +7,9 @@
   - full admin permissions,
   - partial admin permissions,
   - normal `chat.query` user.
-- For CHAT-02 live answer checks, use a freshly indexed corpus. The Phase 5 TechCorp document was deleted, so re-upload/reindex a known document before live query UAT.
-- Set or record `AI_QUERY_LIVE_CORPUS_READY=true` only after the corpus is indexed and query-visible.
+- For CHAT-02 live answer checks, first verify the known Phase 5 corpus is still query-visible. Live UAT on 2026-05-31 confirmed Qdrant `documents_chunks` was green with 4 points: `TechCorp Phase 5 Query Policy`, `TechCorp Approved Vendor List`, `TechCorp Q1 2026 Security Incident Report`, and `Acme Remote Work Policy`.
+- Re-upload/reindex a known document only if the corpus visibility check fails.
+- Set or record `AI_QUERY_LIVE_CORPUS_READY=true` only after the corpus is indexed/query-visible or the retained corpus has been verified.
 - Run one untimed reranker pre-warm query before timed live CHAT-02 checks to avoid cold-reranker timeout noise.
 - Do not commit secrets from `infra/.env`.
 

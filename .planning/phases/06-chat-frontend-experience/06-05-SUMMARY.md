@@ -114,7 +114,7 @@ completed: "2026-05-27"
 
 ## Plan 09 UAT Notes
 
-- Live chat UAT still needs a freshly indexed corpus; otherwise CHAT-02 can legitimately return `NO_EVIDENCE`.
+- Live chat UAT needs a query-visible corpus; otherwise CHAT-02 can legitimately return `NO_EVIDENCE`. Live UAT on 2026-05-31 confirmed the retained Phase 5 corpus was still present, so reindex is only needed if that visibility check fails.
 - Run one untimed reranker pre-warm query before timed live checks to avoid cold-reranker timeout noise.
 
 ## User Setup Required

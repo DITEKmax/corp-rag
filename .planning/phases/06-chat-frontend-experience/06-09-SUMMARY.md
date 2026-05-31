@@ -24,8 +24,8 @@ key-files:
     - frontend/README.md
     - frontend/js/core/api-client.js
 key-decisions:
-  - "Frontend defaults to Java http://localhost:8080/api/v1 so compose static nginx does not receive API calls."
-  - "Browser UAT is recorded as blocked, not passed, because the local stack and fresh indexed corpus were unavailable."
+  - "Frontend API calls should stay on Java /api/v1; after live UAT this is handled by nginx proxying /api/v1 to java-backend."
+  - "Browser UAT is recorded as blocked/partial, not passed, until the frontend image is rebuilt and Java reaches python-ai over the Docker network."
 patterns-established:
   - "Final validation summaries distinguish automated pass, live UAT blocker, and residual risk."
 requirements-completed: [CHAT-01, CHAT-02, UI-01, UI-02, UI-03]
@@ -35,7 +35,7 @@ completed: 2026-05-27
 
 # Phase 06 Plan 09: Validation Summary
 
-**Automated Phase 6 validation is green; live browser UAT is blocked pending running services, seeded sessions, fresh indexed corpus, and reranker pre-warm.**
+**Automated Phase 6 validation is green; live browser UAT is blocked pending the runtime env/frontend image fixes, seeded sessions, verified corpus visibility, and reranker pre-warm.**
 
 ## Performance
 
@@ -60,15 +60,16 @@ completed: 2026-05-27
 - `06-UAT.md` now contains the repeatable Phase 6 UAT checklist.
 - `06-UAT-EVIDENCE.md` records command evidence and maps requirements to automated/browser status.
 - Browser UAT was not run because `docker compose -f infra/docker-compose.yml ps` showed no running services and live CHAT-02 prerequisites were not established.
-- CHAT-02 live UAT specifically still needs a freshly indexed corpus, `AI_QUERY_LIVE_CORPUS_READY=true`, and one untimed reranker pre-warm query before timed checks.
+- CHAT-02 live UAT specifically needs a query-visible corpus, `AI_QUERY_LIVE_CORPUS_READY=true`, and one untimed reranker pre-warm query before timed checks. Live UAT on 2026-05-31 confirmed the retained Phase 5 corpus was still present, so reindex is not required unless that check fails.
 
 ## Auto-Fixed Issue
 
 **Frontend API base URL**
-- **Issue:** The static frontend is served by nginx at `http://localhost`; a relative `/api/v1` base would hit frontend nginx instead of Java.
-- **Fix:** `frontend/js/core/api-client.js` now defaults to `http://localhost:8080/api/v1`, with `window.CORP_RAG_API_BASE` as an override hook.
-- **Verification:** Frontend syntax/direct-fetch/no-Python checks passed after the change.
-- **Committed in:** `1deb747`
+- **Issue:** The static frontend originally needed to avoid direct Python calls while still reaching Java from the browser.
+- **Initial fix:** `frontend/js/core/api-client.js` defaulted to `http://localhost:8080/api/v1`, with `window.CORP_RAG_API_BASE` as an override hook.
+- **Live UAT correction:** the container image did not copy `js/`, and the dev-port default is superseded by nginx proxying `/api/v1` to `java-backend:8080`.
+- **Verification:** Frontend syntax/direct-fetch/no-Python checks passed after the original change; the post-UAT Dockerfile/proxy fix is tracked in 2026-05-31 evidence.
+- **Committed in:** `1deb747`, superseded by `cd6bdf4`
 
 ## Requirement Status
 
@@ -97,7 +98,7 @@ completed: 2026-05-27
 
 ## Residual Risks
 
-- Browser UAT remains incomplete until the stack is running and seeded.
+- Browser UAT remains incomplete until the stack is running with rebuilt frontend and Java AI base URL env.
 - Live audit/database checks for 429 audit-without-chat-row were not collected; automated tests cover the controller/service/repository behavior.
 - Live answer quality depends on corpus readiness and reranker warm-up, which are explicitly called out in `06-UAT.md`.
 
@@ -107,7 +108,7 @@ For live UAT:
 
 - Start the stack with `docker compose -f infra/docker-compose.yml up -d --build`.
 - Seed or confirm full-admin, partial-admin, and normal chat users.
-- Upload/reindex a known corpus and set/record `AI_QUERY_LIVE_CORPUS_READY=true`.
+- Verify the retained Phase 5 corpus is query-visible, or upload/reindex a known corpus only if it is missing; then set/record `AI_QUERY_LIVE_CORPUS_READY=true`.
 - Run one untimed reranker pre-warm query before timed CHAT-02 checks.
 
 ## Next Phase Readiness

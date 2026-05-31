@@ -11,7 +11,7 @@ requirements: [CHAT-01, CHAT-02, UI-01, UI-02, UI-03]
 
 `human_needed`
 
-Automated validation is green, but browser UAT was not executed because the local stack was not running and live CHAT-02 prerequisites were not established.
+Automated validation is green. Live UAT on 2026-05-31 partially exercised the backend/API path, but browser UI UAT still needs rerun after applying the Java AI runtime env fix and rebuilding the frontend image.
 
 ## Automated Checks
 
@@ -27,16 +27,16 @@ Automated validation is green, but browser UAT was not executed because the loca
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| CHAT-01 | partial | Backend persistence/conversation tests passed; browser conversation lifecycle UAT not run. |
-| CHAT-02 | partial | Backend query/orchestration/rate-limit tests passed; live answer/citation UAT not run. |
-| UI-01 | partial | Frontend session shell/static checks passed; browser login/must-change/refresh UAT not run. |
-| UI-02 | partial | Source modal/static checks passed; browser source-modal UAT not run. |
-| UI-03 | partial | Admin screens/static/backend endpoint checks passed; browser full/partial admin UAT not run. |
+| CHAT-01 | pass | Backend persistence/conversation tests passed; API lifecycle passed in live UAT on 2026-05-31. |
+| CHAT-02 | partial | Backend query/orchestration/rate-limit tests passed; live outcomes were observed, but Java ANSWERED was blocked before the `JAVA_AI_BASE_URL` fix. |
+| UI-01 | blocked | Frontend session shell/static checks passed; browser session UAT was blocked by stale frontend image content. |
+| UI-02 | blocked | Source modal/static checks passed; browser source-modal UAT was blocked by stale frontend image content. |
+| UI-03 | blocked | Admin screens/static/backend endpoint checks passed; browser full/partial admin UAT was blocked by stale frontend image content. |
 
 ## Human Verification Items
 
 1. Run browser session UAT for `/me`, login, forced password change, refresh, logout, access denied, and service-unavailable behavior.
-2. Run chat UAT with a freshly indexed corpus and one untimed reranker pre-warm query before timed CHAT-02 checks.
+2. Restart `java-backend` with the compose `JAVA_AI_BASE_URL` fix, rebuild `frontend`, then run chat UAT with a verified query-visible corpus and one untimed reranker pre-warm query before timed CHAT-02 checks. Reindex only if the retained Phase 5 corpus is missing.
 3. Verify answer, no-evidence, refused, degraded, timeout/unavailable, retry-as-new-pair, history reload, soft-delete, and 429 behavior in browser/DB.
 4. Verify source modal opens from returned citation quote/snippet and never displays `entity:*` graph markers.
 5. Run admin UAT as full and partial admin for documents, users, roles, and access policies.
