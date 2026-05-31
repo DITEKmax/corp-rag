@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.MDC;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 
@@ -80,6 +82,21 @@ class DocumentIndexingFailedConsumerTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("retry me");
 
+        assertThat(MDC.get(CorrelationIdFilter.MDC_KEY)).isNull();
+    }
+
+    @Test
+    void invalidTimestampIsRejectedWithoutRequeueBeforeIdempotentProcessing() {
+        Message message = message(
+                failedEnvelope().replace(FAILED_AT.toString(), "2026-05-18 21:18:40.330005Z"),
+                ENVELOPE_CORRELATION_ID.toString());
+
+        assertThatThrownBy(() -> consumer.handle(message))
+                .isInstanceOf(AmqpRejectAndDontRequeueException.class)
+                .hasMessageContaining("Invalid");
+
+        verify(processor, never()).process(any(), any());
+        verify(service, never()).handleFailed(any());
         assertThat(MDC.get(CorrelationIdFilter.MDC_KEY)).isNull();
     }
 

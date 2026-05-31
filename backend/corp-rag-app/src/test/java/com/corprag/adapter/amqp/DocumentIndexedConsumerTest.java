@@ -26,6 +26,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.MDC;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 
@@ -111,11 +112,28 @@ class DocumentIndexedConsumerTest {
                 .replace(EventRoutingKeys.DOCUMENT_INDEXED, EventRoutingKeys.DOCUMENT_INDEXING_FAILED), null);
 
         assertThatThrownBy(() -> consumer.handle(message))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(EventRoutingKeys.DOCUMENT_INDEXED);
+                .isInstanceOf(AmqpRejectAndDontRequeueException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .satisfies(error -> assertThat(error.getCause()).hasMessageContaining(EventRoutingKeys.DOCUMENT_INDEXED));
 
         verify(processor, never()).process(any(), any());
         verify(service, never()).handleIndexed(any());
+    }
+
+    @Test
+    void invalidTimestampIsRejectedWithoutRequeueBeforeIdempotentProcessing() {
+        Message message = message(
+                indexedEnvelope(ENVELOPE_CORRELATION_ID)
+                        .replace(INDEXED_AT.toString(), "2026-05-18 21:18:40.330005Z"),
+                null);
+
+        assertThatThrownBy(() -> consumer.handle(message))
+                .isInstanceOf(AmqpRejectAndDontRequeueException.class)
+                .hasMessageContaining("Invalid");
+
+        verify(processor, never()).process(any(), any());
+        verify(service, never()).handleIndexed(any());
+        assertThat(MDC.get(CorrelationIdFilter.MDC_KEY)).isNull();
     }
 
     private static Message message(String json, String correlationHeader) {

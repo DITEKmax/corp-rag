@@ -12,7 +12,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -21,6 +24,8 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(name = "app.document-indexing-consumers.enabled", havingValue = "true")
 public class DocumentIndexingFailedConsumer {
+
+    private static final Logger log = LoggerFactory.getLogger(DocumentIndexingFailedConsumer.class);
 
     private final ObjectMapper objectMapper;
     private final IdempotentEventProcessor idempotentEventProcessor;
@@ -36,31 +41,48 @@ public class DocumentIndexingFailedConsumer {
     }
 
     @RabbitListener(queues = QueueNames.BACKEND_DOCUMENT_FAILED)
-    public void handle(Message message) throws IOException {
-        DocumentIndexingFailedEnvelope envelope =
-                objectMapper.readValue(message.getBody(), DocumentIndexingFailedEnvelope.class);
-        EventEnvelopeMetadata metadata = AmqpConsumerSupport.requireMetadata(
-                envelope.metadata(),
-                EventRoutingKeys.DOCUMENT_INDEXING_FAILED);
-        DocumentIndexingFailedPayload payload = AmqpConsumerSupport.requirePayload(envelope.payload());
-        UUID correlationId = AmqpConsumerSupport.resolveCorrelationId(message, metadata);
+    public void handle(Message message) {
+        ParsedDocumentIndexingFailedMessage parsed = parseMessage(message);
 
         try {
-            MDC.put(CorrelationIdFilter.MDC_KEY, correlationId.toString());
+            MDC.put(CorrelationIdFilter.MDC_KEY, parsed.correlationId().toString());
             idempotentEventProcessor.process(
-                    new InboundEventMetadata(metadata.eventId(), metadata.eventType(), correlationId),
-                    () -> indexingResultService.handleFailed(new DocumentIndexingFailedEvent(
-                            metadata.eventId(),
-                            correlationId,
-                            AmqpConsumerSupport.requireNonNull(payload.documentId(), "documentId"),
-                            AmqpConsumerSupport.requireText(payload.stage(), "stage"),
-                            AmqpConsumerSupport.requireText(payload.errorCode(), "errorCode"),
-                            AmqpConsumerSupport.requireText(payload.errorMessage(), "errorMessage"),
-                            AmqpConsumerSupport.requireNonNull(payload.failedAt(), "failedAt"),
-                            AmqpConsumerSupport.requireNonNull(payload.retryable(), "retryable"),
-                            AmqpConsumerSupport.requireNonNegative(payload.retryCount(), "retryCount"))));
+                    new InboundEventMetadata(
+                            parsed.metadata().eventId(),
+                            parsed.metadata().eventType(),
+                            parsed.correlationId()),
+                    () -> indexingResultService.handleFailed(parsed.event()));
         } finally {
             MDC.remove(CorrelationIdFilter.MDC_KEY);
+        }
+    }
+
+    private ParsedDocumentIndexingFailedMessage parseMessage(Message message) {
+        try {
+            DocumentIndexingFailedEnvelope envelope = AmqpConsumerSupport.requireNonNull(
+                    objectMapper.readValue(message.getBody(), DocumentIndexingFailedEnvelope.class),
+                    "event envelope");
+            EventEnvelopeMetadata metadata = AmqpConsumerSupport.requireMetadata(
+                    envelope.metadata(),
+                    EventRoutingKeys.DOCUMENT_INDEXING_FAILED);
+            DocumentIndexingFailedPayload payload = AmqpConsumerSupport.requirePayload(envelope.payload());
+            UUID correlationId = AmqpConsumerSupport.resolveCorrelationId(message, metadata);
+            DocumentIndexingFailedEvent event = new DocumentIndexingFailedEvent(
+                    metadata.eventId(),
+                    correlationId,
+                    AmqpConsumerSupport.requireNonNull(payload.documentId(), "documentId"),
+                    AmqpConsumerSupport.requireText(payload.stage(), "stage"),
+                    AmqpConsumerSupport.requireText(payload.errorCode(), "errorCode"),
+                    AmqpConsumerSupport.requireText(payload.errorMessage(), "errorMessage"),
+                    AmqpConsumerSupport.requireNonNull(payload.failedAt(), "failedAt"),
+                    AmqpConsumerSupport.requireNonNull(payload.retryable(), "retryable"),
+                    AmqpConsumerSupport.requireNonNegative(payload.retryCount(), "retryCount"));
+            return new ParsedDocumentIndexingFailedMessage(metadata, correlationId, event);
+        } catch (IOException | IllegalArgumentException ex) {
+            log.warn("Rejecting invalid {} message without requeue", QueueNames.BACKEND_DOCUMENT_FAILED, ex);
+            throw new AmqpRejectAndDontRequeueException(
+                    "Invalid " + QueueNames.BACKEND_DOCUMENT_FAILED + " message",
+                    ex);
         }
     }
 
@@ -77,5 +99,11 @@ public class DocumentIndexingFailedConsumer {
             Instant failedAt,
             Boolean retryable,
             Integer retryCount) {
+    }
+
+    private record ParsedDocumentIndexingFailedMessage(
+            EventEnvelopeMetadata metadata,
+            UUID correlationId,
+            DocumentIndexingFailedEvent event) {
     }
 }
