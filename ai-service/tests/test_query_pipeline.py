@@ -84,6 +84,21 @@ async def test_pipeline_factual_cited_answer_uses_hybrid_path() -> None:
     assert components.graph_retriever.calls == 0
 
 
+async def test_pipeline_numeric_deadline_lookup_uses_hybrid_path() -> None:
+    components = _components(hybrid_result=_retrieval_result(QueryRoute.FACTUAL, RetrieverType.HYBRID, _candidate(RetrieverType.HYBRID)))
+    service = _service(components)
+
+    result = await service.answer(
+        _query("In how many business days must managers approve vacation requests according to the HR policy?")
+    )
+
+    assert result.answered is True
+    assert result.retrieval_meta.route == "FACTUAL"
+    assert result.retrieval_meta.retrievers_attempted == (RetrieverType.HYBRID,)
+    assert components.hybrid_retriever.calls == 1
+    assert components.graph_retriever.calls == 0
+
+
 async def test_pipeline_graph_aggregation_answer_uses_graph_path() -> None:
     components = _components(graph_result=_retrieval_result(QueryRoute.AGGREGATION, RetrieverType.GRAPH, _candidate(RetrieverType.GRAPH)))
     service = _service(components)

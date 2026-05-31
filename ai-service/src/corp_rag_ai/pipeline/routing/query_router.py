@@ -27,6 +27,14 @@ _AGGREGATION_PATTERNS = (
     re.compile(r"\b(how\s+many|count|number\s+of|total|aggregate|sum|average)\b", re.I),
 )
 
+_FACTUAL_NUMERIC_LOOKUP_PATTERNS = (
+    re.compile(
+        r"\b(?:in\s+)?how\s+many\s+(?:business\s+)?(?:days?|hours?|weeks?|months?)\s+"
+        r"(?:must|should|do|does|can|may|are|is|before|after)\b",
+        re.I,
+    ),
+)
+
 _MULTI_HOP_PATTERNS = (
     re.compile(r"\b(relationship\s+between|depends\s+on|connected\s+to|impact\s+of)\b", re.I),
     re.compile(r"\bwhich\s+.+\s+(caused|requires|require|needed\s+before|are\s+needed\s+before)\b", re.I),
@@ -165,6 +173,8 @@ def _route_by_rules(message: str) -> RouteDecision | None:
     text = message.strip()
     if _matches_any(_UNSUPPORTED_PATTERNS, text):
         return RouteDecision.unsupported(source=RouteSource.RULES, reason="rules_out_of_scope", confidence=1.0)
+    if _matches_any(_FACTUAL_NUMERIC_LOOKUP_PATTERNS, text):
+        return RouteDecision(route=QueryRoute.FACTUAL, confidence=1.0, source=RouteSource.RULES)
     if _matches_any(_AGGREGATION_PATTERNS, text):
         return RouteDecision(route=QueryRoute.AGGREGATION, confidence=1.0, source=RouteSource.RULES)
     if _matches_any(_COMPARISON_PATTERNS, text):

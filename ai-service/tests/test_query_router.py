@@ -24,6 +24,11 @@ CONVERSATION_ID = UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
     ("message", "expected_route"),
     [
         ("What is the vacation policy?", QueryRoute.FACTUAL),
+        (
+            "In how many business days must managers approve vacation requests according to the HR policy?",
+            QueryRoute.FACTUAL,
+        ),
+        ("How many days do employees have to submit payroll corrections?", QueryRoute.FACTUAL),
         ("How many policies mention payroll?", QueryRoute.AGGREGATION),
         ("Which approvals are needed before onboarding a contractor?", QueryRoute.MULTI_HOP),
         ("Compare vacation and sick leave policies.", QueryRoute.COMPARISON),
