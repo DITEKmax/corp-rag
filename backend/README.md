@@ -21,6 +21,12 @@ backend/
 
 Полная структура пакетов — см. `docs/ARCHITECTURE.md` раздел 4.4.
 
+## Требования сборки
+
+`corp-rag-contracts` генерирует Java constants из `contracts/constants.yaml` во время Maven-фазы
+`generate-sources`. В среде сборки должны быть доступны `python` и пакет `PyYAML`; ручной запуск
+`scripts/generate_constants.py` перед Maven больше не требуется.
+
 ## Команды (появятся когда будет POM)
 
 ```bash
