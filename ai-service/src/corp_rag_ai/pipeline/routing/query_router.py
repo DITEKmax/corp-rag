@@ -21,10 +21,26 @@ _FACTUAL_PATTERNS = (
     re.compile(r"\b(what|who|when|where)\s+(is|are|was|were|does|do)\b", re.I),
     re.compile(r"\bhow\s+(do|does|can|should)\b", re.I),
     re.compile(r"\b(policy|procedure|regulation|manual|guide|deadline|vacation|payroll|benefits)\b", re.I),
+    re.compile(r"\b(что|кто|когда|где)\s+(?:такое|является|указан[оы]?|описан[оы]?)\b", re.I),
+    re.compile(r"\b(?:как|каким образом)\s+(?:нужно|следует|можно|должн[аоы]?)\b", re.I),
+    re.compile(r"\b(политик[аиу]?|регламент|процедур[аы]|инструкци[яи]|срок|правил[оа])\b", re.I),
 )
 
 _AGGREGATION_PATTERNS = (
     re.compile(r"\b(how\s+many|count|number\s+of|total|aggregate|sum|average)\b", re.I),
+    re.compile(
+        r"\b(?:сколько|какое\s+число|общее\s+число)\s+"
+        r"(?:компан(?:ий|ии)|поставщик(?:ов|и)|документ(?:ов|ы)|политик|регламент(?:ов|ы)|"
+        r"рейс(?:ов|ы)|инцидент(?:ов|ы)|запис(?:ей|и)|требован(?:ий|ия))\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:какие|какая|какой|перечисли|назови)\s+"
+        r"(?:компан(?:ии|ия)|поставщик(?:и|ов)|документ(?:ы|ов)|политик(?:и|а)|регламент(?:ы|ов)|"
+        r"рейс(?:ы|ов)|инцидент(?:ы|ов)|требован(?:ия|ий))\b"
+        r".*\b(?:перечислен[аыо]?|указан[аыо]?|упомянут[аыо]?|есть|вход[яи]т|содерж[аи]тся)\b",
+        re.I,
+    ),
 )
 
 _FACTUAL_NUMERIC_LOOKUP_PATTERNS = (
@@ -39,16 +55,25 @@ _MULTI_HOP_PATTERNS = (
     re.compile(r"\b(relationship\s+between|depends\s+on|connected\s+to|impact\s+of)\b", re.I),
     re.compile(r"\bwhich\s+.+\s+(caused|requires|require|needed\s+before|are\s+needed\s+before)\b", re.I),
     re.compile(r"\bwhat\s+.+\s+(approvals|dependencies).+\s+(before|after|connect)\b", re.I),
+    re.compile(r"\b(?:как|чем)\s+связан[аыо]?\s+.+\s+(?:и|с|со)\s+.+", re.I),
+    re.compile(r"\bсвяз[а-яё]*\s+.+\s+(?:с|со)\s+.+", re.I),
+    re.compile(r"\bпочему\s+.+\b(?:важн[аоы]?|влияет|приводит|требует|созда[её]т)\b", re.I),
+    re.compile(r"\b(?:что|какие?\s+действия)\s+происходит\s+после\s+.+\b(?:если|когда|и)\b", re.I),
+    re.compile(r"\b(?:после|до)\s+.+\b(?:если|когда)\s+.+", re.I),
+    re.compile(r"\b(?:конфликт|противоречи[ея]|зависимост[ьи])\s+.+\b(?:между|с|со)\b", re.I),
 )
 
 _COMPARISON_PATTERNS = (
     re.compile(r"\b(compare|comparison|versus|vs\.?)\b", re.I),
     re.compile(r"\bdifference\s+between\b", re.I),
+    re.compile(r"\b(?:сравни|сравнение|чем\s+отлича[ею]тся|разница\s+между|отличи[ея]\s+между)\b", re.I),
 )
 
 _UNSUPPORTED_PATTERNS = (
     re.compile(r"\b(weather|sports|football|movie|recipe|joke)\b", re.I),
     re.compile(r"\bwhat\s+is\s+\d+\s*[+\-*/]\s*\d+\b", re.I),
+    re.compile(r"\b(погод[ауы]|спорт|футбол|фильм|рецепт|шутк[аиу])\b", re.I),
+    re.compile(r"\bсколько\s+будет\s+\d+\s*[+\-*/]\s*\d+\b", re.I),
 )
 
 
@@ -175,14 +200,29 @@ def _route_by_rules(message: str) -> RouteDecision | None:
         return RouteDecision.unsupported(source=RouteSource.RULES, reason="rules_out_of_scope", confidence=1.0)
     if _matches_any(_FACTUAL_NUMERIC_LOOKUP_PATTERNS, text):
         return RouteDecision(route=QueryRoute.FACTUAL, confidence=1.0, source=RouteSource.RULES)
-    if _matches_any(_AGGREGATION_PATTERNS, text):
-        return RouteDecision(route=QueryRoute.AGGREGATION, confidence=1.0, source=RouteSource.RULES)
     if _matches_any(_COMPARISON_PATTERNS, text):
-        return RouteDecision(route=QueryRoute.COMPARISON, confidence=1.0, source=RouteSource.RULES)
+        return RouteDecision(
+            route=QueryRoute.COMPARISON,
+            confidence=1.0,
+            source=RouteSource.RULES,
+            reason="rules_comparison",
+        )
     if _matches_any(_MULTI_HOP_PATTERNS, text):
-        return RouteDecision(route=QueryRoute.MULTI_HOP, confidence=1.0, source=RouteSource.RULES)
+        return RouteDecision(
+            route=QueryRoute.MULTI_HOP,
+            confidence=1.0,
+            source=RouteSource.RULES,
+            reason="rules_multi_hop",
+        )
+    if _matches_any(_AGGREGATION_PATTERNS, text):
+        return RouteDecision(
+            route=QueryRoute.AGGREGATION,
+            confidence=1.0,
+            source=RouteSource.RULES,
+            reason="rules_aggregation",
+        )
     if _matches_any(_FACTUAL_PATTERNS, text):
-        return RouteDecision(route=QueryRoute.FACTUAL, confidence=1.0, source=RouteSource.RULES)
+        return RouteDecision(route=QueryRoute.FACTUAL, confidence=1.0, source=RouteSource.RULES, reason="rules_factual")
     return None
 
 

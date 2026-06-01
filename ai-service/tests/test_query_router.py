@@ -46,6 +46,88 @@ async def test_rules_based_routes_skip_classifier(message: str, expected_route: 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("record_id", "message", "expected_route"),
+    [
+        (
+            "ru-aggregation-003",
+            "Какие компании перечислены в реестре поставщиков и за что отвечает каждая?",
+            QueryRoute.AGGREGATION,
+        ),
+        (
+            "ru-multihop-002",
+            "Как связаны ремонт RA-89123 и срочная выдача датчика давления со склада?",
+            QueryRoute.MULTI_HOP,
+        ),
+        (
+            "ru-multihop-003",
+            "Почему повторные задержки подтверждения смены Baltic Ground Services важны для аудита?",
+            QueryRoute.MULTI_HOP,
+        ),
+        (
+            "ru-multihop-005",
+            "Как решить конфликт массы между пассажирским багажом и грузом P1?",
+            QueryRoute.MULTI_HOP,
+        ),
+        (
+            "ru-multihop-006",
+            "Что происходит после инцидента, если корректирующее действие связано с поставщиком, "
+            "и какие поставщики уже есть в реестре?",
+            QueryRoute.MULTI_HOP,
+        ),
+    ],
+)
+async def test_russian_baseline_false_unsupported_records_route_by_rules(
+    record_id: str,
+    message: str,
+    expected_route: QueryRoute,
+) -> None:
+    classifier = _FakeClassifier(RouteDecision(route=QueryRoute.UNSUPPORTED, confidence=0.9, source=RouteSource.LLM))
+
+    decision = await QueryRouter(classifier=classifier).route(_query(message))
+
+    assert record_id.startswith("ru-")
+    assert decision.route is expected_route
+    assert decision.source is RouteSource.RULES
+    assert decision.reason in {"rules_aggregation", "rules_multi_hop"}
+    assert classifier.calls == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("message", "expected_route"),
+    [
+        ("Сколько поставщиков указано в реестре для технического обслуживания?", QueryRoute.AGGREGATION),
+        ("Какие регламенты перечислены для операций склада и кто за них отвечает?", QueryRoute.AGGREGATION),
+        ("Как связаны задержка смены экипажа и повторная проверка безопасности?", QueryRoute.MULTI_HOP),
+        ("Почему конфликт между лимитом массы и грузом требует согласования с диспетчером?", QueryRoute.MULTI_HOP),
+        ("Чем отличается процедура ночной стоянки от дневной передачи рейса?", QueryRoute.COMPARISON),
+    ],
+)
+async def test_russian_rules_generalize_from_linguistic_cues(message: str, expected_route: QueryRoute) -> None:
+    classifier = _FakeClassifier(RouteDecision(route=QueryRoute.UNSUPPORTED, confidence=0.9, source=RouteSource.LLM))
+
+    decision = await QueryRouter(classifier=classifier).route(_query(message))
+
+    assert decision.route is expected_route
+    assert decision.source is RouteSource.RULES
+    assert classifier.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_true_russian_unsupported_still_short_circuits_before_retrieval() -> None:
+    classifier = _FakeClassifier(RouteDecision(route=QueryRoute.FACTUAL, confidence=0.9, source=RouteSource.LLM))
+
+    decision = await QueryRouter(classifier=classifier).route(_query("Какая сегодня погода и кто выиграл футбол?"))
+
+    assert decision.route is QueryRoute.UNSUPPORTED
+    assert decision.source is RouteSource.RULES
+    assert decision.reason == "rules_out_of_scope"
+    assert decision.allows_retrieval is False
+    assert classifier.calls == 0
+
+
+@pytest.mark.asyncio
 async def test_force_route_bypasses_rules_and_classifier() -> None:
     classifier = _FakeClassifier(RouteDecision(route=QueryRoute.FACTUAL, confidence=0.9, source=RouteSource.LLM))
     query = _query("What is the vacation policy?", force_route=QueryRoute.COMPARISON)
