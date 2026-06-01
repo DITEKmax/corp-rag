@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 
@@ -88,7 +89,7 @@ async def test_runner_writes_reports_for_all_records_with_fake_clients(tmp_path)
         async def query_golden(self, record: GoldenRecord) -> QuerySampleResult:
             nonlocal active_queries, max_active_queries
             assert self.config.access_filter is not None
-            assert self.config.top_k == 10
+            assert self.config.top_k == 5
             active_queries += 1
             max_active_queries = max(max_active_queries, active_queries)
             query_events.append(("start", record.id))
@@ -140,3 +141,52 @@ async def test_runner_writes_reports_for_all_records_with_fake_clients(tmp_path)
 def test_runner_config_rejects_parallel_concurrency() -> None:
     with pytest.raises(ValueError, match="concurrency=1"):
         RagasRunnerConfig(concurrency=2)
+
+
+@pytest.mark.asyncio
+async def test_runner_persists_query_phase_report_before_scoring(tmp_path) -> None:
+    class FakeClient:
+        def __init__(self, config):
+            self.config = config
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return None
+
+        async def query_golden(self, record: GoldenRecord) -> QuerySampleResult:
+            assert self.config.top_k == 5
+            return _sample(record)
+
+    def failing_evaluator(rows, config) -> RagasScoringResult:
+        assert len(rows) == 30
+        raise RuntimeError("scoring failed")
+
+    reports_dir = tmp_path / "reports"
+    with pytest.raises(RuntimeError, match="scoring failed"):
+        await run_ragas_evaluation(
+            RagasRunnerConfig(reports_dir=reports_dir),
+            query_client_factory=FakeClient,
+            evaluator=failing_evaluator,
+        )
+
+    cache_path = reports_dir / "ragas_ru.json"
+    assert cache_path.exists()
+    payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    assert payload["runner_config"]["options"]["query_phase_cache"] is True
+    assert payload["runner_config"]["options"]["scoring_status"] == "pending"
+    assert payload["runner_config"]["options"]["top_k"] == 5
+    assert len(payload["details"]) == 40
+    first_detail = payload["details"][0]
+    assert {
+        "question",
+        "answer",
+        "retrieved_contexts",
+        "expected_doc_ids",
+        "outcome",
+        "reranker_used",
+        "degradation_warnings",
+    } <= set(first_detail)
+    assert first_detail["outcome"] == first_detail["actual_outcome"]
+    assert first_detail["ragas_scores"] == {}

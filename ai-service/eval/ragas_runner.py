@@ -20,6 +20,7 @@ from corp_rag_ai.pipeline.indexing.embedding import (
 from eval.io import load_corpus_metadata, load_golden_records, load_manifest
 from eval.query_client import (
     ActualOutcome,
+    DEFAULT_EVAL_TOP_K,
     ProductionQueryClient,
     QueryClientConfig,
     QuerySampleResult,
@@ -70,7 +71,7 @@ class RagasRunnerConfig:
     reports_dir: Path = DEFAULT_REPORTS_DIR
     report_slug: str = DEFAULT_REPORT_SLUG
     service_base_url: str = DEFAULT_SERVICE_BASE_URL
-    top_k: int = 10
+    top_k: int = DEFAULT_EVAL_TOP_K
     reranker_enabled: bool = True
     timeout_seconds: float = 180.0
     judge_model_id: str = DEFAULT_JUDGE_MODEL_ID
@@ -173,6 +174,13 @@ async def run_ragas_evaluation(
         config=config,
         query_client_factory=query_client_factory,
     )
+    write_query_phase_report(
+        query_results,
+        validation_summary=validation_summary,
+        corpus_version=metadata.corpus_version,
+        corpus_hash=metadata.corpus_hash,
+        config=config,
+    )
     rows = build_ragas_rows(query_results)
     scoring = evaluator(rows, config) if evaluator is not None else evaluate_ragas_rows(rows, config)
     report = build_evaluation_report(
@@ -255,6 +263,35 @@ async def collect_query_results(
     return tuple(results)
 
 
+def write_query_phase_report(
+    results: tuple[QuerySampleResult, ...],
+    *,
+    validation_summary: GoldenValidationSummary,
+    corpus_version: str,
+    corpus_hash: str,
+    config: RagasRunnerConfig,
+) -> None:
+    scoring = RagasScoringResult(
+        aggregate_scores={name: "skipped" for name in RAGAS_METRIC_NAMES},
+        skipped_metrics={
+            name: "RAGAS scoring pending; query phase persisted before scoring."
+            for name in RAGAS_METRIC_NAMES
+        },
+        external_judge_used=False,
+    )
+    report = build_evaluation_report(
+        results,
+        scoring=scoring,
+        validation_summary=validation_summary,
+        corpus_version=corpus_version,
+        corpus_hash=corpus_hash,
+        config=config,
+    )
+    report.runner_config.options["query_phase_cache"] = True
+    report.runner_config.options["scoring_status"] = "pending"
+    write_report(report, reports_dir=config.reports_dir, slug=config.report_slug, write_csv=False)
+
+
 def query_results_from_report(
     report: EvaluationReport,
     records: Iterable,
@@ -266,7 +303,9 @@ def query_results_from_report(
         record = records_by_id.get(record_id)
         if record is None:
             raise RagasRunnerError(f"source report detail {record_id!r} is not present in the golden set")
-        actual_outcome = ActualOutcome(str(detail.get("actual_outcome") or ActualOutcome.REFUSED_NO_EVIDENCE.value))
+        actual_outcome = ActualOutcome(
+            str(detail.get("actual_outcome") or detail.get("outcome") or ActualOutcome.REFUSED_NO_EVIDENCE.value)
+        )
         answered = bool(detail.get("answered", actual_outcome is ActualOutcome.ANSWERED))
         results.append(
             QuerySampleResult(
@@ -647,7 +686,7 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
     parser.add_argument("--reports-dir", type=Path, default=DEFAULT_REPORTS_DIR)
     parser.add_argument("--report-slug", default=DEFAULT_REPORT_SLUG)
     parser.add_argument("--service-base-url", default=os.getenv("AI_SERVICE_BASE_URL", DEFAULT_SERVICE_BASE_URL))
-    parser.add_argument("--top-k", type=int, default=10)
+    parser.add_argument("--top-k", type=int, default=DEFAULT_EVAL_TOP_K)
     parser.add_argument("--no-reranker", action="store_true")
     parser.add_argument("--timeout-seconds", type=float, default=180.0)
     parser.add_argument("--judge-model-id", default=os.getenv("RAGAS_JUDGE_MODEL_ID", DEFAULT_JUDGE_MODEL_ID))

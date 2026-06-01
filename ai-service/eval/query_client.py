@@ -12,6 +12,9 @@ from corp_rag_ai.contracts.generated import ai_service_v1 as contract
 from eval.schema import CorpusManifest, GoldenRecord
 
 
+DEFAULT_EVAL_TOP_K = 5
+
+
 class ActualOutcome(str, Enum):
     ANSWERED = "answered"
     REFUSED_NO_EVIDENCE = "refused_no_evidence"
@@ -36,7 +39,7 @@ class EvalAccessFilter:
 class QueryClientConfig:
     base_url: str = "http://localhost:8000"
     timeout_seconds: float = 120.0
-    top_k: int = 10
+    top_k: int = DEFAULT_EVAL_TOP_K
     reranker_enabled: bool = True
     user_id: UUID = field(default_factory=lambda: uuid5(NAMESPACE_URL, "corp-rag-eval-user"))
     access_filter: EvalAccessFilter | None = None
@@ -91,6 +94,7 @@ class QuerySampleResult:
             "question": self.question,
             "expected_outcome": self.expected_outcome,
             "actual_outcome": self.actual_outcome.value,
+            "outcome": self.actual_outcome.value,
             "answered": self.answered,
             "answer": self.answer,
             "expected_doc_ids": list(self.expected_doc_ids),
