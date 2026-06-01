@@ -269,8 +269,8 @@ Plans:
 **Wave 4** *(blocked on corpus freeze, indexing, and retrieval-mode harness)*
 - [ ] 07-05-PLAN.md - Author and validate the 40-record Russian golden dataset.
 
-**Wave 5** *(blocked on golden data and required code waves)*
-- [ ] 07-06-PLAN.md - Run production `/v1/query` RAGAS quality evaluation over the full golden set.
+**Wave 5** *(blocked on golden data and required retrieval/eval code waves)*
+- [ ] 07-06-PLAN.md - Run production `/v1/query` RAGAS quality evaluation over the full golden set, independent of Langfuse availability.
 - [ ] 07-07-PLAN.md - Run vector retrieval ablation and separate graph-route retrieval reporting.
 
 **Wave 6** *(blocked on quality and ablation reports)*

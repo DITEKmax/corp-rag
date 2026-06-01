@@ -15,16 +15,16 @@
 
 - Ragas stable docs list RAG metrics including context precision, context recall, response relevancy, and faithfulness, and its `evaluate()` API runs metrics against an evaluation dataset with optional LLM/embedding overrides. This supports a report runner, not a hard CI gate, because judge-backed metrics can call an LLM.
 - Langfuse instrumentation docs recommend context managers for manual spans and child observations. Observation types include `span`, `generation`, `retriever`, and `guardrail`, which map cleanly to the query graph nodes and the synthesis LLM call.
-- Current Langfuse Python SDK docs describe SDK v3 and state a self-hosted platform requirement of Langfuse platform `>=3.125.0`. Because compose currently pins `langfuse/langfuse:2.95.11`, execution must either pin a compatible legacy Python SDK or intentionally upgrade the Langfuse container and verify it in Docker before tracing work is considered done.
+- Current Langfuse Python SDK docs describe SDK v3 and state a self-hosted platform requirement of Langfuse platform `>=3.125.0`. Because compose currently pins `langfuse/langfuse:2.95.11`, Phase 7 should default to the legacy Python SDK v2 line (`langfuse~=2.x`) and must not upgrade the container to v3. A v3 Langfuse platform upgrade brings new infrastructure concerns and belongs to a later delivery-polish phase.
 - Qdrant hybrid query docs show dense and sparse prefetches combined with fusion queries such as RRF. The current implementation follows this pattern; eval-only dense and sparse modes can reuse the same embedding and access-filter plumbing while omitting the other prefetch.
 - `bm25s` is a lightweight Python BM25 implementation with in-memory indexing and retrieval APIs. It matches the architecture note that BM25 is an eval-only baseline and avoids introducing Elasticsearch or a production lexical service.
 
 ## Planning Implications
 
-- Corpus freeze must precede golden authoring. The plan sequence should generate and commit the 16 Russian demo documents, index that committed snapshot, and only then author `golden_ru.jsonl`.
+- Corpus freeze must precede golden authoring. The plan sequence should author and commit the 16 Russian demo documents, hash/freeze that committed snapshot, index it, and only then author `golden_ru.jsonl`.
 - RAGAS quality evaluation runs once over the full 40-question golden set through production `/v1/query`; it must not be limited to vector questions. "Hybrid+reranker" in this context means the normal production query configuration with reranker enabled for vector routes, while graph-routed questions still use graph retrieval.
 - The five-way retrieval ablation is a cheap retrieval-only matrix for vector-routed records. Graph route quality is reported separately because graph retrieval uses a different mechanism.
-- Langfuse and diagnostics code should land before paid/network eval execution so RAGAS, ablation, and injection reports can include trace/latency evidence.
+- Langfuse and diagnostics code should land early so eval reports can include trace/latency evidence when available. RAGAS quality evaluation remains independent of Langfuse and must still produce its report if tracing is disabled or blocked.
 - Generated reports should be committed under `ai-service/eval/reports/`, while the narrative closeout should live in `.planning/phases/07-evaluation-observability/07-EVAL-SUMMARY.md`.
 
 ## Sources
