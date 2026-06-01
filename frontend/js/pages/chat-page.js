@@ -82,6 +82,7 @@ function mountChatPage() {
   root.addEventListener('input', (event) => {
     if (event.target?.matches?.('[data-chat-input]')) {
       state.draft = event.target.value;
+      updateComposerSubmitState(event.target, state);
     }
   });
 
@@ -324,6 +325,13 @@ function mountChatPage() {
         </div>
       </form>
     `;
+  }
+}
+
+function updateComposerSubmitState(input, state) {
+  const submit = input.closest('[data-chat-composer]')?.querySelector('button[type="submit"]');
+  if (submit) {
+    submit.disabled = state.sending || !state.draft.trim();
   }
 }
 
