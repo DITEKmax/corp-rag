@@ -3,11 +3,111 @@
   "corpus_version": "ru-aviation-logistics-v1",
   "document_count": 16,
   "frozen_at": "2026-06-01T08:20:00Z",
-  "golden_authoring_status": "blocked_until_frozen_corpus_is_indexed",
+  "golden_authoring_status": "ready",
   "hash_algorithm": "sha256",
-  "indexed": false,
-  "indexed_document_ids": [],
+  "indexed": true,
+  "indexed_document_ids": [
+    "87b81f3b-357b-4599-9aea-36920cffccc9",
+    "116a0b8e-fad3-4299-8f1b-fa48e2e4fd2a",
+    "bf07dc98-da4b-47c7-aed2-66e0ff04f7f1",
+    "d3b8329b-f10b-4873-806d-a22427067eca",
+    "aa939285-1629-450d-b1f4-0e63ec6ba1c6",
+    "fd602b4c-494c-4b5c-9994-bb9addc4d89a",
+    "a411dd48-2862-43f1-99c2-199c18e26c48",
+    "13d8e22d-524b-410f-8d28-5e4830527841",
+    "2e675573-1262-4546-9e50-d5ef5df93a36",
+    "46b8b66b-8509-4c9f-8d8d-fdd7eb52cb47",
+    "5cba5417-0b01-48d1-8d4c-67b74197a4db",
+    "b457b292-de31-491e-8535-df3a31ab5c8c",
+    "e077eb72-0e27-4e1e-9b63-34316e88b546",
+    "d649c134-dd26-4c4d-bd18-772cb4f46b73",
+    "1f81ef52-3447-4166-ae1d-030cc3fb4cb2",
+    "78227564-0c5a-4dfc-9a45-78d7cee2d6aa"
+  ],
+  "indexed_document_map": [
+    {
+      "manifest_doc_id": "CORP-RU-AV-001",
+      "indexed_document_id": "87b81f3b-357b-4599-9aea-36920cffccc9",
+      "title": "Регламент передачи рейса"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-002",
+      "indexed_document_id": "116a0b8e-fad3-4299-8f1b-fa48e2e4fd2a",
+      "title": "Памятка по приоритетам груза"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-003",
+      "indexed_document_id": "bf07dc98-da4b-47c7-aed2-66e0ff04f7f1",
+      "title": "Норматив топливного резерва"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-004",
+      "indexed_document_id": "d3b8329b-f10b-4873-806d-a22427067eca",
+      "title": "Отчет по окнам технического обслуживания"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-005",
+      "indexed_document_id": "aa939285-1629-450d-b1f4-0e63ec6ba1c6",
+      "title": "Политика планирования экипажей"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-006",
+      "indexed_document_id": "fd602b4c-494c-4b5c-9994-bb9addc4d89a",
+      "title": "Руководство склада запасных частей"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-007",
+      "indexed_document_id": "a411dd48-2862-43f1-99c2-199c18e26c48",
+      "title": "Памятка по метеозадержкам"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-008",
+      "indexed_document_id": "13d8e22d-524b-410f-8d28-5e4830527841",
+      "title": "SLA наземного обслуживания"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-009",
+      "indexed_document_id": "2e675573-1262-4546-9e50-d5ef5df93a36",
+      "title": "Руководство по таможенному транзиту"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-010",
+      "indexed_document_id": "46b8b66b-8509-4c9f-8d8d-fdd7eb52cb47",
+      "title": "Политика безопасности аэропорта"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-011",
+      "indexed_document_id": "5cba5417-0b01-48d1-8d4c-67b74197a4db",
+      "title": "Норматив по опасным грузам"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-012",
+      "indexed_document_id": "b457b292-de31-491e-8535-df3a31ab5c8c",
+      "title": "Отчет по холодовой цепи"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-013",
+      "indexed_document_id": "e077eb72-0e27-4e1e-9b63-34316e88b546",
+      "title": "Руководство по реагированию на инциденты"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-014",
+      "indexed_document_id": "d649c134-dd26-4c4d-bd18-772cb4f46b73",
+      "title": "Отчет аудита поставщиков"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-015",
+      "indexed_document_id": "1f81ef52-3447-4166-ae1d-030cc3fb4cb2",
+      "title": "Руководство по интеграции диспетчеризации"
+    },
+    {
+      "manifest_doc_id": "CORP-RU-AV-016",
+      "indexed_document_id": "78227564-0c5a-4dfc-9a45-78d7cee2d6aa",
+      "title": "Политика багажных исключений"
+    }
+  ],
+  "indexed_source": "Live Java upload through /api/v1/documents against the local Docker stack.",
   "language": "ru",
-  "notes": "Golden answers must be authored only after this committed corpus snapshot is indexed into Qdrant and Neo4j.",
+  "notes": "Golden answers were authored after this committed corpus snapshot was indexed into Qdrant and Neo4j.",
   "source_manifest": "../corpus/manifest.json"
 }
