@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 
 from eval.schema import CorpusManifest
 from eval.seed_corpus import (
+    JavaDocumentApiClient,
     JavaDocumentRecord,
     SeedCorpusError,
     SeedRunConfig,
@@ -156,6 +158,43 @@ def test_polling_raises_on_failed_indexing() -> None:
             interval_seconds=0,
             sleep=lambda _: None,
         )
+
+
+def test_java_client_sends_browser_origin_for_unsafe_document_calls(tmp_path: Path) -> None:
+    manifest = _manifest()
+    document_path = tmp_path / manifest.documents[0].path
+    document_path.parent.mkdir(parents=True)
+    document_path.write_text("content", encoding="utf-8")
+    observed: list[tuple[str, str | None, str | None]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed.append((request.method, request.headers.get("origin"), request.headers.get("referer")))
+        if request.method == "DELETE":
+            return httpx.Response(204)
+        return httpx.Response(
+            201,
+            json={
+                "id": "doc-1",
+                "title": manifest.documents[0].title,
+                "status": "UPLOADED",
+                "chunkCount": None,
+                "indexedAt": None,
+                "failureReason": None,
+            },
+        )
+
+    client = JavaDocumentApiClient(
+        "http://localhost:8080",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler), base_url="http://localhost:8080"),
+    )
+
+    client.delete_document("doc-1")
+    client.upload_document(manifest, manifest.documents[0], tmp_path)
+
+    assert observed == [
+        ("DELETE", "http://localhost:8080", "http://localhost:8080/"),
+        ("POST", "http://localhost:8080", "http://localhost:8080/"),
+    ]
 
 
 def test_evidence_output_contains_ids_statuses_store_checks_and_no_secrets(tmp_path: Path) -> None:

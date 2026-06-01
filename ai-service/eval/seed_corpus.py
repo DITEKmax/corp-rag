@@ -141,6 +141,9 @@ class JavaDocumentApiClient:
     ) -> None:
         normalized = base_url.rstrip("/")
         self._api_prefix = "" if normalized.endswith("/api/v1") else "/api/v1"
+        url = httpx.URL(normalized)
+        port = f":{url.port}" if url.port is not None else ""
+        self._origin = f"{url.scheme}://{url.host}{port}"
         self._owns_client = http_client is None
         self._client = http_client or httpx.Client(
             base_url=normalized,
@@ -189,7 +192,10 @@ class JavaDocumentApiClient:
         return JavaDocumentRecord.from_payload(response.json())
 
     def delete_document(self, document_id: str) -> None:
-        response = self._client.delete(self._path(f"/documents/{document_id}"))
+        response = self._client.delete(
+            self._path(f"/documents/{document_id}"),
+            headers=self._unsafe_headers(),
+        )
         _raise_for_status(response, f"delete document {document_id}")
 
     def upload_document(self, manifest: CorpusManifest, entry: CorpusManifestEntry, corpus_dir: Path) -> JavaDocumentRecord:
@@ -202,12 +208,16 @@ class JavaDocumentApiClient:
                 self._path("/documents"),
                 data=build_upload_fields(manifest, entry),
                 files=files,
+                headers=self._unsafe_headers(),
             )
         _raise_for_status(response, f"upload {entry.doc_id}")
         return JavaDocumentRecord.from_payload(response.json())
 
     def _path(self, path: str) -> str:
         return f"{self._api_prefix}{path}"
+
+    def _unsafe_headers(self) -> dict[str, str]:
+        return {"Origin": self._origin, "Referer": f"{self._origin}/"}
 
 
 def build_seed_marker(corpus_version: str, doc_id: str) -> str:
@@ -572,9 +582,9 @@ def parse_args(argv: Sequence[str] | None = None) -> SeedRunConfig:
     parser = argparse.ArgumentParser(
         description="Reset the Phase 8 demo corpus through the Java document API and write seed evidence."
     )
-    parser.add_argument("--java-base-url", default=os.getenv("DEMO_JAVA_BASE_URL", DEFAULT_JAVA_BASE_URL))
-    parser.add_argument("--username", default=os.getenv("DEMO_ADMIN_USERNAME", "admin"))
-    parser.add_argument("--password", default=os.getenv("DEMO_ADMIN_PASSWORD"))
+    parser.add_argument("--java-base-url", default=os.getenv("DEMO_JAVA_BASE_URL", os.getenv("JAVA_BASE_URL", DEFAULT_JAVA_BASE_URL)))
+    parser.add_argument("--username", default=os.getenv("DEMO_ADMIN_USERNAME", os.getenv("ADMIN_USERNAME", "admin")))
+    parser.add_argument("--password", default=os.getenv("DEMO_ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD")))
     parser.add_argument("--corpus-dir", type=Path, default=DEFAULT_CORPUS_DIR)
     parser.add_argument("--manifest-path", type=Path, default=DEFAULT_MANIFEST_PATH)
     parser.add_argument("--evidence-json", type=Path, default=DEFAULT_EVIDENCE_JSON)
