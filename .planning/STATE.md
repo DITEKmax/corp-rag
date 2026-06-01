@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 6 passed human live UAT; Phase 7 can start
+status: executing
 stopped_at: Phase 7 context gathered
-last_updated: "2026-06-01T07:29:04.132Z"
-last_activity: 2026-06-01 -- Phase 6 human live UAT passed and Low/OBS backlog captured
+last_updated: "2026-06-01T07:41:48.552Z"
+last_activity: 2026-06-01 -- Phase 07 planning complete
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 50
+  total_plans: 58
   completed_plans: 50
-  percent: 100
+  percent: 86
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 07 (Evaluation & Observability) — READY
-Plan: TBD
-Status: Phase 6 passed human live UAT; Phase 7 can start
-Last activity: 2026-06-01 -- Phase 6 human live UAT passed and Low/OBS backlog captured
+Plan: 8 plans ready
+Status: Ready to execute
+Last activity: 2026-06-01 -- Phase 07 planning complete
 
-Progress: [██████████] 100%
+Progress: [████████░░] 86%
 
 ## Performance Metrics
 
@@ -149,7 +149,7 @@ Recent locked decisions affecting current work:
 
 ### Pending Todos
 
-- Plan Phase 7: Evaluation & Observability.
+- Execute Phase 7: Evaluation & Observability from plans 07-01 through 07-08.
 - Build a Russian-first golden dataset; Phase 6 confirmed the Russian upload/index/query/citation/source-modal path works end to end.
 - Keep PH5.1-DEF-B as info-level reproducibility debt: restore a pinned uv base image when ghcr.io is reachable from Docker or a mirror is configured.
 - See `.planning/BACKLOG.md` for non-blocking Phase 5 / 5.1 and Phase 6 UAT follow-ups. Important current manual state: if `ai-service/Dockerfile` is reset to the committed ghcr.io base while the Docker daemon still cannot reach ghcr.io, manually reapply the temporary Docker Hub `astral/uv:python3.12-bookworm` workaround or fix registry/mirror access before rebuilding `python-ai`.

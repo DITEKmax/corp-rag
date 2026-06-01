@@ -253,7 +253,28 @@ Plans:
   3. Injection probes measure and report block rate.
   4. Ablation compares BM25, dense, sparse, hybrid, and hybrid+reranker retrieval variants.
   5. Langfuse traces and service metrics are visible for debugging and demo.
-**Plans**: TBD
+**Plans:** 8 plans
+Plans:
+
+**Wave 1**
+- [ ] 07-01-PLAN.md - Stabilize the local evaluation runtime, memory contour, cold-start diagnostics, and pre-warm path.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 07-02-PLAN.md - Add Langfuse graph/generation tracing and lightweight diagnostics counters.
+- [ ] 07-03-PLAN.md - Create eval harness foundation, freeze the Russian demo corpus, and add report metadata plumbing.
+
+**Wave 3** *(blocked on Wave 2 corpus foundation)*
+- [ ] 07-04-PLAN.md - Add eval-only retrieval modes and BM25 baseline harness.
+
+**Wave 4** *(blocked on corpus freeze, indexing, and retrieval-mode harness)*
+- [ ] 07-05-PLAN.md - Author and validate the 40-record Russian golden dataset.
+
+**Wave 5** *(blocked on golden data and required code waves)*
+- [ ] 07-06-PLAN.md - Run production `/v1/query` RAGAS quality evaluation over the full golden set.
+- [ ] 07-07-PLAN.md - Run vector retrieval ablation and separate graph-route retrieval reporting.
+
+**Wave 6** *(blocked on quality and ablation reports)*
+- [ ] 07-08-PLAN.md - Run injection probes, verify Langfuse/diagnostics evidence, and assemble the final eval summary.
 
 ### Phase 8: Delivery Polish & Demo Readiness
 **Goal**: The MVP is packaged for a production-like local run and can be demonstrated with seeded corpus, regression evidence, and documentation.
@@ -280,5 +301,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 �
 | 5. Retrieval, Guards & Query API | 8/8 | Complete | 2026-05-19 |
 | 5.1. Phase 5 UAT Fix Wave | 5/5 | Complete | 2026-05-26 |
 | 6. Chat & Frontend Experience | 9/9 | Complete | 2026-06-01 |
-| 7. Evaluation & Observability | 0/TBD | Ready to execute | - |
+| 7. Evaluation & Observability | 0/8 | Ready to execute | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |
