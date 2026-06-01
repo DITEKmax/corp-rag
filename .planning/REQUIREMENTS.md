@@ -58,7 +58,7 @@
 
 ### Evaluation and Delivery
 
-- [ ] **EVAL-01**: Golden dataset covers factual, aggregation, multi-hop, and out-of-scope questions.
+- [x] **EVAL-01**: Golden dataset covers factual, aggregation, multi-hop, and out-of-scope questions.
 - [x] **EVAL-02**: RAGAS and retrieval metrics report faithfulness, relevancy, context precision/recall, recall@k, and MRR.
 - [ ] **EVAL-03**: Injection probes measure guard block rate.
 - [x] **EVAL-04**: Ablation compares BM25, dense, sparse, hybrid, and hybrid+reranker variants.
@@ -122,7 +122,7 @@
 | UI-01 | Phase 6 | Complete |
 | UI-02 | Phase 6 | Complete |
 | UI-03 | Phase 6 | Complete |
-| EVAL-01 | Phase 7 | Pending |
+| EVAL-01 | Phase 7 | Complete |
 | EVAL-02 | Phase 7 | Complete |
 | EVAL-03 | Phase 7 | Pending |
 | EVAL-04 | Phase 7 | Complete |

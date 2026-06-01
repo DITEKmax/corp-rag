@@ -261,7 +261,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 07-02-PLAN.md - Add Langfuse graph/generation tracing and lightweight diagnostics counters.
-- [ ] 07-03-PLAN.md - Create eval harness foundation, freeze the Russian demo corpus, and add report metadata plumbing.
+- [x] 07-03-PLAN.md - Create eval harness foundation, freeze the Russian demo corpus, and add report metadata plumbing.
 
 **Wave 3** *(blocked on Wave 2 corpus foundation)*
 - [ ] 07-04-PLAN.md - Add eval-only retrieval modes and BM25 baseline harness.
