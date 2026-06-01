@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-06-01T23:52:51.757822+00:00",
+  "status": "checkpoint",
+  "compose": {
+    "input_services_healthy": "9/9",
+    "live": {
+      "command": [
+        "C:\\Users\\maksd\\IntelliJIDEA\\corp-rag\\ai-service\\.venv\\Scripts\\python.exe",
+        "C:\\Users\\maksd\\IntelliJIDEA\\corp-rag\\scripts\\check_demo_stack.py",
+        "--compose-file",
+        "C:\\Users\\maksd\\IntelliJIDEA\\corp-rag\\infra\\docker-compose.yml",
+        "--env-file",
+        "C:\\Users\\maksd\\IntelliJIDEA\\corp-rag\\infra\\.env"
+      ],
+      "stdout": "services_healthy=9/9",
+      "services_healthy": "9/9"
+    }
+  },
+  "seed": {
+    "corpus_version": "ru-aviation-logistics-v1",
+    "expected_document_count": 16,
+    "document_count": 16,
+    "java_indexed_count": 16,
+    "qdrant_count": 16,
+    "qdrant_points": 16,
+    "neo4j_count": 16,
+    "non_seed_count": 0
+  },
+  "chat_proof": {
+    "conversation_id": "5b88ae37-2046-41bc-979a-098341f295d9",
+    "message_id": "17b8eb4c-5844-469e-978c-5539d738f3e7",
+    "question": "Что требует регламент передачи рейса при передаче рейса между сменами?",
+    "answered": true,
+    "status": "ANSWERED",
+    "answer_excerpt": "Регламент передачи рейса требует, чтобы передача начиналась за 90 минут до расчетного времени вылета и закрывалась не позднее чем за 45 минут до вылета [1]. Операционный центр отвечает за статус воздушного судна, слот, план загрузки и наличие экипажа [1]. Наземный подрядчик подтверждает готовность трапа, тягача, багажной ленты и команды из четырех человек [1]. При задержке более 30 минут операционный центр открывает карточку исключения и назначает владельца решения [1]. Для медицинского или дипл",
+    "citation_titles": [
+      "Регламент передачи рейса",
+      "Политика планирования экипажей",
+      "Норматив по опасным грузам",
+      "Руководство по таможенному транзиту",
+      "SLA наземного обслуживания"
+    ],
+    "citation_document_ids": [
+      "337f4a65-efdc-4b3a-91a1-f2e3434439ca",
+      "0f7c5f9f-4808-4d86-a8b9-29c3893d03c6",
+      "7b04026e-6663-4d40-b07a-6463b8afd19c",
+      "805c11c2-d915-4ca9-b188-b1116020e13e",
+      "33b3e4ed-755a-4646-8a68-3ea843e1fe24"
+    ],
+    "route": "FACTUAL",
+    "reranker_used": true,
+    "degradation_warnings": [],
+    "trace_id": null
+  },
+  "diagnostics_delta": {
+    "before": {
+      "amqp_connection": true,
+      "amqp_runtime": true,
+      "qdrant_index": true,
+      "graph_index": true,
+      "query_service": true,
+      "query_router": true,
+      "reranker_configured": true,
+      "llm_reachable": true,
+      "query_prewarm_enabled": true,
+      "query_prewarm_embedding_ready": true,
+      "query_prewarm_reranker_ready": true,
+      "langfuse_configured": true,
+      "langfuse_reachable": true,
+      "query_count": 165,
+      "answered_count": 75,
+      "answered_rate": 0.4545,
+      "refused_no_evidence_count": 0,
+      "guard_blocked_count": 4,
+      "reranker_degraded_count": 0,
+      "mean_latency_ms": 12891
+    },
+    "after": {
+      "amqp_connection": true,
+      "amqp_runtime": true,
+      "qdrant_index": true,
+      "graph_index": true,
+      "query_service": true,
+      "query_router": true,
+      "reranker_configured": true,
+      "llm_reachable": true,
+      "query_prewarm_enabled": true,
+      "query_prewarm_embedding_ready": true,
+      "query_prewarm_reranker_ready": true,
+      "langfuse_configured": true,
+      "langfuse_reachable": true,
+      "query_count": 206,
+      "answered_count": 92,
+      "answered_rate": 0.4466,
+      "refused_no_evidence_count": 0,
+      "guard_blocked_count": 5,
+      "reranker_degraded_count": 0,
+      "mean_latency_ms": 12779
+    },
+    "reranker_degraded_before": 0,
+    "reranker_degraded_after": 0
+  },
+  "ragas": {
+    "command": [
+      "C:\\Users\\maksd\\IntelliJIDEA\\corp-rag\\ai-service\\.venv\\Scripts\\python.exe",
+      "eval/ragas_runner.py",
+      "--service-base-url",
+      "http://localhost:8000",
+      "--top-k",
+      "10",
+      "--timeout-seconds",
+      "60",
+      "--qdrant-url",
+      "http://localhost:6333",
+      "--judge-base-url",
+      "https://openrouter.ai/api/v1",
+      "--judge-model-id",
+      "deepseek/deepseek-chat",
+      "--embedding-model-id",
+      "BAAI/bge-m3",
+      "--reports-dir",
+      "eval\\reports",
+      "--ragas-max-retries",
+      "1",
+      "--ragas-max-wait",
+      "5"
+    ],
+    "returncode": 0,
+    "stdout": "{\n  \"markdown_path\": \"C:\\\\Users\\\\maksd\\\\IntelliJIDEA\\\\corp-rag\\\\ai-service\\\\eval\\\\reports\\\\ragas_ru.md\",\n  \"json_path\": \"C:\\\\Users\\\\maksd\\\\IntelliJIDEA\\\\corp-rag\\\\ai-service\\\\eval\\\\reports\\\\ragas_ru.json\",\n  \"csv_path\": \"C:\\\\Users\\\\maksd\\\\IntelliJIDEA\\\\corp-rag\\\\ai-service\\\\eval\\\\reports\\\\ragas_ru.csv\",\n  \"record_count\": 40,\n  \"metrics\": [\n    {\n      \"name\": \"record_count\",\n      \"value\": 40,\n      \"threshold\": null,\n      \"passed\": null,\n      \"notes\": \"Golden validation record_count=40\"\n    },\n    {\n      \"name\": \"answered_count\",\n      \"value\": 16,\n      \"threshold\": null,\n      \"passed\": null,\n      \"notes\": \"{\\\"answered\\\": 16, \\\"refused_guard\\\": 1, \\\"refused_no_evidence\\\": 23}\"\n    },\n    {\n      \"name\": \"outcome_accuracy\",\n      \"value\": 0.575,\n      \"threshold\": 0.8,\n      \"passed\": false,\n      \"notes\": \"Actual outcome is compared to expected_outcome for all 40 records.\"\n    },\n    {\n      \"name\": \"citation_doc_recall\",\n      \"value\": 0.5333,\n      \"threshold\": 0.7,\n      \"passed\": false,\n      \"notes\": \"Document-level expected_doc_ids present in returned citations for answerable records.\"\n    },\n    {\n      \"name\": \"route_mix\",\n      \"value\": \"{\\\"AGGREGATION\\\": 4, \\\"COMPARISON\\\": 4, \\\"FACTUAL\\\": 14, \\\"MULTI_HOP\\\": 10, \\\"UNSUPPORTED\\\": 8}\",\n      \"threshold\": null,\n      \"passed\": null,\n      \"notes\": \"Production /v1/query route distribution.\"\n    },\n    {\n      \"name\": \"faithfulness\",\n      \"value\": 0.9911,\n      \"threshold\": 0.75,\n      \"passed\": true,\n      \"notes\": \"RAGAS metric over 16/16 scored rows.\"\n    },\n    {\n      \"name\": \"answer_relevancy\",\n      \"value\": 0.8649,\n      \"threshold\": 0.75,\n      \"passed\": true,\n      \"notes\": \"RAGAS metric over 15/16 scored rows. Failed rows: ru-aggregation-010: RagasOutputParserException: The output parser failed to parse the output including retries. <- OutputParserException: Failed to parse ResponseRelevanceOutput from completion {}. Got: 2 validation errors for ResponseRelevanceOutput\\nquestion\\n  Field required [type=missing, input_value={}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\\nnoncommittal\\n  Field required [type=missing, input_value={}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\\nFor troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/OUTPUT_PARSING_FAILURE <- ValidationError: 2 validation errors for ResponseRelevanceOutput\\nquestion\\n  Field required [type=missing, input_value={}, input_type=dict]\\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\\nnoncommittal\\n  Field required [ty...\"\n    },\n    {\n      \"name\": \"context_precision\",\n      \"value\": 1.0,\n      \"threshold\": 0.6,\n      \"passed\": true,\n      \"notes\": \"RAGAS metric over 16/16 scored rows.\"\n    },\n    {\n      \"name\": \"context_recall\",\n      \"value\": 1.0,\n      \"threshold\": 0.6,\n      \"passed\": true,\n      \"notes\": \"RAGAS metric over 16/16 scored rows.\"\n    }\n  ]\n}\n",
+    "stderr": "C:\\Users\\maksd\\IntelliJIDEA\\corp-rag\\ai-service\\.venv\\Lib\\site-packages\\qdrant_client\\async_qdrant_remote.py:223: UserWarning: Qdrant client version 1.17.1 is incompatible with server version 1.12.6. Major versions should match and minor version difference must not exceed 1. Set check_compatibility=False to skip version check.\n  show_warning(\n\nFetching 30 files:   0%|          | 0/30 [00:00<?, ?it/s]\nFetching 30 files: 100%|##########| 30/30 [00:00<00:00, 18780.47it/s]\n\npre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]\npre tokenize: 100%|##########| 1/1 [00:00<00:00, 81.26it/s]\nYou're using a XLMRobertaTokenizerFast tokenizer. Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the text followed by a call to the `pad` method to get a padded encoding.\n\nInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]\nInference Embeddings: 100%|##########| 1/1 [00:00<00:00,  7.25it/s]\nInference Embeddings: 100%|##########| 1/1 [00:00<00:00,  7.25it/s]\nPrompt response_relevance_prompt failed to parse output: The output parser failed to parse the output including retries.\nRAGAS score failed: record_id=ru-aggregation-010 metric=answer_relevancy error=RagasOutputParserException: The output parser failed to parse the output including retries. <- OutputParserException: Failed to parse ResponseRelevanceOutput from completion {}. Got: 2 validation errors for ResponseRelevanceOutput\nquestion\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nnoncommittal\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nFor troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/OUTPUT_PARSING_FAILURE <- ValidationError: 2 validation errors for ResponseRelevanceOutput\nquestion\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nnoncommittal\n  Field required [ty...\n",
+    "summary": {
+      "faithfulness": 0.9911,
+      "answer_relevancy": 0.8649,
+      "context_precision": 1.0,
+      "context_recall": 1.0,
+      "answered_count": 16,
+      "outcome_accuracy": 0.575,
+      "citation_doc_recall": 0.5333,
+      "route_mix": "{\"AGGREGATION\": 4, \"COMPARISON\": 4, \"FACTUAL\": 14, \"MULTI_HOP\": 10, \"UNSUPPORTED\": 8}"
+    }
+  },
+  "blocker": null
+}
