@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ from corp_rag_ai.agent.state import QueryGraphState
 from corp_rag_ai.domain.guard import GuardReason, GuardVerdict
 from corp_rag_ai.domain.query import QueryInput, QueryResult, QueryRoute, RefusalReason, RouteDecision, RouteSource
 from corp_rag_ai.domain.retrieval import CitationDraft, RetrievalFailureReason, RetrievalMetadata, RetrieverType
+from corp_rag_ai.observability import NoopQueryObservability, QueryObservability
 from corp_rag_ai.pipeline.generation.degradation_policy import DependencyState, EvidenceState, apply_degradation
 from corp_rag_ai.pipeline.generation.synthesizer import SynthesisResult
 from corp_rag_ai.pipeline.retrieval.context_packer import PackedContext
@@ -38,22 +39,23 @@ class QueryGraphComponents:
     model_id: str
     final_top_n: int = 5
     clock: Callable[[], float] = time.perf_counter
+    observability: QueryObservability | NoopQueryObservability = field(default_factory=NoopQueryObservability)
 
 
 def build_query_graph(components: QueryGraphComponents) -> Any:
     graph = StateGraph(QueryGraphState)
     nodes = _QueryGraphNodes(components)
 
-    graph.add_node("input_guard", nodes.input_guard)
-    graph.add_node("route", nodes.route)
-    graph.add_node("hybrid_retrieval", nodes.hybrid_retrieval)
-    graph.add_node("graph_retrieval", nodes.graph_retrieval)
-    graph.add_node("parent_resolve", nodes.parent_resolve)
-    graph.add_node("rerank", nodes.rerank)
-    graph.add_node("pack_context", nodes.pack_context)
-    graph.add_node("synthesize", nodes.synthesize)
-    graph.add_node("output_guard", nodes.output_guard)
-    graph.add_node("finalize", nodes.finalize)
+    graph.add_node("input_guard", nodes.traced("input_guard", nodes.input_guard))
+    graph.add_node("route", nodes.traced("route", nodes.route))
+    graph.add_node("hybrid_retrieval", nodes.traced("hybrid_retrieval", nodes.hybrid_retrieval))
+    graph.add_node("graph_retrieval", nodes.traced("graph_retrieval", nodes.graph_retrieval))
+    graph.add_node("parent_resolve", nodes.traced("parent_resolve", nodes.parent_resolve))
+    graph.add_node("rerank", nodes.traced("rerank", nodes.rerank))
+    graph.add_node("pack_context", nodes.traced("pack_context", nodes.pack_context))
+    graph.add_node("synthesize", nodes.traced("synthesize", nodes.synthesize))
+    graph.add_node("output_guard", nodes.traced("output_guard", nodes.output_guard))
+    graph.add_node("finalize", nodes.traced("finalize", nodes.finalize))
 
     graph.add_edge(START, "input_guard")
     graph.add_conditional_edges("input_guard", _after_input_guard, {"reject": "finalize", "continue": "route"})
@@ -80,6 +82,15 @@ def build_query_graph(components: QueryGraphComponents) -> Any:
 class _QueryGraphNodes:
     def __init__(self, components: QueryGraphComponents) -> None:
         self._components = components
+
+    def traced(self, name: str, node):
+        async def wrapped(state: QueryGraphState) -> QueryGraphState:
+            async with self._components.observability.span(name) as span:
+                update = await node(state)
+                span.update(metadata=_node_metadata(name, state, update))
+                return update
+
+        return wrapped
 
     async def input_guard(self, state: QueryGraphState) -> QueryGraphState:
         query = state["query"]
@@ -310,6 +321,93 @@ class _QueryGraphNodes:
         if started_at is None:
             return 0
         return max(0, int((self._components.clock() - float(started_at)) * 1000))
+
+
+def _node_metadata(name: str, state: QueryGraphState, update: QueryGraphState) -> dict[str, object]:
+    metadata: dict[str, object] = {"node": name}
+    guard = update.get("guard_outcome")
+    if guard is not None:
+        verdict = getattr(guard, "verdict", None)
+        metadata.update(_guard_metadata(verdict))
+    decision = update.get("route_decision")
+    if decision is not None:
+        metadata.update(
+            {
+                "route": _enum_value(decision.route),
+                "route_source": _enum_value(decision.source),
+                "route_confidence": decision.confidence,
+                "route_reason": decision.reason,
+            }
+        )
+    retrieval = update.get("retrieval_result")
+    if retrieval is not None:
+        metadata.update(_retrieval_metadata(retrieval.metadata))
+        metadata["failure_reason"] = _enum_value(retrieval.failure_reason) if retrieval.failure_reason is not None else None
+    resolution = update.get("parent_resolution")
+    if resolution is not None:
+        metadata["parent_candidates"] = len(resolution.citation_candidates)
+        metadata["parent_warnings"] = tuple(resolution.warnings)
+    reranked = update.get("rerank_outcome")
+    if reranked is not None:
+        metadata["reranker_used"] = reranked.reranker_used
+        metadata["reranker_warnings"] = tuple(reranked.warnings)
+        metadata["reranked_candidates"] = len(reranked.candidates)
+    dependency = update.get("dependency_state")
+    if dependency is not None:
+        metadata["dependency_state"] = _dataclass_metadata(dependency)
+    evidence = update.get("evidence_state")
+    if evidence is not None:
+        metadata["evidence_state"] = _dataclass_metadata(evidence)
+    degradation = update.get("degradation_outcome")
+    if degradation is not None:
+        metadata["degradation"] = _dataclass_metadata(degradation)
+    synthesis = update.get("synthesis_result")
+    if synthesis is not None:
+        metadata["synthesis_answered"] = synthesis.answered
+        metadata["synthesis_confidence_hint"] = synthesis.confidence_hint
+        metadata["synthesis_failure_reason"] = _enum_value(synthesis.failure_reason)
+    output_verdict = update.get("output_guard_verdict")
+    if output_verdict is not None:
+        metadata.update(_guard_metadata(output_verdict, prefix="output_guard_"))
+    final = update.get("final_result")
+    if final is not None:
+        metadata["answered"] = final.answered
+        metadata["refusal_reason"] = _enum_value(final.refusal_reason)
+        metadata.update(_retrieval_metadata(final.retrieval_meta))
+    return {key: value for key, value in metadata.items() if value is not None}
+
+
+def _retrieval_metadata(meta: RetrievalMetadata) -> dict[str, object]:
+    return {
+        "route": _enum_value(meta.route),
+        "retrievers_attempted": tuple(_enum_value(retriever) for retriever in meta.retrievers_attempted),
+        "retrievers_used": tuple(_enum_value(retriever) for retriever in meta.retrievers_used),
+        "degradation_warnings": tuple(meta.degradation_warnings),
+        "latency_ms": meta.latency_ms,
+        "chunks_considered": meta.chunks_considered,
+        "chunks_returned": meta.chunks_returned,
+        "reranker_used": meta.reranker_used,
+        "model_id": meta.model_id,
+    }
+
+
+def _guard_metadata(verdict, *, prefix: str = "guard_") -> dict[str, object]:
+    if verdict is None:
+        return {}
+    return {
+        f"{prefix}blocked": verdict.blocked,
+        f"{prefix}reason": _enum_value(verdict.reason),
+        f"{prefix}tier": _enum_value(verdict.tier),
+        f"{prefix}confidence": verdict.confidence,
+    }
+
+
+def _dataclass_metadata(value: object) -> dict[str, object]:
+    return {
+        key: _enum_value(item) if not isinstance(item, (bool, int, float, tuple)) else item
+        for key in getattr(value, "__dataclass_fields__", {})
+        if (item := getattr(value, key, None)) is not None
+    }
 
 
 def _after_input_guard(state: QueryGraphState) -> str:

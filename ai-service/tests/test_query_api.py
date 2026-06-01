@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from uuid import UUID
 
@@ -13,6 +14,7 @@ from corp_rag_ai.contracts.generated import error_codes
 from corp_rag_ai.domain.guard import GuardReason, GuardTier, GuardVerdict
 from corp_rag_ai.domain.query import QueryInput, QueryResult, QueryRoute, RefusalReason
 from corp_rag_ai.domain.retrieval import CitationDraft, RetrievalMetadata, RetrieverType
+from corp_rag_ai.observability import QueryMetrics
 
 
 USER_ID = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
@@ -35,6 +37,21 @@ def test_query_route_returns_contract_shaped_success_response() -> None:
     assert body["citations"][0]["chunkId"] == str(CHUNK_ID)
     assert body["retrievalMeta"]["route"] == "FACTUAL"
     assert body["retrievalMeta"]["retrieversAttempted"] == ["HYBRID"]
+
+
+def test_query_route_records_root_trace_metadata_and_metrics() -> None:
+    observability = _RecordingObservability()
+    metrics = QueryMetrics()
+    app = _app(_Service(_success_result()), observability=observability, metrics=metrics)
+
+    response = TestClient(app).post("/v1/query", json=_request_json())
+
+    assert response.status_code == 200
+    assert observability.traces[0]["metadata"]["correlation_id"] == str(CORRELATION_ID)
+    assert observability.updates[-1]["route"] == "FACTUAL"
+    assert observability.updates[-1]["answered"] is True
+    assert metrics.snapshot().total_queries == 1
+    assert metrics.snapshot().answered_count == 1
 
 
 def test_query_route_returns_guard_refusal_response() -> None:
@@ -143,7 +160,7 @@ class _FailingService:
         raise RuntimeError("dependency stack exploded")
 
 
-def _app(service, *, timeout_seconds: float = 30) -> FastAPI:
+def _app(service, *, timeout_seconds: float = 30, observability=None, metrics=None) -> FastAPI:
     app = FastAPI()
     app.include_router(router)
     app.state.settings = SimpleNamespace(
@@ -155,7 +172,31 @@ def _app(service, *, timeout_seconds: float = 30) -> FastAPI:
     )
     if service is not None:
         app.state.query_service = service
+    if observability is not None:
+        app.state.observability = observability
+    if metrics is not None:
+        app.state.query_metrics = metrics
     return app
+
+
+class _RecordingObservability:
+    def __init__(self) -> None:
+        self.traces: list[dict[str, object]] = []
+        self.updates: list[dict[str, object]] = []
+
+    @asynccontextmanager
+    async def trace(self, *, name: str, metadata: dict[str, object] | None = None, tags: list[str] | None = None):
+        self.traces.append({"name": name, "metadata": metadata or {}, "tags": tags or []})
+        yield _RecordingObservation(self.updates)
+
+
+class _RecordingObservation:
+    def __init__(self, updates: list[dict[str, object]]) -> None:
+        self._updates = updates
+
+    def update(self, *, metadata: dict[str, object] | None = None, **_kwargs) -> None:
+        if metadata:
+            self._updates.append(metadata)
 
 
 def _success_result() -> QueryResult:

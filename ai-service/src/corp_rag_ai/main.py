@@ -12,6 +12,7 @@ from corp_rag_ai.adapters.minio import MinioDocumentStore
 from corp_rag_ai.adapters.rest.chunks import router as chunk_detail_router
 from corp_rag_ai.adapters.rest.query import router as query_router
 from corp_rag_ai.config import get_settings
+from corp_rag_ai.observability import QueryMetrics, QueryMetricsSnapshot, QueryObservability
 from corp_rag_ai.pipeline.indexing.embedding import LocalBgeM3Embedder
 from corp_rag_ai.pipeline.indexing.entity_extractor import DeepSeekEntityExtractor
 from corp_rag_ai.pipeline.indexing.graph_indexer import Neo4jGraphIndex
@@ -46,7 +47,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         try:
             app.state.settings = settings
-            query_runtime = build_query_runtime(settings)
+            observability = QueryObservability.from_settings(settings)
+            app.state.observability = observability
+            app.state.query_metrics = QueryMetrics()
+            query_runtime = build_query_runtime(settings, observability=observability)
             app.state.query_service = query_runtime.service
             app.state.query_router_configured = True
             app.state.reranker_configured = settings.reranker_enabled
@@ -364,7 +368,10 @@ async def ready() -> dict[str, str]:
 
 
 @app.get("/diagnostics", tags=["platform"])
-async def diagnostics() -> dict[str, bool]:
+async def diagnostics() -> dict[str, object]:
+    metrics = getattr(app.state, "query_metrics", None)
+    snapshot = metrics.snapshot() if metrics is not None else QueryMetricsSnapshot()
+    observability = getattr(app.state, "observability", None)
     return {
         "amqp_connection": getattr(app.state, "amqp_connection", None) is not None,
         "amqp_runtime": getattr(app.state, "amqp_runtime", None) is not None,
@@ -377,4 +384,7 @@ async def diagnostics() -> dict[str, bool]:
         "query_prewarm_enabled": bool(getattr(app.state, "query_prewarm_enabled", False)),
         "query_prewarm_embedding_ready": bool(getattr(app.state, "query_prewarm_embedding_ready", False)),
         "query_prewarm_reranker_ready": bool(getattr(app.state, "query_prewarm_reranker_ready", False)),
+        "langfuse_configured": bool(getattr(observability, "configured", False)),
+        "langfuse_reachable": bool(getattr(observability, "reachable", False)),
+        **snapshot.as_dict(),
     }

@@ -33,7 +33,7 @@ uv run pytest
 
 Phase 4 uses local `FlagEmbedding` for `BAAI/bge-m3` dense+sparse embeddings. The first live smoke or first container run can download about 2.3 GB of model weights into the Hugging Face cache.
 
-Docker Compose mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` for `python-ai`. Keep that volume between runs so the model is not downloaded repeatedly. The compose service reserves 4 GB and caps `python-ai` at 6 GB because Phase 5 adds the local bge reranker; Docker Desktop should have additional headroom for Java, Postgres, Qdrant, Neo4j, MinIO, RabbitMQ, and Langfuse.
+Docker Compose mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` for `python-ai`. Keep that volume between runs so the model is not downloaded repeatedly. The compose service reserves 6 GB and caps `python-ai` at 8 GB for Phase 7 evaluation because the query path can load both local bge-m3 and the local bge reranker; Docker Desktop should have additional headroom for Java, Postgres, Qdrant, Neo4j, MinIO, RabbitMQ, and Langfuse.
 
 Do not clear retained Docker volumes before the end-of-Phase 4 UAT. The retained RabbitMQ messages from Phase 3 are part of the first UAT scenario.
 
@@ -91,6 +91,8 @@ Phase 5 query behavior is configured through environment-backed settings:
 | `AI_RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` |
 | `AI_RERANKER_TIMEOUT_SECONDS` | `25` |
 | `AI_RERANKER_LOAD_TIMEOUT_SECONDS` | `28` |
+| `AI_QUERY_PREWARM_ENABLED` | `false` in plain settings, `true` in Compose |
+| `AI_QUERY_PREWARM_TIMEOUT_SECONDS` | `45` |
 | `AI_CONTEXT_TOKEN_CAP` | `4000` |
 | `AI_WEAK_EVIDENCE_THRESHOLD` | `0.4` |
 | `AI_FLAGGED_CHUNK_SCORE_MULTIPLIER` | `0.5` |
@@ -99,9 +101,15 @@ Phase 5 query behavior is configured through environment-backed settings:
 
 `AI_QUERY_TIMEOUT_SECONDS` is the outer REST request budget. The reranker has smaller internal budgets: `AI_RERANKER_TIMEOUT_SECONDS` bounds warm `compute_score(...)` work, and `AI_RERANKER_LOAD_TIMEOUT_SECONDS` bounds lazy local model load. Both must be strictly below `AI_QUERY_TIMEOUT_SECONDS`; startup settings validation fails if the effective reranker step budget is greater than or equal to the query timeout. When a reranker budget expires, the query keeps the raw retrieval order, returns `rerankerUsed=false`, and includes `reranker_unavailable` in `retrievalMeta.degradationWarnings`.
 
-The default warm scoring budget is 25 seconds because local CPU scoring for `BAAI/bge-reranker-v2-m3` can be slow but must still leave room inside the 30 second request timeout. The lazy load budget is 28 seconds to give cold load slightly more headroom without letting reranking occupy the whole request. Cold first load can still exceed the warm scoring path on local CPU hardware, so Phase 5.1 UAT should pre-warm the reranker with one untimed query before timing Scenario 3.
+The default warm scoring budget is 25 seconds because local CPU scoring for `BAAI/bge-reranker-v2-m3` can be slow but must still leave room inside the 30 second request timeout. The lazy load budget is 28 seconds to give cold load slightly more headroom without letting reranking occupy the whole request. Compose enables `AI_QUERY_PREWARM_ENABLED=true` so startup tries to load local bge-m3 and reranker components before the first timed query. Prewarm never calls OpenRouter, RAGAS, or Langfuse, and failures are reported in diagnostics without blocking startup.
 
-`/diagnostics` includes query readiness fields: `query_service`, `query_router`, `reranker_configured`, and `llm_reachable`. The LLM field is a cheap configured-state indicator and does not make a live OpenRouter call.
+`/diagnostics` includes query readiness fields: `query_service`, `query_router`, `reranker_configured`, and `llm_reachable`. The LLM field is a cheap configured-state indicator and does not make a live OpenRouter call. Phase 7 also exposes process-local query counters (`query_count`, `answered_count`, `answered_rate`, `refused_no_evidence_count`, `guard_blocked_count`, `reranker_degraded_count`, `mean_latency_ms`), prewarm readiness, and Langfuse configured/reachable booleans.
+
+## Langfuse Tracing
+
+The service uses the legacy `langfuse~=2.0` Python SDK because local Compose runs `langfuse/langfuse:2.95.11`. Do not upgrade the container to Langfuse v3 for Phase 7.
+
+Tracing no-ops when `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` are placeholders or the local Langfuse health endpoint is unreachable. When real local Langfuse keys are configured, each `/v1/query` creates one root trace with safe request/result metadata. Query graph nodes create child spans named after the actual node names, and the OpenRouter synthesis call is traced as a generation under `synthesize` with the prompt/output payload required for eval inspection. Secrets are never written to traces.
 
 Java chat persistence, Java audit rows for query outcomes, and browser chat/source-viewer UI are Phase 6 responsibilities. Python now returns enough answer, citation, guard, and retrieval metadata for Java to persist and display.
 

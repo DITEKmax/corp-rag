@@ -98,6 +98,8 @@ Invoke-RestMethod http://localhost:6333/collections/documents_chunks
 docker compose --env-file infra/.env -f infra/docker-compose.yml exec neo4j cypher-shell -u neo4j -p local-neo4j-password "RETURN 1;"
 ```
 
+Phase 7 query observability uses the Python `langfuse~=2.0` SDK with the existing `langfuse/langfuse:2.95.11` container. Put real local Langfuse project keys in ignored `infra/.env` to enable traces; placeholder keys intentionally no-op. `/diagnostics` reports the existing readiness booleans plus query counters, prewarm readiness, and `langfuse_configured` / `langfuse_reachable`.
+
 ## Phase 5 Query UAT Notes
 
 Phase 5 validates Python `POST /v1/query`. Before live query UAT, upload a fresh indexed corpus as described in `.planning/phases/05-retrieval-guards-query-api/05-USER-SETUP.md`; the Phase 4 TechCorp happy-path document was deleted during cleanup.

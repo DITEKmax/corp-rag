@@ -20,6 +20,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
 from corp_rag_ai.domain.query import QueryInput, RefusalReason
+from corp_rag_ai.observability import NoopQueryObservability, QueryObservability
 from corp_rag_ai.pipeline.retrieval.context_packer import PackedContext
 
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -65,6 +66,7 @@ class DeepSeekAnswerSynthesizer:
         max_dependency_attempts: int = DEFAULT_DEPENDENCY_ATTEMPTS,
         max_citation_attempts: int = DEFAULT_CITATION_ATTEMPTS,
         sleep: SleepFn = asyncio.sleep,
+        observability: QueryObservability | NoopQueryObservability | None = None,
     ) -> None:
         self._client = client
         self._api_key = api_key
@@ -75,6 +77,7 @@ class DeepSeekAnswerSynthesizer:
         self._max_dependency_attempts = max_dependency_attempts
         self._max_citation_attempts = max(1, max_citation_attempts)
         self._sleep = sleep
+        self._observability = observability or NoopQueryObservability()
 
     async def synthesize(self, query: QueryInput, context: PackedContext) -> SynthesisResult:
         prompt = _render_prompt(query, context, citation_retry=False)
@@ -82,7 +85,18 @@ class DeepSeekAnswerSynthesizer:
         citation_failures = 0
         while True:
             try:
-                response = await self._create_completion(prompt)
+                async with self._observability.generation(
+                    name="synthesize_generation",
+                    model=self._model,
+                    input=prompt,
+                    metadata={
+                        "provider": "openrouter",
+                        "base_url": self._base_url,
+                        "prompt_version": SYNTHESIS_PROMPT_VERSION,
+                    },
+                ) as generation:
+                    response = await self._create_completion(prompt)
+                    generation.update(output=_completion_message_content(response), usage=_completion_usage(response))
                 parsed = _parse_response(response)
                 if _needs_citation_retry(parsed, context):
                     citation_failures += 1
@@ -203,6 +217,20 @@ def _completion_message_content(response: Any) -> str | None:
     message = getattr(choices[0], "message", None)
     content = getattr(message, "content", None)
     return content if isinstance(content, str) else None
+
+
+def _completion_usage(response: Any) -> dict[str, int] | None:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    if hasattr(usage, "model_dump"):
+        return usage.model_dump(exclude_none=True)
+    result = {
+        key: int(value)
+        for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+        if isinstance((value := getattr(usage, key, None)), int)
+    }
+    return result or None
 
 
 def _strip_unsupported_schema_keys(value: Any) -> Any:

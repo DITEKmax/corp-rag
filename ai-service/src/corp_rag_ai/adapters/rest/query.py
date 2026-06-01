@@ -18,6 +18,7 @@ from corp_rag_ai.domain.query import (
     RetrievalOptions,
 )
 from corp_rag_ai.domain.retrieval import RetrievalMetadata, RetrieverType
+from corp_rag_ai.observability import NoopQueryObservability
 
 
 QUERY_TIMEOUT_WARNING = "query_timeout"
@@ -53,33 +54,38 @@ async def post_query(payload: contract.QueryRequest, request: Request) -> contra
             correlation_id=query.correlation_id,
         )
 
-    try:
-        result = await asyncio.wait_for(service.answer(query), timeout=settings.query_timeout_seconds)
-    except TimeoutError:
-        result = QueryResult.refused(
-            query=query,
-            reason=QUERY_TIMEOUT_WARNING,
-            answer="Query processing timed out before an answer could be produced.",
-            retrieval_meta=RetrievalMetadata(
-                route=QueryRoute.UNSUPPORTED,
-                retrievers_attempted=(),
-                retrievers_used=(),
-                degradation_warnings=(QUERY_TIMEOUT_WARNING,),
-                latency_ms=int(settings.query_timeout_seconds * 1000),
-                chunks_considered=0,
-                chunks_returned=0,
-                reranker_used=False,
-                model_id=settings.deepseek_model_id,
-            ),
-        )
-    except Exception:
-        return _problem(
-            status_code=503,
-            error_code=error_codes.AI_SERVICE_UNAVAILABLE,
-            title="AI service unavailable",
-            detail="query service failed before producing a safe response",
-            correlation_id=query.correlation_id,
-        )
+    observability = getattr(request.app.state, "observability", NoopQueryObservability())
+    async with observability.trace(name="query", metadata=_trace_request_metadata(query), tags=["query"]) as trace:
+        try:
+            result = await asyncio.wait_for(service.answer(query), timeout=settings.query_timeout_seconds)
+        except TimeoutError:
+            result = QueryResult.refused(
+                query=query,
+                reason=QUERY_TIMEOUT_WARNING,
+                answer="Query processing timed out before an answer could be produced.",
+                retrieval_meta=RetrievalMetadata(
+                    route=QueryRoute.UNSUPPORTED,
+                    retrievers_attempted=(),
+                    retrievers_used=(),
+                    degradation_warnings=(QUERY_TIMEOUT_WARNING,),
+                    latency_ms=int(settings.query_timeout_seconds * 1000),
+                    chunks_considered=0,
+                    chunks_returned=0,
+                    reranker_used=False,
+                    model_id=settings.deepseek_model_id,
+                ),
+            )
+        except Exception:
+            trace.update(metadata={"error": "query_service_failed"})
+            return _problem(
+                status_code=503,
+                error_code=error_codes.AI_SERVICE_UNAVAILABLE,
+                title="AI service unavailable",
+                detail="query service failed before producing a safe response",
+                correlation_id=query.correlation_id,
+            )
+        trace.update(metadata=_trace_result_metadata(result))
+        _record_query_metrics(request.app.state, result)
     return query_result_to_contract(result)
 
 
@@ -178,6 +184,42 @@ def _enum_value(value: object) -> str:
 
 def _settings(request: Request):
     return getattr(request.app.state, "settings", get_settings())
+
+
+def _record_query_metrics(state, result: QueryResult) -> None:
+    metrics = getattr(state, "query_metrics", None)
+    if metrics is not None:
+        metrics.record(result)
+
+
+def _trace_request_metadata(query: QueryInput) -> dict[str, object]:
+    return {
+        "correlation_id": str(query.correlation_id),
+        "conversation_id": str(query.conversation_id),
+        "user_id": str(query.user_id),
+        "requested_top_k": query.retrieval_options.top_k,
+        "reranker_requested": query.retrieval_options.reranker_enabled,
+        "forced_route": _enum_value(query.retrieval_options.force_route) if query.retrieval_options.force_route else None,
+    }
+
+
+def _trace_result_metadata(result: QueryResult) -> dict[str, object]:
+    meta = result.retrieval_meta
+    return {
+        "answered": result.answered,
+        "refusal_reason": _enum_value(result.refusal_reason) if result.refusal_reason is not None else None,
+        "confidence": result.confidence,
+        "route": _enum_value(meta.route),
+        "retrievers_attempted": [_enum_value(retriever) for retriever in meta.retrievers_attempted],
+        "retrievers_used": [_enum_value(retriever) for retriever in meta.retrievers_used],
+        "degradation_warnings": list(meta.degradation_warnings or ()),
+        "latency_ms": meta.latency_ms,
+        "chunks_considered": meta.chunks_considered,
+        "chunks_returned": meta.chunks_returned,
+        "reranker_used": meta.reranker_used,
+        "model_id": meta.model_id,
+        "guard_blocked": result.guard_verdict.blocked if result.guard_verdict is not None else False,
+    }
 
 
 def _problem(

@@ -14,6 +14,7 @@ from corp_rag_ai.pipeline.guards.input_guard import InputGuard
 from corp_rag_ai.pipeline.guards.output_guard import OutputGuard
 from corp_rag_ai.pipeline.indexing.embedding import LocalBgeM3Embedder
 from corp_rag_ai.pipeline.indexing.vector_indexer import QdrantVectorIndex
+from corp_rag_ai.observability import NoopQueryObservability, QueryObservability
 from corp_rag_ai.pipeline.retrieval.context_packer import ContextPacker
 from corp_rag_ai.pipeline.retrieval.graph import GraphRetriever
 from corp_rag_ai.pipeline.retrieval.hybrid import HybridRetriever
@@ -72,7 +73,8 @@ class SessionParentChunkReader:
             return await ParentChunkRepository(session).get_by_parent_ids(parent_ids)
 
 
-def build_query_runtime(settings: Settings) -> QueryRuntime:
+def build_query_runtime(settings: Settings, *, observability: QueryObservability | NoopQueryObservability | None = None) -> QueryRuntime:
+    observability = observability or NoopQueryObservability()
     database_engine = create_engine(settings)
     session_factory = create_session_factory(database_engine)
     qdrant_index = QdrantVectorIndex.from_url(str(settings.qdrant_url))
@@ -121,10 +123,12 @@ def build_query_runtime(settings: Settings) -> QueryRuntime:
             api_key=api_key,
             base_url=str(settings.openrouter_base_url),
             model=settings.deepseek_model_id,
+            observability=observability,
         ),
         output_guard=OutputGuard(),
         model_id=settings.deepseek_model_id,
         final_top_n=settings.query_final_top_n,
+        observability=observability,
     )
     return QueryRuntime(
         service=QueryService(build_query_graph(components)),
