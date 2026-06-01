@@ -20,7 +20,9 @@ from corp_rag_ai.pipeline.indexing.embedding import (
 from eval.io import load_corpus_metadata, load_golden_records, load_manifest
 from eval.query_client import (
     ActualOutcome,
+    DEFAULT_AI_DB_URL,
     DEFAULT_EVAL_TOP_K,
+    DEFAULT_QDRANT_URL,
     ProductionQueryClient,
     QueryClientConfig,
     QuerySampleResult,
@@ -74,6 +76,9 @@ class RagasRunnerConfig:
     top_k: int = DEFAULT_EVAL_TOP_K
     reranker_enabled: bool = True
     timeout_seconds: float = 180.0
+    parent_context_enabled: bool = True
+    qdrant_url: str = DEFAULT_QDRANT_URL
+    ai_db_url: str = DEFAULT_AI_DB_URL
     judge_model_id: str = DEFAULT_JUDGE_MODEL_ID
     judge_base_url: str | None = None
     judge_api_key: str | None = None
@@ -252,6 +257,9 @@ async def collect_query_results(
         top_k=config.top_k,
         reranker_enabled=config.reranker_enabled,
         access_filter=access_filter,
+        parent_context_enabled=config.parent_context_enabled,
+        qdrant_url=config.qdrant_url,
+        ai_db_url=config.ai_db_url,
     )
     factory = query_client_factory or ProductionQueryClient
     results: list[QuerySampleResult] = []
@@ -474,6 +482,8 @@ def build_evaluation_report(
             "service_base_url": config.service_base_url,
             "top_k": config.top_k,
             "reranker_enabled": config.reranker_enabled,
+            "parent_context_enabled": config.parent_context_enabled,
+            "qdrant_url": config.qdrant_url,
             "judge_model_id": config.judge_model_id,
             "judge_base_url": config.judge_base_url or _default_judge_base_url(),
             "embedding_model_id": config.embedding_model_id,
@@ -689,6 +699,9 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
     parser.add_argument("--top-k", type=int, default=DEFAULT_EVAL_TOP_K)
     parser.add_argument("--no-reranker", action="store_true")
     parser.add_argument("--timeout-seconds", type=float, default=180.0)
+    parser.add_argument("--no-parent-context", action="store_true")
+    parser.add_argument("--qdrant-url", default=os.getenv("QDRANT_URL", DEFAULT_QDRANT_URL))
+    parser.add_argument("--ai-db-url", default=os.getenv("AI_DB_URL", DEFAULT_AI_DB_URL))
     parser.add_argument("--judge-model-id", default=os.getenv("RAGAS_JUDGE_MODEL_ID", DEFAULT_JUDGE_MODEL_ID))
     parser.add_argument("--judge-base-url", default=os.getenv("RAGAS_JUDGE_BASE_URL"))
     parser.add_argument("--embedding-model-id", default=os.getenv("RAGAS_EMBEDDING_MODEL_ID", DEFAULT_EMBEDDING_MODEL_ID))
@@ -707,6 +720,9 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
         top_k=args.top_k,
         reranker_enabled=not args.no_reranker,
         timeout_seconds=args.timeout_seconds,
+        parent_context_enabled=not args.no_parent_context,
+        qdrant_url=args.qdrant_url,
+        ai_db_url=args.ai_db_url,
         judge_model_id=args.judge_model_id,
         judge_base_url=args.judge_base_url,
         embedding_model_id=args.embedding_model_id,

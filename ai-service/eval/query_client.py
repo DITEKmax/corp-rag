@@ -3,16 +3,25 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+import os
+from collections.abc import Sequence
+from typing import Any, Protocol
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import httpx
+import sqlalchemy as sa
+from qdrant_client import AsyncQdrantClient, models
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from corp_rag_ai.contracts.generated import ai_service_v1 as contract
+from corp_rag_ai.pipeline.indexing.vector_indexer import COLLECTION_NAME
+from corp_rag_ai.repositories.tables import document_chunks_parent
 from eval.schema import CorpusManifest, GoldenRecord
 
 
 DEFAULT_EVAL_TOP_K = 5
+DEFAULT_QDRANT_URL = "http://localhost:6333"
+DEFAULT_AI_DB_URL = "postgresql+asyncpg://corp_rag_ai:corp_rag_ai@localhost:5432/corp_rag_ai"
 
 
 class ActualOutcome(str, Enum):
@@ -43,6 +52,9 @@ class QueryClientConfig:
     reranker_enabled: bool = True
     user_id: UUID = field(default_factory=lambda: uuid5(NAMESPACE_URL, "corp-rag-eval-user"))
     access_filter: EvalAccessFilter | None = None
+    parent_context_enabled: bool = False
+    qdrant_url: str = field(default_factory=lambda: os.getenv("QDRANT_URL", DEFAULT_QDRANT_URL))
+    ai_db_url: str = field(default_factory=lambda: os.getenv("AI_DB_URL", DEFAULT_AI_DB_URL))
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,14 +130,126 @@ class QueryClientError(RuntimeError):
     pass
 
 
+class ParentContextResolver(Protocol):
+    async def resolve_contexts(self, citations: Sequence[contract.Citation]) -> tuple[str, ...]:
+        ...
+
+    async def aclose(self) -> None:
+        ...
+
+
+class QdrantPostgresParentContextResolver:
+    def __init__(
+        self,
+        *,
+        qdrant_url: str = DEFAULT_QDRANT_URL,
+        db_url: str = DEFAULT_AI_DB_URL,
+        collection_name: str = COLLECTION_NAME,
+    ) -> None:
+        self._qdrant = AsyncQdrantClient(url=qdrant_url)
+        self._engine: AsyncEngine = create_async_engine(db_url)
+        self._collection_name = collection_name
+
+    async def resolve_contexts(self, citations: Sequence[contract.Citation]) -> tuple[str, ...]:
+        chunk_ids = tuple(str(citation.chunkId) for citation in citations)
+        if not chunk_ids:
+            return ()
+
+        chunk_payloads = await self._chunk_payloads(chunk_ids)
+        parent_ids = tuple(
+            dict.fromkeys(
+                str(payload["parentChunkId"])
+                for payload in chunk_payloads.values()
+                if payload.get("parentChunkId")
+            )
+        )
+        parents = await self._parent_contexts(parent_ids)
+
+        contexts: list[str] = []
+        seen_parent_ids: set[str] = set()
+        for chunk_id in chunk_ids:
+            payload = chunk_payloads.get(chunk_id)
+            if not payload:
+                continue
+            parent_id = str(payload.get("parentChunkId") or "")
+            if parent_id and parent_id in seen_parent_ids:
+                continue
+            if parent_id and parent_id in parents:
+                contexts.append(_format_parent_context(payload, parents[parent_id]))
+                seen_parent_ids.add(parent_id)
+                continue
+            fallback = _format_payload_context(payload)
+            if fallback:
+                contexts.append(fallback)
+        return tuple(contexts)
+
+    async def aclose(self) -> None:
+        await self._qdrant.close()
+        await self._engine.dispose()
+
+    async def _chunk_payloads(self, chunk_ids: tuple[str, ...]) -> dict[str, dict[str, Any]]:
+        response, _offset = await self._qdrant.scroll(
+            collection_name=self._collection_name,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="chunkId",
+                        match=models.MatchAny(any=list(chunk_ids)),
+                    )
+                ]
+            ),
+            limit=len(chunk_ids),
+            with_payload=["chunkId", "parentChunkId", "documentTitle", "sectionPath", "content"],
+            with_vectors=False,
+        )
+        payloads: dict[str, dict[str, Any]] = {}
+        for point in response:
+            payload = dict(point.payload or {})
+            chunk_id = str(payload.get("chunkId") or "")
+            if chunk_id:
+                payloads[chunk_id] = payload
+        return payloads
+
+    async def _parent_contexts(self, parent_ids: tuple[str, ...]) -> dict[str, dict[str, Any]]:
+        if not parent_ids:
+            return {}
+        statement = sa.select(
+            document_chunks_parent.c.parent_chunk_id,
+            document_chunks_parent.c.section_path,
+            document_chunks_parent.c.content,
+        ).where(document_chunks_parent.c.parent_chunk_id.in_([UUID(parent_id) for parent_id in parent_ids]))
+        async with self._engine.connect() as connection:
+            result = await connection.execute(statement)
+            return {
+                str(row.parent_chunk_id): {
+                    "section_path": tuple(row.section_path or ()),
+                    "content": row.content,
+                }
+                for row in result
+            }
+
+
 class ProductionQueryClient:
-    def __init__(self, config: QueryClientConfig, *, http_client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        config: QueryClientConfig,
+        *,
+        http_client: httpx.AsyncClient | None = None,
+        parent_context_resolver: ParentContextResolver | None = None,
+    ) -> None:
         self._config = config
         self._owns_client = http_client is None
         self._client = http_client or httpx.AsyncClient(
             base_url=config.base_url.rstrip("/"),
             timeout=httpx.Timeout(config.timeout_seconds),
         )
+        self._owns_parent_context_resolver = parent_context_resolver is None and config.parent_context_enabled
+        self._parent_context_resolver = parent_context_resolver
+        if self._parent_context_resolver is None and config.parent_context_enabled:
+            self._parent_context_resolver = QdrantPostgresParentContextResolver(
+                qdrant_url=config.qdrant_url,
+                db_url=config.ai_db_url,
+            )
 
     async def __aenter__(self) -> ProductionQueryClient:
         return self
@@ -136,6 +260,8 @@ class ProductionQueryClient:
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()
+        if self._owns_parent_context_resolver and self._parent_context_resolver is not None:
+            await self._parent_context_resolver.aclose()
 
     async def query_golden(self, record: GoldenRecord) -> QuerySampleResult:
         payload = build_query_payload(record, self._config)
@@ -146,9 +272,13 @@ class ProductionQueryClient:
             raise QueryClientError(_format_problem(response))
 
         parsed = contract.QueryResponse.model_validate(response.json())
+        full_contexts: tuple[str, ...] = ()
+        if self._parent_context_resolver is not None:
+            full_contexts = await self._parent_context_resolver.resolve_contexts(parsed.citations)
         return query_response_to_sample(
             record,
             parsed,
+            retrieved_contexts=full_contexts or None,
             client_latency_ms=client_latency_ms,
             trace_id=_trace_id(response.headers),
         )
@@ -184,6 +314,7 @@ def query_response_to_sample(
     record: GoldenRecord,
     response: contract.QueryResponse,
     *,
+    retrieved_contexts: tuple[str, ...] | None = None,
     client_latency_ms: int,
     trace_id: str | None = None,
 ) -> QuerySampleResult:
@@ -211,7 +342,9 @@ def query_response_to_sample(
         answered=response.answered,
         answer=response.answer,
         citations=citations,
-        retrieved_contexts=tuple(citation.context_text for citation in citations if citation.context_text),
+        retrieved_contexts=retrieved_contexts
+        if retrieved_contexts is not None
+        else tuple(citation.context_text for citation in citations if citation.context_text),
         citation_document_ids=tuple(citation.document_id for citation in citations),
         route=meta.route.value,
         retrievers_attempted=tuple(retriever.value for retriever in meta.retrieversAttempted),
@@ -242,6 +375,24 @@ def _trace_id(headers: httpx.Headers) -> str | None:
         if value:
             return value
     return None
+
+
+def _format_parent_context(payload: dict[str, Any], parent: dict[str, Any]) -> str:
+    title = str(payload.get("documentTitle") or "").strip()
+    section = " > ".join(str(part) for part in parent.get("section_path", ()) if str(part).strip())
+    content = str(parent.get("content") or "").strip()
+    prefix = f"{title} / {section or 'Document'}".strip(" /")
+    return f"{prefix}\n{content}".strip()
+
+
+def _format_payload_context(payload: dict[str, Any]) -> str:
+    title = str(payload.get("documentTitle") or "").strip()
+    section_value = payload.get("sectionPath")
+    section_parts = section_value if isinstance(section_value, list | tuple) else ()
+    section = " > ".join(str(part) for part in section_parts if str(part).strip())
+    content = str(payload.get("content") or "").strip()
+    prefix = f"{title} / {section or 'Document'}".strip(" /")
+    return f"{prefix}\n{content}".strip()
 
 
 def _format_problem(response: httpx.Response) -> str:

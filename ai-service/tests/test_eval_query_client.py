@@ -132,6 +132,37 @@ async def test_client_posts_normal_production_query_shape_and_parses_answer() ->
 
 
 @pytest.mark.asyncio
+async def test_client_prefers_resolved_parent_contexts_for_ragas_rows() -> None:
+    class FakeParentContextResolver:
+        async def resolve_contexts(self, citations):
+            assert len(citations) == 1
+            assert str(citations[0].chunkId) == CHUNK_ID
+            return (
+                "Регламент передачи рейса / Document\n"
+                "Полный parent-контекст, который видел синтезатор, длиннее цитаты.",
+            )
+
+        async def aclose(self) -> None:
+            raise AssertionError("injected resolver must not be closed by the client")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_query_response())
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://testserver") as http_client:
+        client = ProductionQueryClient(
+            _config(),
+            http_client=http_client,
+            parent_context_resolver=FakeParentContextResolver(),
+        )
+        result = await client.query_golden(_record())
+
+    assert result.retrieved_contexts == (
+        "Регламент передачи рейса / Document\n"
+        "Полный parent-контекст, который видел синтезатор, длиннее цитаты.",
+    )
+
+
+@pytest.mark.asyncio
 async def test_client_preserves_guard_refusals_without_citations() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=_query_response(answered=False, guard_reason="SECRET_EXFILTRATION"))
