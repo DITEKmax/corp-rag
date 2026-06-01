@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_for_next_phase
-stopped_at: Phase 07 complete; Phase 8 ready with graph/router carry-forward debt recorded
-last_updated: "2026-06-01T18:29:30Z"
+status: RAGAS baseline, retrieval ablation, injection probes, diagnostics, and live Langfuse trace evidence are recorded; remaining graph/router weaknesses are Phase 8 debt
+stopped_at: Phase 8 context gathered
+last_updated: "2026-06-01T18:51:49.881Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 10
   completed_phases: 9
   total_plans: 61
-  completed_plans: 60
-  percent: 98
+  completed_plans: 62
+  percent: 100
 ---
 
 # Project State
@@ -194,6 +194,6 @@ Recent locked decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-01T17:20:00Z
-Stopped at: Phase 07 complete
-Resume file: .planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-03-SUMMARY.md
+Last session: 2026-06-01T18:51:49.836Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-delivery-polish-demo-readiness/08-CONTEXT.md
