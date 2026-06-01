@@ -83,7 +83,7 @@ class CitationDraft:
 
     @property
     def section_path_label(self) -> str:
-        return " > ".join(self.section_path)
+        return " > ".join(self.section_path) or "Document"
 
 
 @dataclass(frozen=True, slots=True)

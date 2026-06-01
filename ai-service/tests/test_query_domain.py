@@ -134,6 +134,32 @@ def test_domain_result_maps_to_contract_query_response() -> None:
     assert response.retrievalMeta.retrieversAttempted == [contract.RetrieverType.HYBRID]
 
 
+def test_domain_result_maps_empty_citation_section_path_to_display_label() -> None:
+    result = QueryResult(
+        answered=True,
+        answer="Use the policy [1].",
+        citations=(
+            CitationDraft(
+                document_id=DOCUMENT_ID,
+                document_title="Vacation Policy",
+                chunk_id=CHUNK_ID,
+                section_path=(),
+                quote="Use the policy.",
+                score=0.9,
+                access_level="INTERNAL",
+            ),
+        ),
+        confidence=0.8,
+        conversation_id=CONVERSATION_ID,
+        message_id=MESSAGE_ID,
+        retrieval_meta=RetrievalMetadata(route=QueryRoute.FACTUAL, retrievers_used=(RetrieverType.HYBRID,)),
+    )
+
+    response = query_result_to_contract(result)
+
+    assert response.citations[0].sectionPath == "Document"
+
+
 def test_refusal_result_maps_guard_verdict_and_empty_citations() -> None:
     query = query_input_from_contract(_contract_request(retrieval_options=None))
     result = QueryResult.refused(
