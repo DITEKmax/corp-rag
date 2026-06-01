@@ -194,6 +194,8 @@ services:
       AI_RERANKER_MODEL: ${AI_RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
       AI_RERANKER_TIMEOUT_SECONDS: ${AI_RERANKER_TIMEOUT_SECONDS:-25}
       AI_RERANKER_LOAD_TIMEOUT_SECONDS: ${AI_RERANKER_LOAD_TIMEOUT_SECONDS:-28}
+      AI_QUERY_PREWARM_ENABLED: ${AI_QUERY_PREWARM_ENABLED:-true}
+      AI_QUERY_PREWARM_TIMEOUT_SECONDS: ${AI_QUERY_PREWARM_TIMEOUT_SECONDS:-45}
       AI_CONTEXT_TOKEN_CAP: ${AI_CONTEXT_TOKEN_CAP:-4000}
       AI_WEAK_EVIDENCE_THRESHOLD: ${AI_WEAK_EVIDENCE_THRESHOLD:-0.4}
       AI_FLAGGED_CHUNK_SCORE_MULTIPLIER: ${AI_FLAGGED_CHUNK_SCORE_MULTIPLIER:-0.5}
@@ -207,8 +209,8 @@ services:
       - "${PYTHON_AI_PORT:-8000}:8000"
     volumes:
       - bge-m3-cache:/root/.cache/huggingface
-    mem_limit: 6g
-    mem_reservation: 4g
+    mem_limit: ${PYTHON_AI_MEMORY_LIMIT:-8g}
+    mem_reservation: ${PYTHON_AI_MEMORY_RESERVATION:-6g}
     depends_on:
       postgres:
         condition: service_healthy

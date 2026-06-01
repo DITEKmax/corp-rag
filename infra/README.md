@@ -61,7 +61,7 @@ docker compose --env-file infra/.env -f infra/docker-compose.yml ps
 
 Do not run `docker compose down -v` or data reset scripts before Scenario 1 in `.planning/phases/04-python-ingestion-indexing/04-UAT.md`. Retained RabbitMQ messages from Phase 3 are intentionally consumed by `python-ai` as the first end-to-end smoke.
 
-`python-ai` mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` so local `BAAI/bge-m3` and reranker model weights survive container recreation. Docker Desktop should have enough memory for the whole stack plus the `python-ai` 4 GB reservation and 6 GB limit.
+`python-ai` mounts the named `bge-m3-cache` volume at `/root/.cache/huggingface` so local `BAAI/bge-m3` and reranker model weights survive container recreation. For Phase 7 evaluation, Docker Desktop should have enough memory for the whole stack plus the local `python-ai` 6 GB reservation and 8 GB limit. Override `PYTHON_AI_MEMORY_RESERVATION` / `PYTHON_AI_MEMORY_LIMIT` only for local capacity testing.
 
 Phase 5 query defaults are surfaced through Compose and both env examples:
 
@@ -71,6 +71,12 @@ Phase 5 query defaults are surfaced through Compose and both env examples:
 | `AI_ROUTER_CONFIDENCE_THRESHOLD` | `0.65` |
 | `AI_RERANKER_ENABLED` | `true` |
 | `AI_RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` |
+| `AI_RERANKER_TIMEOUT_SECONDS` | `25` |
+| `AI_RERANKER_LOAD_TIMEOUT_SECONDS` | `28` |
+| `AI_QUERY_PREWARM_ENABLED` | `true` in Compose, `false` in plain settings |
+| `AI_QUERY_PREWARM_TIMEOUT_SECONDS` | `45` |
+| `PYTHON_AI_MEMORY_LIMIT` | `8g` |
+| `PYTHON_AI_MEMORY_RESERVATION` | `6g` |
 | `AI_CONTEXT_TOKEN_CAP` | `4000` |
 | `AI_WEAK_EVIDENCE_THRESHOLD` | `0.4` |
 | `AI_FLAGGED_CHUNK_SCORE_MULTIPLIER` | `0.5` |
@@ -98,13 +104,13 @@ Phase 5 validates Python `POST /v1/query`. Before live query UAT, upload a fresh
 
 Do not run `docker compose down -v` before collecting evidence. Keep the `bge-m3-cache` volume because the query path may load both `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3`.
 
-Record `python-ai` memory before and after the first successful factual query:
+Record `python-ai` memory before and after the first successful factual query or prewarm:
 
 ```powershell
 docker stats python-ai --no-stream --format "{{.MemUsage}}"
 ```
 
-The Phase 5 contour is still the local 4 GiB reservation and 6 GiB limit. Alarm if observed peak memory exceeds 5.5 GiB; defer any 8 GiB bump to Phase 7+ unless Phase 5 cannot run.
+Phase 7 raises the local evaluation/runtime contour to an 8 GiB limit with a 6 GiB reservation because Phase 5.1 live evidence measured the service at about 4.08 GiB after loading bge-m3 and the reranker. If Docker Desktop cannot spare that memory, disable prewarm with `AI_QUERY_PREWARM_ENABLED=false` before lowering the memory contour.
 
 Optional live query smokes:
 
