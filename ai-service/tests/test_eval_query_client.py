@@ -78,6 +78,8 @@ def _query_response(*, answered: bool = True, guard_reason: str | None = None) -
         else None,
         "retrievalMeta": {
             "route": "FACTUAL",
+            "routeSource": "rules",
+            "routeReason": "rules_factual",
             "retrieversAttempted": ["HYBRID"],
             "retrieversUsed": ["HYBRID"] if answered else [],
             "degradationWarnings": [],
@@ -128,6 +130,8 @@ async def test_client_posts_normal_production_query_shape_and_parses_answer() ->
     )
     assert result.trace_id == "trace-123"
     assert result.route == "FACTUAL"
+    assert result.route_source == "rules"
+    assert result.route_reason == "rules_factual"
     assert result.reranker_used is True
 
 

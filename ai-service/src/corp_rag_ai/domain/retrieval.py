@@ -92,6 +92,9 @@ class RetrievalMetadata:
     retrievers_attempted: tuple[RetrieverType, ...] = ()
     retrievers_used: tuple[RetrieverType, ...] = ()
     degradation_warnings: tuple[str, ...] = ()
+    route_source: str | None = None
+    route_reason: str | None = None
+    route_confidence: float | None = None
     latency_ms: int = 0
     chunks_considered: int = 0
     chunks_returned: int = 0
@@ -103,7 +106,10 @@ class RetrievalMetadata:
             raise ValueError("latency_ms must be non-negative")
         if self.chunks_considered < 0 or self.chunks_returned < 0:
             raise ValueError("chunk counts must be non-negative")
+        if self.route_confidence is not None and not 0.0 <= self.route_confidence <= 1.0:
+            raise ValueError("route_confidence must be between 0.0 and 1.0")
         object.__setattr__(self, "route", _enum_value(self.route))
+        object.__setattr__(self, "route_source", None if self.route_source is None else _enum_value(self.route_source))
         object.__setattr__(self, "retrievers_attempted", tuple(self.retrievers_attempted))
         object.__setattr__(self, "retrievers_used", tuple(self.retrievers_used))
         object.__setattr__(self, "degradation_warnings", tuple(self.degradation_warnings))

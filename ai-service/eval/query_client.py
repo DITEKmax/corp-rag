@@ -89,6 +89,8 @@ class QuerySampleResult:
     retrieved_contexts: tuple[str, ...]
     citation_document_ids: tuple[str, ...]
     route: str
+    route_source: str | None
+    route_reason: str | None
     retrievers_attempted: tuple[str, ...]
     retrievers_used: tuple[str, ...]
     degradation_warnings: tuple[str, ...]
@@ -113,6 +115,8 @@ class QuerySampleResult:
             "citation_document_ids": list(self.citation_document_ids),
             "retrieved_contexts": list(self.retrieved_contexts),
             "route": self.route,
+            "route_source": self.route_source,
+            "route_reason": self.route_reason,
             "retrievers_attempted": list(self.retrievers_attempted),
             "retrievers_used": list(self.retrievers_used),
             "degradation_warnings": list(self.degradation_warnings),
@@ -347,6 +351,8 @@ def query_response_to_sample(
         else tuple(citation.context_text for citation in citations if citation.context_text),
         citation_document_ids=tuple(citation.document_id for citation in citations),
         route=meta.route.value,
+        route_source=_optional_meta_string(meta, "routeSource"),
+        route_reason=_optional_meta_string(meta, "routeReason"),
         retrievers_attempted=tuple(retriever.value for retriever in meta.retrieversAttempted),
         retrievers_used=tuple(retriever.value for retriever in meta.retrieversUsed),
         degradation_warnings=tuple(meta.degradationWarnings or ()),
@@ -367,6 +373,14 @@ def _actual_outcome(response: contract.QueryResponse) -> ActualOutcome:
     if verdict is not None and (verdict.safe is False or verdict.reason):
         return ActualOutcome.REFUSED_GUARD
     return ActualOutcome.REFUSED_NO_EVIDENCE
+
+
+def _optional_meta_string(meta: object, name: str) -> str | None:
+    value = getattr(meta, name, None)
+    if value is None and hasattr(meta, "__pydantic_extra__"):
+        value = (getattr(meta, "__pydantic_extra__") or {}).get(name)
+    text = str(value).strip() if value is not None else ""
+    return text or None
 
 
 def _trace_id(headers: httpx.Headers) -> str | None:

@@ -304,11 +304,15 @@ class _QueryGraphNodes:
                 extra_warnings,
             )
         )
+        decision = state.get("route_decision")
         return RetrievalMetadata(
             route=_route(state),
             retrievers_attempted=attempted,
             retrievers_used=used,
             degradation_warnings=warnings,
+            route_source=decision.source if decision is not None else None,
+            route_reason=decision.reason if decision is not None else None,
+            route_confidence=decision.confidence if decision is not None else None,
             latency_ms=self._latency_ms(state),
             chunks_considered=chunks_considered,
             chunks_returned=chunks_returned,

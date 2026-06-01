@@ -121,6 +121,9 @@ def test_domain_result_maps_to_contract_query_response() -> None:
             chunks_returned=1,
             reranker_used=True,
             model_id="deepseek/deepseek-v4-flash:free",
+            route_source="rules",
+            route_reason="rules_factual",
+            route_confidence=1.0,
         ),
     )
 
@@ -132,6 +135,9 @@ def test_domain_result_maps_to_contract_query_response() -> None:
     assert response.citations[0].accessLevel is contract.AccessLevel.INTERNAL
     assert response.retrievalMeta.route is contract.QueryRoute.FACTUAL
     assert response.retrievalMeta.retrieversAttempted == [contract.RetrieverType.HYBRID]
+    assert response.retrievalMeta.routeSource == "rules"
+    assert response.retrievalMeta.routeReason == "rules_factual"
+    assert response.retrievalMeta.routeConfidence == 1.0
 
 
 def test_domain_result_maps_empty_citation_section_path_to_display_label() -> None:

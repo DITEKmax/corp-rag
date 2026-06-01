@@ -13,6 +13,7 @@ from eval.ragas_runner import (
     RagasScoringResult,
     build_ragas_rows,
     run_ragas_evaluation,
+    run_ragas_scoring_from_report,
 )
 from eval.schema import ExpectedOutcome, GoldenRecord
 
@@ -48,6 +49,8 @@ def _sample(record: GoldenRecord) -> QuerySampleResult:
         retrieved_contexts=retrieved_contexts,
         citation_document_ids=citation_document_ids,
         route="FACTUAL",
+        route_source="rules",
+        route_reason="rules_factual",
         retrievers_attempted=("HYBRID",),
         retrievers_used=("HYBRID",) if answered else (),
         degradation_warnings=(),
@@ -187,6 +190,33 @@ async def test_runner_persists_query_phase_report_before_scoring(tmp_path) -> No
         "outcome",
         "reranker_used",
         "degradation_warnings",
+        "route_source",
+        "route_reason",
     } <= set(first_detail)
     assert first_detail["outcome"] == first_detail["actual_outcome"]
+    assert first_detail["route_source"] == "rules"
+    assert first_detail["route_reason"] == "rules_factual"
     assert first_detail["ragas_scores"] == {}
+
+    def fake_score_only_evaluator(rows, config) -> RagasScoringResult:
+        assert len(rows) == 30
+        assert rows[0].retrieved_contexts
+        return RagasScoringResult(
+            aggregate_scores={
+                "faithfulness": 0.91,
+                "answer_relevancy": "skipped",
+                "context_precision": 0.83,
+                "context_recall": 0.87,
+            },
+            per_record_scores={row.record_id: {"faithfulness": 0.91} for row in rows},
+            skipped_metrics={"answer_relevancy": "embedding fixture not configured"},
+            external_judge_used=True,
+        )
+
+    score_only_output = await run_ragas_scoring_from_report(
+        RagasRunnerConfig(reports_dir=reports_dir),
+        cache_path,
+        evaluator=fake_score_only_evaluator,
+    )
+    assert score_only_output.report.details[0]["route_source"] == "rules"
+    assert score_only_output.report.details[0]["route_reason"] == "rules_factual"

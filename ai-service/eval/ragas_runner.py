@@ -329,6 +329,8 @@ def query_results_from_report(
                 retrieved_contexts=_string_tuple(detail.get("retrieved_contexts")),
                 citation_document_ids=_string_tuple(detail.get("citation_document_ids")),
                 route=str(detail.get("route") or ""),
+                route_source=str(detail["route_source"]) if detail.get("route_source") else None,
+                route_reason=str(detail["route_reason"]) if detail.get("route_reason") else None,
                 retrievers_attempted=_string_tuple(detail.get("retrievers_attempted")),
                 retrievers_used=_string_tuple(detail.get("retrievers_used")),
                 degradation_warnings=_string_tuple(detail.get("degradation_warnings")),
