@@ -35,7 +35,7 @@ async def test_upload_success_publishes_indexed_before_terminal_processed_event(
 
 
 @pytest.mark.asyncio
-async def test_upload_graph_failure_rolls_back_qdrant_before_failed_terminal_event() -> None:
+async def test_upload_graph_failure_keeps_vector_index_and_marks_indexed() -> None:
     calls: list[str] = []
     document_id = uuid4()
     graph_failure = stage_failure(
@@ -48,10 +48,39 @@ async def test_upload_graph_failure_rolls_back_qdrant_before_failed_terminal_eve
 
     await service.handle_uploaded(_uploaded_event(document_id))
 
-    assert calls.index("vector.replace") < calls.index("vector.delete")
-    assert calls.index("vector.delete") < calls.index("publisher.failed")
-    assert calls.index("publisher.failed") < calls.index("state.mark_failed")
-    assert calls.index("state.mark_failed") < calls.index("processed.insert")
+    assert calls.index("vector.replace") < calls.index("graph.replace")
+    assert calls.index("graph.replace") < calls.index("graph.cleanup")
+    assert calls.index("graph.cleanup") < calls.index("publisher.indexed")
+    assert calls.index("publisher.indexed") < calls.index("state.mark_indexed")
+    assert calls.index("state.mark_indexed") < calls.index("processed.insert")
+    assert "vector.delete" not in calls
+    assert "publisher.failed" not in calls
+    assert "state.mark_failed" not in calls
+
+
+@pytest.mark.asyncio
+async def test_upload_entity_extraction_failure_keeps_vector_index_and_marks_indexed() -> None:
+    calls: list[str] = []
+    document_id = uuid4()
+    entity_failure = stage_failure(
+        stage=IndexingStage.ENTITY_EXTRACTION,
+        error_code=DEPENDENCY_UNAVAILABLE,
+        retryable=False,
+        detail="malformed_structured_output",
+    )
+    service = _service(calls=calls, entity_extract_error=entity_failure)
+
+    await service.handle_uploaded(_uploaded_event(document_id))
+
+    assert calls.index("vector.replace") < calls.index("entity.extract")
+    assert calls.index("entity.extract") < calls.index("publisher.indexed")
+    assert calls.index("publisher.indexed") < calls.index("state.mark_indexed")
+    assert calls.index("state.mark_indexed") < calls.index("processed.insert")
+    assert "graph.replace" not in calls
+    assert "graph.cleanup" not in calls
+    assert "vector.delete" not in calls
+    assert "publisher.failed" not in calls
+    assert "state.mark_failed" not in calls
 
 
 @pytest.mark.asyncio
@@ -77,15 +106,16 @@ async def test_upload_parsing_failure_publishes_failed_without_qdrant_rollback()
 @pytest.mark.asyncio
 async def test_failed_event_publish_failure_leaves_event_unprocessed_for_redelivery() -> None:
     calls: list[str] = []
-    graph_failure = stage_failure(
-        stage=IndexingStage.GRAPH_UPSERT,
-        error_code=DEPENDENCY_UNAVAILABLE,
-        retryable=True,
-        detail="ServiceUnavailable",
+    parsing_failure = stage_failure(
+        stage=IndexingStage.PARSING,
+        error_code="INVALID_FILE_FORMAT",
+        retryable=False,
+        parser="docling",
+        mime_type="application/pdf",
     )
     service = _service(
         calls=calls,
-        graph_replace_error=graph_failure,
+        parser_error=parsing_failure,
         failed_publish_error=RuntimeError("broker unavailable"),
     )
 
@@ -176,6 +206,7 @@ def _service(
     state_sequence: list[DocumentIndexState | None] | None = None,
     object_error: Exception | None = None,
     parser_error: Exception | None = None,
+    entity_extract_error: Exception | None = None,
     graph_replace_error: Exception | None = None,
     failed_publish_error: Exception | None = None,
 ) -> DocumentIngestionService:
@@ -185,7 +216,7 @@ def _service(
         chunker=DocumentChunker(),
         sanitizer=CorpusSanitizer(),
         vector_index=_VectorIndex(calls),
-        entity_extractor=_EntityExtractor(calls),
+        entity_extractor=_EntityExtractor(calls, error=entity_extract_error),
         entity_embedder=_Embedder(),
         graph_index=_GraphIndex(calls, replace_error=graph_replace_error),
         publisher=_Publisher(calls, failed_error=failed_publish_error),
@@ -244,11 +275,14 @@ class _VectorIndex:
 
 
 class _EntityExtractor:
-    def __init__(self, calls: list[str]) -> None:
+    def __init__(self, calls: list[str], *, error: Exception | None = None) -> None:
         self._calls = calls
+        self._error = error
 
     async def extract_parent(self, source, *, document_title: str, language: str) -> ParentEntityExtraction:
         self._calls.append("entity.extract")
+        if self._error is not None:
+            raise self._error
         assert source.text == "Employees request vacation in the HR portal."
         assert document_title == "HR Policy"
         return ParentEntityExtraction(entities=(), relations=())

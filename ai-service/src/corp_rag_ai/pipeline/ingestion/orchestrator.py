@@ -214,14 +214,13 @@ class DocumentIngestionService:
                 _vector_chunks(metadata, sanitized),
             )
             qdrant_has_document = True
-            graph = await self._build_graph(metadata, chunks)
-            await self._graph_index.replace_document_graph(graph)
+            neo4j_entity_count = await self._try_index_graph(metadata, chunks)
             indexed_at = datetime.now(UTC)
             result_event_id = await self._publisher.publish_document_indexed(
                 document_id=metadata.document_id,
                 chunk_count=len(sanitized),
                 qdrant_collection=COLLECTION_NAME,
-                neo4j_entity_count=len(graph.entities),
+                neo4j_entity_count=neo4j_entity_count,
                 duration_ms=_duration_ms(started),
                 correlation_id=correlation_id,
                 indexed_at=indexed_at,
@@ -351,6 +350,30 @@ class DocumentIngestionService:
             parent_extractions=parent_extractions,
             embedder=self._entity_embedder,
         )
+
+    async def _try_index_graph(
+        self,
+        metadata: UploadedDocumentMetadata,
+        chunks: ChunkingResult,
+    ) -> int:
+        try:
+            graph = await self._build_graph(metadata, chunks)
+            await self._graph_index.replace_document_graph(graph)
+            return len(graph.entities)
+        except StageFailure as failure:
+            if failure.stage not in {IndexingStage.ENTITY_EXTRACTION, IndexingStage.GRAPH_UPSERT}:
+                raise
+            logger.warning(
+                "Skipping graph indexing after vector indexing succeeded",
+                extra={
+                    "document_id": str(metadata.document_id),
+                    "stage": failure.stage.value,
+                    "error_code": failure.error_code,
+                },
+            )
+            if failure.stage == IndexingStage.GRAPH_UPSERT:
+                await self._best_effort_graph_cleanup(metadata.document_id)
+            return 0
 
     async def _handle_upload_failure(
         self,
