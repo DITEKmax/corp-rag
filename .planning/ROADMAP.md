@@ -18,6 +18,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - [x] **Phase 5.1: Phase 5 UAT Fix Wave (INSERTED)** - Reranker runs reliably, reranker failures soft-degrade, graph-route citations/snippets are user-facing safe, and live re-UAT follow-up closes the findings. (completed 2026-05-26)
 - [x] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows. (completed 2026-06-01)
 - [ ] **Phase 7: Evaluation & Observability** - Quality, safety, ablation, traces, and metrics are measurable.
+- [x] **Phase 7.1: Fix Russian router and graph retrieval quality for RAGAS baseline (INSERTED)** - Russian router/aggregation and frozen graph corpus defects are repaired and post-fix RAGAS comparison is validated. (completed 2026-06-01)
 - [ ] **Phase 8: Delivery Polish & Demo Readiness** - Production-like compose, seed corpus, final regression, README, and demo assets are ready.
 
 ## Phase Details
@@ -253,7 +254,7 @@ Plans:
   3. Injection probes measure and report block rate.
   4. Ablation compares BM25, dense, sparse, hybrid, and hybrid+reranker retrieval variants.
   5. Langfuse traces and service metrics are visible for debugging and demo.
-**Plans:** 8 plans
+**Plans:** 6/8 plans complete
 Plans:
 
 **Wave 1**
@@ -270,7 +271,7 @@ Plans:
 - [x] 07-05-PLAN.md - Author and validate the 40-record Russian golden dataset.
 
 **Wave 5** *(blocked on golden data and required retrieval/eval code waves)*
-- [ ] 07-06-PLAN.md - Run production `/v1/query` RAGAS quality evaluation over the full golden set, independent of Langfuse availability.
+- [x] 07-06-PLAN.md - Run production `/v1/query` RAGAS quality evaluation over the full golden set, independent of Langfuse availability.
 - [ ] 07-07-PLAN.md - Run vector retrieval ablation and separate graph-route retrieval reporting.
 
 **Wave 6** *(blocked on quality and ablation reports)*
@@ -281,7 +282,8 @@ Plans:
 **Goal:** Repair the Russian router, graph aggregation, and Neo4j frozen-corpus state found by the committed 07-06 RAGAS baseline, then rerun one comparable RAGAS pass without weakening guard/access contracts.
 **Requirements**: AGT-01, RET-02, RET-03, EVAL-02, OPS-01
 **Depends on:** Phase 7
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
+**Status:** Complete - post-fix score-only RAGAS report validated on 2026-06-01; answered count improved 15 -> 18, degraded stayed 0, and remaining multi-hop graph retrieval weakness is deferred to Phase 8.
 
 Plans:
 **Wave 1**
@@ -291,7 +293,7 @@ Plans:
 - [x] 07.1-02-PLAN.md - Repair live Neo4j corpus state with targeted cleanup and preserved-UUID graph rebuild.
 
 **Wave 3** *(blocked on Waves 1 and 2 completion)*
-- [ ] 07.1-03-PLAN.md - Rerun one clean post-fix RAGAS comparison against baseline commit `4d23614`.
+- [x] 07.1-03-PLAN.md - Rerun one clean post-fix RAGAS comparison against baseline commit `4d23614`.
 
 **Cross-cutting constraints:**
 - D-413: Do not weaken output guard, citation validation, prompt-injection checks, or weak-evidence thresholds.
@@ -308,6 +310,7 @@ Plans:
   2. Seed corpus script loads demo documents and triggers indexing.
   3. Final regression proves the core chat/citation/evaluation path still works.
   4. README, architecture diagram, demo assets, and short video are ready for review.
+  5. Phase 7.1 carry-over is addressed or explicitly waived: Russian multi-hop graph retrieval for `ru-multihop-002/003/005/006` needs text-conditioned multi-document evidence gathering beyond the router fix.
 **Plans**: TBD
 
 ## Progress
@@ -324,6 +327,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 �
 | 5. Retrieval, Guards & Query API | 8/8 | Complete | 2026-05-19 |
 | 5.1. Phase 5 UAT Fix Wave | 5/5 | Complete | 2026-05-26 |
 | 6. Chat & Frontend Experience | 9/9 | Complete | 2026-06-01 |
-| 7. Evaluation & Observability | 0/8 | Ready to execute | - |
-| 7.1. Fix Russian router and graph retrieval quality for RAGAS baseline | 0/3 | Ready to execute | - |
+| 7. Evaluation & Observability | 6/8 | Executing | - |
+| 7.1. Fix Russian router and graph retrieval quality for RAGAS baseline | 3/3 | Complete | 2026-06-01 |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |

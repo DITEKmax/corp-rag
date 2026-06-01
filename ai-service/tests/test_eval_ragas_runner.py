@@ -11,9 +11,11 @@ from eval.ragas_runner import (
     DEFAULT_GOLDEN_PATH,
     RagasRunnerConfig,
     RagasScoringResult,
+    evaluate_ragas_rows,
     build_ragas_rows,
     run_ragas_evaluation,
     run_ragas_scoring_from_report,
+    RagasRow,
 )
 from eval.schema import ExpectedOutcome, GoldenRecord
 
@@ -220,3 +222,60 @@ async def test_runner_persists_query_phase_report_before_scoring(tmp_path) -> No
     )
     assert score_only_output.report.details[0]["route_source"] == "rules"
     assert score_only_output.report.details[0]["route_reason"] == "rules_factual"
+
+
+def test_evaluate_ragas_rows_records_metric_errors_and_continues(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeLLM:
+        def set_run_config(self, run_config):
+            self.run_config = run_config
+
+    class FakeMetric:
+        def __init__(self, name: str, failing_record_id: str | None = None) -> None:
+            self.name = name
+            self.failing_record_id = failing_record_id
+            self.init_run_config = None
+
+        def __deepcopy__(self, memo):
+            return type(self)(self.name, self.failing_record_id)
+
+        def init(self, run_config) -> None:
+            self.init_run_config = run_config
+
+        async def single_turn_ascore(self, sample, callbacks=None, timeout=None) -> float:
+            if self.failing_record_id and self.failing_record_id in sample.user_input:
+                raise ValueError("pydantic missing: verdict field")
+            return 0.8
+
+    monkeypatch.setattr("eval.ragas_runner._build_judge_llm", lambda config: FakeLLM())
+    monkeypatch.setattr("eval.ragas_runner._build_embeddings", lambda config: (object(), ""))
+    monkeypatch.setattr(
+        "eval.ragas_runner._ragas_metrics",
+        lambda include_answer_relevancy: (
+            (FakeMetric("faithfulness", failing_record_id="broken"), FakeMetric("context_precision")),
+            {},
+        ),
+    )
+
+    rows = (
+        RagasRow(
+            record_id="ok",
+            user_input="ok question",
+            response="ok answer",
+            retrieved_contexts=("ok context",),
+            reference="ok reference",
+        ),
+        RagasRow(
+            record_id="broken",
+            user_input="broken question",
+            response="broken answer",
+            retrieved_contexts=("broken context",),
+            reference="broken reference",
+        ),
+    )
+
+    result = evaluate_ragas_rows(rows, RagasRunnerConfig())
+
+    assert result.aggregate_scores["faithfulness"] == 0.8
+    assert result.aggregate_scores["context_precision"] == 0.8
+    assert result.per_record_scores["broken"]["faithfulness"] is None
+    assert "pydantic missing" in result.per_record_errors["broken"]["faithfulness"]

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import copy
 import json
 import math
 import os
+import sys
 from collections import Counter
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
@@ -88,6 +90,8 @@ class RagasRunnerConfig:
     concurrency: int = 1
     show_progress: bool = False
     score_report_path: Path | None = None
+    ragas_max_retries: int = 1
+    ragas_max_wait: int = 5
 
     def __post_init__(self) -> None:
         if self.concurrency != 1:
@@ -114,7 +118,8 @@ class RagasRow:
 @dataclass(frozen=True, slots=True)
 class RagasScoringResult:
     aggregate_scores: dict[str, float | str]
-    per_record_scores: dict[str, dict[str, float | str]] = field(default_factory=dict)
+    per_record_scores: dict[str, dict[str, float | str | None]] = field(default_factory=dict)
+    per_record_errors: dict[str, dict[str, str]] = field(default_factory=dict)
     skipped_metrics: dict[str, str] = field(default_factory=dict)
     external_judge_used: bool = False
     token_usage: Any | None = None
@@ -220,7 +225,7 @@ async def run_ragas_scoring_from_report(
     )
     metadata = load_corpus_metadata(config.metadata_path)
     records = load_golden_records(config.golden_path)
-    source_report = EvaluationReport.model_validate_json(source_report_path.read_text(encoding="utf-8"))
+    source_report = _load_score_source_report(source_report_path)
     query_results = query_results_from_report(source_report, records)
     rows = build_ragas_rows(query_results)
     scoring = evaluator(rows, config) if evaluator is not None else evaluate_ragas_rows(rows, config)
@@ -380,34 +385,34 @@ def evaluate_ragas_rows(rows: tuple[RagasRow, ...], config: RagasRunnerConfig) -
         skipped_metrics["answer_relevancy"] = embedding_skip_reason
 
     try:
-        from datasets import Dataset
-        from ragas import evaluate
+        from ragas.dataset_schema import SingleTurnSample
     except ImportError as exc:  # pragma: no cover - exercised by dependency/lock verification instead.
         raise RagasRunnerError("ragas and datasets must be installed to run the quality evaluation") from exc
 
-    dataset = Dataset.from_list([row.to_dataset_row() for row in rows])
     from ragas.run_config import RunConfig
 
-    result = evaluate(
-        dataset,
-        metrics=metrics,
-        llm=llm,
-        embeddings=embeddings,
-        run_config=RunConfig(timeout=int(config.timeout_seconds), max_workers=config.concurrency),
-        raise_exceptions=False,
-        show_progress=config.show_progress,
+    run_config = RunConfig(
+        timeout=int(config.timeout_seconds),
+        max_workers=config.concurrency,
+        max_retries=config.ragas_max_retries,
+        max_wait=config.ragas_max_wait,
     )
-    per_record_scores = _per_record_scores(result, rows)
+    scoring_metrics = tuple(copy.deepcopy(metric) for metric in metrics)
+    _initialize_ragas_metrics(scoring_metrics, llm=llm, embeddings=embeddings, run_config=run_config)
+    _disable_ragas_prompt_parser_retries(scoring_metrics)
+    per_record_scores, per_record_errors = _run_ragas_metrics_per_record(
+        rows,
+        scoring_metrics,
+        single_turn_sample_cls=SingleTurnSample,
+        timeout_seconds=run_config.timeout,
+    )
     aggregate_scores = _aggregate_scores(per_record_scores, skipped_metrics)
-    token_usage = _jsonable(_safe_call(result, "total_tokens"))
-    total_cost = _safe_call(result, "total_cost")
     return RagasScoringResult(
         aggregate_scores=aggregate_scores,
         per_record_scores=per_record_scores,
+        per_record_errors=per_record_errors,
         skipped_metrics=skipped_metrics,
         external_judge_used=True,
-        token_usage=token_usage,
-        total_cost=total_cost if isinstance(total_cost, float) and math.isfinite(total_cost) else None,
     )
 
 
@@ -420,7 +425,14 @@ def build_evaluation_report(
     corpus_hash: str,
     config: RagasRunnerConfig,
 ) -> EvaluationReport:
-    details = [_detail_with_scores(result, scoring.per_record_scores.get(result.record_id, {})) for result in results]
+    details = [
+        _detail_with_scores(
+            result,
+            scoring.per_record_scores.get(result.record_id, {}),
+            scoring.per_record_errors.get(result.record_id, {}),
+        )
+        for result in results
+    ]
     outcome_counts = Counter(result.actual_outcome.value for result in results)
     route_counts = Counter(result.route for result in results)
     correct_outcomes = sum(1 for result in results if _outcome_correct(result))
@@ -470,7 +482,7 @@ def build_evaluation_report(
                 value=round(float(value), 4) if isinstance(value, (float, int)) else value,
                 threshold=threshold,
                 passed=passed,
-                notes=scoring.skipped_metrics.get(name, f"RAGAS metric over {len(scoring.per_record_scores)} scored rows."),
+                notes=_metric_notes(name, scoring, len(scoring.per_record_scores)),
             )
         )
 
@@ -494,6 +506,9 @@ def build_evaluation_report(
             "answer_relevancy_skipped": "answer_relevancy" in scoring.skipped_metrics,
             "token_usage": scoring.token_usage,
             "total_cost": scoring.total_cost,
+            "ragas_max_retries": config.ragas_max_retries,
+            "ragas_max_wait": config.ragas_max_wait,
+            "ragas_score_failures": _score_failures_option(scoring.per_record_errors),
         },
     )
     return EvaluationReport(
@@ -577,6 +592,128 @@ def _ragas_metrics(*, include_answer_relevancy: bool):
     return metrics, skipped
 
 
+def _initialize_ragas_metrics(
+    metrics: tuple[Any, ...],
+    *,
+    llm: Any,
+    embeddings: Any,
+    run_config: Any,
+) -> None:
+    for metric in metrics:
+        if hasattr(metric, "llm"):
+            metric.llm = llm
+        if hasattr(metric, "embeddings"):
+            metric.embeddings = embeddings
+        metric.init(run_config)
+
+
+def _disable_ragas_prompt_parser_retries(metrics: tuple[Any, ...]) -> None:
+    for metric in metrics:
+        for value in vars(metric).values():
+            if _looks_like_ragas_prompt(value):
+                _force_prompt_no_parser_retry(value)
+
+
+def _looks_like_ragas_prompt(value: Any) -> bool:
+    return callable(getattr(value, "generate", None)) and hasattr(value, "output_model")
+
+
+def _force_prompt_no_parser_retry(prompt: Any) -> None:
+    original_generate = prompt.generate
+
+    async def generate_without_parser_retries(*args: Any, **kwargs: Any) -> Any:
+        kwargs["retries_left"] = 0
+        return await original_generate(*args, **kwargs)
+
+    prompt.generate = generate_without_parser_retries
+
+
+def _run_ragas_metrics_per_record(
+    rows: tuple[RagasRow, ...],
+    metrics: tuple[Any, ...],
+    *,
+    single_turn_sample_cls: Any,
+    timeout_seconds: float,
+) -> tuple[dict[str, dict[str, float | None]], dict[str, dict[str, str]]]:
+    return _run_coroutine_sync(
+        _score_ragas_metrics_per_record(
+            rows,
+            metrics,
+            single_turn_sample_cls=single_turn_sample_cls,
+            timeout_seconds=timeout_seconds,
+        )
+    )
+
+
+async def _score_ragas_metrics_per_record(
+    rows: tuple[RagasRow, ...],
+    metrics: tuple[Any, ...],
+    *,
+    single_turn_sample_cls: Any,
+    timeout_seconds: float,
+) -> tuple[dict[str, dict[str, float | None]], dict[str, dict[str, str]]]:
+    per_record_scores: dict[str, dict[str, float | None]] = {}
+    per_record_errors: dict[str, dict[str, str]] = {}
+    for row in rows:
+        sample = single_turn_sample_cls(**row.to_dataset_row())
+        row_scores: dict[str, float | None] = {}
+        per_record_scores[row.record_id] = row_scores
+        for metric in metrics:
+            metric_name = str(getattr(metric, "name", metric.__class__.__name__))
+            try:
+                score = await metric.single_turn_ascore(sample, callbacks=[], timeout=timeout_seconds)
+            except Exception as exc:
+                error = _format_exception_chain(exc)
+                row_scores[metric_name] = None
+                per_record_errors.setdefault(row.record_id, {})[metric_name] = error
+                print(
+                    f"RAGAS score failed: record_id={row.record_id} metric={metric_name} error={error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                continue
+            if isinstance(score, (float, int)) and math.isfinite(float(score)):
+                row_scores[metric_name] = float(score)
+            else:
+                error = f"RAGAS returned non-finite score: {score!r}"
+                row_scores[metric_name] = None
+                per_record_errors.setdefault(row.record_id, {})[metric_name] = error
+                print(
+                    f"RAGAS score failed: record_id={row.record_id} metric={metric_name} error={error}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+    return per_record_scores, per_record_errors
+
+
+def _run_coroutine_sync(coro: Awaitable[Any]) -> Any:
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    try:
+        import nest_asyncio
+    except ImportError as exc:  # pragma: no cover - ragas pulls this dependency in normal installs.
+        raise RagasRunnerError("nest_asyncio is required to run RAGAS scoring inside async CLI flow") from exc
+
+    nest_asyncio.apply()
+    return loop.run_until_complete(coro)
+
+
+def _format_exception_chain(exc: BaseException) -> str:
+    parts: list[str] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        message = str(current).strip() or repr(current)
+        parts.append(f"{type(current).__name__}: {message}")
+        current = current.__cause__ or current.__context__
+    summary = " <- ".join(parts)
+    return summary if len(summary) <= 900 else summary[:897] + "..."
+
+
 def _is_local_bge_embedding_model(model_id: str) -> bool:
     normalized = model_id.strip().lower()
     return normalized in {"bge-m3", DEFAULT_BGE_M3_MODEL.lower(), f"local/{DEFAULT_BGE_M3_MODEL.lower()}"}
@@ -602,7 +739,7 @@ def _per_record_scores(result: Any, rows: tuple[RagasRow, ...]) -> dict[str, dic
 
 
 def _aggregate_scores(
-    per_record_scores: dict[str, dict[str, float | str]],
+    per_record_scores: dict[str, dict[str, float | str | None]],
     skipped_metrics: dict[str, str],
 ) -> dict[str, float | str]:
     aggregates: dict[str, float | str] = {}
@@ -621,11 +758,92 @@ def _aggregate_scores(
     return aggregates
 
 
-def _detail_with_scores(result: QuerySampleResult, ragas_scores: dict[str, float | str]) -> dict[str, Any]:
+def _detail_with_scores(
+    result: QuerySampleResult,
+    ragas_scores: dict[str, float | str | None],
+    ragas_errors: dict[str, str],
+) -> dict[str, Any]:
     detail = result.to_detail()
     detail["outcome_correct"] = _outcome_correct(result)
     detail["ragas_scores"] = ragas_scores
+    if ragas_errors:
+        detail["ragas_score_errors"] = ragas_errors
     return detail
+
+
+def _metric_notes(name: str, scoring: RagasScoringResult, row_count: int) -> str:
+    if name in scoring.skipped_metrics:
+        return scoring.skipped_metrics[name]
+    scored = sum(
+        1
+        for scores in scoring.per_record_scores.values()
+        if isinstance(scores.get(name), (float, int)) and math.isfinite(float(scores[name]))
+    )
+    failures = [
+        f"{record_id}: {errors[name]}"
+        for record_id, errors in scoring.per_record_errors.items()
+        if name in errors
+    ]
+    if failures:
+        preview = "; ".join(failures[:3])
+        suffix = "" if len(failures) <= 3 else f"; +{len(failures) - 3} more"
+        return f"RAGAS metric over {scored}/{row_count} scored rows. Failed rows: {preview}{suffix}"
+    return f"RAGAS metric over {scored}/{row_count} scored rows."
+
+
+def _score_failures_option(per_record_errors: dict[str, dict[str, str]]) -> list[dict[str, str]]:
+    return [
+        {"record_id": record_id, "metric": metric, "error": error}
+        for record_id, errors in sorted(per_record_errors.items())
+        for metric, error in sorted(errors.items())
+    ]
+
+
+def _load_score_source_report(source_report_path: Path) -> EvaluationReport:
+    raw = source_report_path.read_text(encoding="utf-8")
+    try:
+        return EvaluationReport.model_validate_json(raw)
+    except Exception as exc:
+        try:
+            from pydantic import ValidationError
+        except ImportError:  # pragma: no cover - pydantic is a direct dependency.
+            raise
+        if isinstance(exc, ValidationError):
+            raise RagasRunnerError(_format_report_validation_error(exc, raw)) from exc
+        raise
+
+
+def _format_report_validation_error(exc: Any, raw: str) -> str:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        payload = {}
+    details: list[str] = []
+    for error in exc.errors():
+        loc = tuple(error.get("loc", ()))
+        record_hint = _validation_record_hint(payload, loc)
+        details.append(
+            f"{_format_validation_loc(loc)}{record_hint}: {error.get('msg', '')} "
+            f"(type={error.get('type', '')})"
+        )
+    return "score source report failed schema validation: " + "; ".join(details)
+
+
+def _validation_record_hint(payload: Any, loc: tuple[Any, ...]) -> str:
+    if not (len(loc) >= 2 and loc[0] == "details" and isinstance(loc[1], int)):
+        return ""
+    raw_details = payload.get("details") if isinstance(payload, dict) else None
+    detail = raw_details[loc[1]] if isinstance(raw_details, list) and loc[1] < len(raw_details) else None
+    if not isinstance(detail, dict):
+        return f" at details[{loc[1]}]"
+    record_id = detail.get("id") or detail.get("question_id") or "<missing id>"
+    return f" at details[{loc[1]}] record_id={record_id!r}"
+
+
+def _format_validation_loc(loc: tuple[Any, ...]) -> str:
+    if not loc:
+        return "<root>"
+    return ".".join(str(item) for item in loc)
 
 
 def _string_tuple(value: Any) -> tuple[str, ...]:
@@ -709,6 +927,8 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
     parser.add_argument("--embedding-model-id", default=os.getenv("RAGAS_EMBEDDING_MODEL_ID", DEFAULT_EMBEDDING_MODEL_ID))
     parser.add_argument("--embedding-base-url", default=os.getenv("RAGAS_EMBEDDING_BASE_URL"))
     parser.add_argument("--score-report", type=Path, default=None)
+    parser.add_argument("--ragas-max-retries", type=int, default=1)
+    parser.add_argument("--ragas-max-wait", type=int, default=5)
     parser.add_argument("--show-progress", action="store_true")
     args = parser.parse_args(argv)
     return RagasRunnerConfig(
@@ -732,6 +952,8 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
         concurrency=1,
         show_progress=args.show_progress,
         score_report_path=args.score_report,
+        ragas_max_retries=args.ragas_max_retries,
+        ragas_max_wait=args.ragas_max_wait,
     )
 
 

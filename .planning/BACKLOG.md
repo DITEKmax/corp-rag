@@ -98,6 +98,32 @@ Action:
 Acceptance:
 - Either deterministic behavior is proven for identical inputs, or the confidence model is documented as sensitive to candidate set/order and handled accordingly.
 
+## BL-07 - Phase 8 Multi-Hop Graph Retrieval Debt From Phase 07.1
+
+Priority: High for Phase 8
+Area: graph retrieval / Russian golden regression
+Status: Open / Phase 8 debt
+
+Source:
+- `.planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-03-SUMMARY.md`
+- `ai-service/eval/reports/ragas_ru.json`
+
+Current behavior:
+- Phase 07.1 fixed false `UNSUPPORTED` routing for the five target records.
+- `ru-aggregation-003` now answers through `AGGREGATION`.
+- `ru-multihop-002`, `ru-multihop-003`, `ru-multihop-005`, and `ru-multihop-006` now route correctly to `MULTI_HOP`, but still return `refused_no_evidence`.
+
+Finding:
+- These four records are no longer router/localization failures.
+- They expose graph multi-hop retrieval weakness: current graph retrieval does not reliably gather text-conditioned multi-document evidence for Russian multi-hop questions.
+
+Action:
+- In Phase 8, improve or explicitly waive text-conditioned graph multi-hop retrieval for these four records.
+- Candidate work includes Russian entity linking, semantic path ranking, duplicate path suppression, and hybrid graph/vector fallback for multi-document evidence.
+
+Acceptance:
+- The four records either answer with valid document-backed citations or have a documented product/eval waiver before final demo regression.
+
 ## BL-06 - Phase 6 UAT Low/OBS Follow-Ups
 
 Priority: Low / Info

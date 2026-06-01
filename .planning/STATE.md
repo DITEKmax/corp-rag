@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 07.1 context gathered
-last_updated: "2026-06-01T15:32:08.317Z"
+status: ready_for_next_phase
+stopped_at: Phase 07.1 complete; Phase 8 multi-hop graph retrieval debt recorded
+last_updated: "2026-06-01T17:20:00Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 10
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 61
-  completed_plans: 58
-  percent: 95
+  completed_plans: 59
+  percent: 97
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 07.1 — fix-russian-router-and-graph-retrieval-quality-for-ragas-bas
+**Current focus:** Phase 8 — Delivery Polish & Demo Readiness, with Phase 07.1 multi-hop graph retrieval debt carried forward
 
 ## Current Position
 
-Phase: 07.1 (fix-russian-router-and-graph-retrieval-quality-for-ragas-bas) — EXECUTING
+Phase: 07.1 (fix-russian-router-and-graph-retrieval-quality-for-ragas-bas) — COMPLETE
 Plan: 3 of 3
-Status: Ready to execute
+Status: Post-fix RAGAS report validated and committed; remaining multi-hop graph retrieval weakness is Phase 8 debt
 Last activity: 2026-06-01
 
-Progress: [██████████] 95%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
@@ -50,7 +50,7 @@ Progress: [██████████] 95%
 | 04 | 9/9 | ~2h 21m + manual UAT | ~20m for automated waves |
 | 06 | 9/9 | 123 min | ~14m |
 
-**Recent completed plans:** Phase 06 P01-P09 complete. Phase 6 human live UAT passed on 2026-06-01 with evidence in `.planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md` and `.planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md`.
+**Recent completed plans:** Phase 07.1 P01-P03 complete. Post-fix RAGAS score-only report was validated on 2026-06-01 with evidence in `.planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-03-SUMMARY.md` and `ai-service/eval/reports/ragas_ru.json`.
 | Phase 05 P01 | 27 min | 4 tasks | 18 files |
 | Phase 05 P02 | 16 min | 3 tasks + prerequisite fix | 14 files |
 | Phase 05 P03 | 7 min | 3 tasks | 6 files |
@@ -155,10 +155,11 @@ Recent locked decisions affecting current work:
 - [Phase 05.1]: 05.1-02: Reranker load/scoring budgets fail fast when max(load, score) is greater than or equal to AI_QUERY_TIMEOUT_SECONDS; timeout failures soft-degrade with reranker_unavailable and 05.1-04 must pre-warm before timed Scenario 3.
 - [Phase 05.1]: 05.1-03: Final query responses return the full packed citation index space and validate inline refs against the final REST citations array; graph citations resolve user-facing quote/snippet from document text rather than graph markers.
 - [Phase 05.1]: 05.1-05 resolves graph citation/scoring text from the existing parent chunk store before reranking instead of requiring Neo4j relationship text or a corpus reindex. Aggregation graph score is query-term matched, not a hardcoded confidence bypass; absent graph evidence still refuses.
+- [Phase 07.1]: Russian router/aggregation localization and frozen graph-corpus state are repaired. Post-fix RAGAS improved answered_count 15 -> 18 and faithfulness 0.9167 -> 0.9630 with degraded_count 0; four remaining multi-hop refusals now route correctly to MULTI_HOP and are Phase 8 graph retrieval debt.
 
 ### Pending Todos
 
-- Execute Phase 7: Evaluation & Observability from plans 07-01 through 07-08.
+- Execute remaining evaluation/delivery work after Phase 07.1: Phase 8 must address or explicitly waive the multi-hop graph retrieval debt for `ru-multihop-002/003/005/006`.
 - Build a Russian-first golden dataset; Phase 6 confirmed the Russian upload/index/query/citation/source-modal path works end to end.
 - Keep PH5.1-DEF-B as info-level reproducibility debt: restore a pinned uv base image when ghcr.io is reachable from Docker or a mirror is configured.
 - See `.planning/BACKLOG.md` for non-blocking Phase 5 / 5.1 and Phase 6 UAT follow-ups. Important current manual state: if `ai-service/Dockerfile` is reset to the committed ghcr.io base while the Docker daemon still cannot reach ghcr.io, manually reapply the temporary Docker Hub `astral/uv:python3.12-bookworm` workaround or fix registry/mirror access before rebuilding `python-ai`.
@@ -184,9 +185,10 @@ Recent locked decisions affecting current work:
 | Phase 5/7 | Decide orphan Neo4j entity cleanup strategy; retrieval must filter through accessible Document evidence. | Backlog | Phase 4 UAT Scenario 6 |
 | Phase 5/5.1 | Track UAT/re-UAT follow-ups including DEF-B uv base reproducibility, synthesis variance, lexical graph matching, reranker score stability, entity extraction flakiness, timeout defaults, Qdrant degraded metadata, orphan cleanup, Qdrant version alignment, and HF model pre-warm. | Backlog | `.planning/BACKLOG.md` |
 | Phase 6/8 | Track Low/OBS UAT polish: raw Russian charset, user bubble visibility, first-turn `Response unavailable`, title extraction, HATEOAS nulls, favicon, AMQP channel warning, reranker memory, and Dockerfile cleanup. | Backlog | Phase 6 UAT |
+| Phase 8 | Improve text-conditioned graph multi-hop retrieval for `ru-multihop-002/003/005/006`; Phase 07.1 proved routing is fixed but graph retrieval still refuses due to insufficient multi-document evidence. | Backlog | Phase 07.1 RAGAS post-fix |
 
 ## Session Continuity
 
-Last session: 2026-06-01T14:47:24.273Z
-Stopped at: Phase 07.1 context gathered
-Resume file: .planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-CONTEXT.md
+Last session: 2026-06-01T17:20:00Z
+Stopped at: Phase 07.1 complete
+Resume file: .planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-03-SUMMARY.md
