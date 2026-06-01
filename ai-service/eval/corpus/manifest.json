@@ -1,0 +1,166 @@
+{
+  "corpus_version": "ru-aviation-logistics-v1",
+  "documents": [
+    {
+      "access_level": "INTERNAL",
+      "department": "OPS",
+      "doc_id": "CORP-RU-AV-001",
+      "doc_type": "POLICY",
+      "language": "ru",
+      "path": "documents/ru-ops-flight-handover-policy.md",
+      "summary": "Правила передачи рейса между операционным центром и наземными службами.",
+      "title": "Регламент передачи рейса"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "LOGISTICS",
+      "doc_id": "CORP-RU-AV-002",
+      "doc_type": "GUIDE",
+      "language": "ru",
+      "path": "documents/ru-cargo-priority-guide.md",
+      "summary": "Приоритеты обработки авиационного груза и исключения для срочных отправок.",
+      "title": "Памятка по приоритетам груза"
+    },
+    {
+      "access_level": "CONFIDENTIAL",
+      "department": "OPS",
+      "doc_id": "CORP-RU-AV-003",
+      "doc_type": "REGULATION",
+      "language": "ru",
+      "path": "documents/ru-fuel-reserve-regulation.md",
+      "summary": "Минимальные резервы топлива для региональных и северных маршрутов.",
+      "title": "Норматив топливного резерва"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "MAINTENANCE",
+      "doc_id": "CORP-RU-AV-004",
+      "doc_type": "REPORT",
+      "language": "ru",
+      "path": "documents/ru-maintenance-window-report.md",
+      "summary": "Отчет о плановых окнах технического обслуживания парка.",
+      "title": "Отчет по окнам технического обслуживания"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "CREW",
+      "doc_id": "CORP-RU-AV-005",
+      "doc_type": "POLICY",
+      "language": "ru",
+      "path": "documents/ru-crew-rostering-policy.md",
+      "summary": "Правила резервирования экипажей и лимиты ночных смен.",
+      "title": "Политика планирования экипажей"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "WAREHOUSE",
+      "doc_id": "CORP-RU-AV-006",
+      "doc_type": "MANUAL",
+      "language": "ru",
+      "path": "documents/ru-spare-parts-warehouse-manual.md",
+      "summary": "Учет критичных запасных частей и порядок срочной выдачи.",
+      "title": "Руководство склада запасных частей"
+    },
+    {
+      "access_level": "PUBLIC",
+      "department": "OPS",
+      "doc_id": "CORP-RU-AV-007",
+      "doc_type": "GUIDE",
+      "language": "ru",
+      "path": "documents/ru-weather-delay-playbook.md",
+      "summary": "Сценарии действий при метеозадержках и ледяном дожде.",
+      "title": "Памятка по метеозадержкам"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "GROUND",
+      "doc_id": "CORP-RU-AV-008",
+      "doc_type": "POLICY",
+      "language": "ru",
+      "path": "documents/ru-ground-handling-sla.md",
+      "summary": "SLA наземного обслуживания в базовых и удаленных аэропортах.",
+      "title": "SLA наземного обслуживания"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "CUSTOMS",
+      "doc_id": "CORP-RU-AV-009",
+      "doc_type": "GUIDE",
+      "language": "ru",
+      "path": "documents/ru-customs-transit-guide.md",
+      "summary": "Транзитные таможенные процедуры для авиационных грузов.",
+      "title": "Руководство по таможенному транзиту"
+    },
+    {
+      "access_level": "RESTRICTED",
+      "department": "SECURITY",
+      "doc_id": "CORP-RU-AV-010",
+      "doc_type": "POLICY",
+      "language": "ru",
+      "path": "documents/ru-airport-security-policy.md",
+      "summary": "Контроль доступа к перрону и зонам обслуживания воздушных судов.",
+      "title": "Политика безопасности аэропорта"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "SAFETY",
+      "doc_id": "CORP-RU-AV-011",
+      "doc_type": "REGULATION",
+      "language": "ru",
+      "path": "documents/ru-dangerous-goods-regulation.md",
+      "summary": "Правила перевозки опасных грузов и обязательная маркировка.",
+      "title": "Норматив по опасным грузам"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "LOGISTICS",
+      "doc_id": "CORP-RU-AV-012",
+      "doc_type": "REPORT",
+      "language": "ru",
+      "path": "documents/ru-cold-chain-report.md",
+      "summary": "Отчет по холодовой цепи для фармацевтических грузов.",
+      "title": "Отчет по холодовой цепи"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "SAFETY",
+      "doc_id": "CORP-RU-AV-013",
+      "doc_type": "MANUAL",
+      "language": "ru",
+      "path": "documents/ru-incident-response-manual.md",
+      "summary": "Роли и сроки реагирования на операционные инциденты.",
+      "title": "Руководство по реагированию на инциденты"
+    },
+    {
+      "access_level": "CONFIDENTIAL",
+      "department": "PROCUREMENT",
+      "doc_id": "CORP-RU-AV-014",
+      "doc_type": "REPORT",
+      "language": "ru",
+      "path": "documents/ru-vendor-audit-report.md",
+      "summary": "Аудит одобренных поставщиков авиационной логистики.",
+      "title": "Отчет аудита поставщиков"
+    },
+    {
+      "access_level": "INTERNAL",
+      "department": "IT",
+      "doc_id": "CORP-RU-AV-015",
+      "doc_type": "GUIDE",
+      "language": "ru",
+      "path": "documents/ru-dispatch-integration-guide.md",
+      "summary": "Интеграция диспетчерской системы с трекингом груза.",
+      "title": "Руководство по интеграции диспетчеризации"
+    },
+    {
+      "access_level": "PUBLIC",
+      "department": "CUSTOMER",
+      "doc_id": "CORP-RU-AV-016",
+      "doc_type": "POLICY",
+      "language": "ru",
+      "path": "documents/ru-baggage-exception-policy.md",
+      "summary": "Исключения по багажу пассажиров и служебных курьеров.",
+      "title": "Политика багажных исключений"
+    }
+  ],
+  "language": "ru"
+}

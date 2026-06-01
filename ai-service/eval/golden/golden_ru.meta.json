@@ -1,0 +1,13 @@
+{
+  "corpus_hash": "0bea14fee10b2ea99d08159e0684fcb7c9e5b20edd8662528bfa4cb1e9ff6984",
+  "corpus_version": "ru-aviation-logistics-v1",
+  "document_count": 16,
+  "frozen_at": "2026-06-01T08:20:00Z",
+  "golden_authoring_status": "blocked_until_frozen_corpus_is_indexed",
+  "hash_algorithm": "sha256",
+  "indexed": false,
+  "indexed_document_ids": [],
+  "language": "ru",
+  "notes": "Golden answers must be authored only after this committed corpus snapshot is indexed into Qdrant and Neo4j.",
+  "source_manifest": "../corpus/manifest.json"
+}
