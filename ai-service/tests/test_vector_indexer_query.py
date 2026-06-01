@@ -9,6 +9,7 @@ from corp_rag_ai.pipeline.indexing.vector_indexer import (
     DENSE_VECTOR_NAME,
     SPARSE_VECTOR_NAME,
     QdrantVectorIndex,
+    VectorQueryMode,
 )
 
 
@@ -77,6 +78,45 @@ async def test_empty_departments_omit_only_department_condition() -> None:
     assert set(conditions) == {"accessLevel", "docType"}
     assert conditions["accessLevel"].match.any == ["PUBLIC"]
     assert conditions["docType"].match.any == ["REPORT"]
+
+
+async def test_dense_query_mode_uses_only_dense_vector_query() -> None:
+    client = _FakeQdrantClient()
+    index = QdrantVectorIndex(client)  # type: ignore[arg-type]
+
+    await index.query_hybrid(
+        query_embedding=EmbeddingVector(dense=(0.4, 0.5), sparse={11: 1.1}),
+        access_filter=AccessFilter(access_levels=("PUBLIC",), departments=(), doc_types=("REPORT",)),
+        limit=5,
+        prefetch_limit=25,
+        mode=VectorQueryMode.DENSE,
+    )
+
+    call = client.query_calls[0]
+    assert "prefetch" not in call
+    assert call["query"] == [0.4, 0.5]
+    assert call["using"] == DENSE_VECTOR_NAME
+    assert call["query_filter"] is not None
+
+
+async def test_sparse_query_mode_uses_only_learned_sparse_vector_query() -> None:
+    client = _FakeQdrantClient()
+    index = QdrantVectorIndex(client)  # type: ignore[arg-type]
+
+    await index.query_hybrid(
+        query_embedding=EmbeddingVector(dense=(0.4, 0.5), sparse={9: 0.9, 2: 0.2}),
+        access_filter=AccessFilter(access_levels=("PUBLIC",), departments=(), doc_types=("REPORT",)),
+        limit=5,
+        prefetch_limit=25,
+        mode=VectorQueryMode.SPARSE,
+    )
+
+    call = client.query_calls[0]
+    assert "prefetch" not in call
+    assert call["using"] == SPARSE_VECTOR_NAME
+    assert call["query"].indices == [2, 9]
+    assert call["query"].values == [0.2, 0.9]
+    assert call["query_filter"] is not None
 
 
 def _conditions_by_key(query_filter) -> dict[str, object]:

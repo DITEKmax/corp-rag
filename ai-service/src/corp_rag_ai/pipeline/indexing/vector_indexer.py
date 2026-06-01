@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Protocol
 from uuid import UUID
 
@@ -27,6 +28,12 @@ PAYLOAD_INDEX_FIELDS = ("documentId", "language", "docType", "department", "acce
 
 class QdrantSchemaError(RuntimeError):
     """Raised when an existing Qdrant collection violates the locked schema."""
+
+
+class VectorQueryMode(str, Enum):
+    DENSE = "dense"
+    SPARSE = "sparse"
+    HYBRID = "hybrid"
 
 
 class EmbeddingProvider(Protocol):
@@ -171,26 +178,18 @@ class QdrantVectorIndex:
         access_filter: AccessFilter,
         limit: int,
         prefetch_limit: int,
+        mode: VectorQueryMode = VectorQueryMode.HYBRID,
     ) -> Any:
         qdrant_filter = qdrant_filter_from_access_filter(access_filter)
         try:
             return await self._client.query_points(
                 collection_name=self._collection_name,
-                prefetch=[
-                    models.Prefetch(
-                        query=list(query_embedding.dense),
-                        using=DENSE_VECTOR_NAME,
-                        filter=qdrant_filter,
-                        limit=prefetch_limit,
-                    ),
-                    models.Prefetch(
-                        query=sparse_vector_from_lexical_weights(query_embedding.sparse),
-                        using=SPARSE_VECTOR_NAME,
-                        filter=qdrant_filter,
-                        limit=prefetch_limit,
-                    ),
-                ],
-                query=models.FusionQuery(fusion=models.Fusion.RRF),
+                **_query_mode_arguments(
+                    query_embedding=query_embedding,
+                    qdrant_filter=qdrant_filter,
+                    prefetch_limit=prefetch_limit,
+                    mode=mode,
+                ),
                 query_filter=qdrant_filter,
                 limit=limit,
                 with_payload=True,
@@ -240,6 +239,39 @@ def sparse_vector_from_lexical_weights(weights: Mapping[int | str, float]) -> mo
         indices=[index for index, _weight in items],
         values=[weight for _index, weight in items],
     )
+
+
+def _query_mode_arguments(
+    *,
+    query_embedding: EmbeddingVector,
+    qdrant_filter: models.Filter,
+    prefetch_limit: int,
+    mode: VectorQueryMode,
+) -> dict[str, object]:
+    if mode is VectorQueryMode.DENSE:
+        return {"query": list(query_embedding.dense), "using": DENSE_VECTOR_NAME}
+    if mode is VectorQueryMode.SPARSE:
+        return {
+            "query": sparse_vector_from_lexical_weights(query_embedding.sparse),
+            "using": SPARSE_VECTOR_NAME,
+        }
+    return {
+        "prefetch": [
+            models.Prefetch(
+                query=list(query_embedding.dense),
+                using=DENSE_VECTOR_NAME,
+                filter=qdrant_filter,
+                limit=prefetch_limit,
+            ),
+            models.Prefetch(
+                query=sparse_vector_from_lexical_weights(query_embedding.sparse),
+                using=SPARSE_VECTOR_NAME,
+                filter=qdrant_filter,
+                limit=prefetch_limit,
+            ),
+        ],
+        "query": models.FusionQuery(fusion=models.Fusion.RRF),
+    }
 
 
 def point_struct(
