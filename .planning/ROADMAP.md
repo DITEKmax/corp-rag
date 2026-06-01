@@ -281,14 +281,14 @@ Plans:
 **Goal:** Repair the Russian router, graph aggregation, and Neo4j frozen-corpus state found by the committed 07-06 RAGAS baseline, then rerun one comparable RAGAS pass without weakening guard/access contracts.
 **Requirements**: AGT-01, RET-02, RET-03, EVAL-02, OPS-01
 **Depends on:** Phase 7
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 **Wave 1**
 - [x] 07.1-01-PLAN.md - Fix Russian router rules, Cyrillic aggregation terms, and eval route diagnostics.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 07.1-02-PLAN.md - Repair live Neo4j corpus state with targeted cleanup and preserved-UUID graph rebuild.
+- [x] 07.1-02-PLAN.md - Repair live Neo4j corpus state with targeted cleanup and preserved-UUID graph rebuild.
 
 **Wave 3** *(blocked on Waves 1 and 2 completion)*
 - [ ] 07.1-03-PLAN.md - Rerun one clean post-fix RAGAS comparison against baseline commit `4d23614`.
