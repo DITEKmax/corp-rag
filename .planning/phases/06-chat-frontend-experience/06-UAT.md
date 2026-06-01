@@ -3,6 +3,7 @@
 ## Prerequisites
 
 - Run Java backend, Python AI service, Postgres, MinIO, RabbitMQ, Qdrant, Neo4j, and frontend.
+- Rebuild images for services whose code changed before live UAT. The compose image tags are static `phase1`; verify image freshness by `CREATED`, not by tag name. Rebuild `java-backend` and `frontend` for backend/frontend fixes, and rebuild `python-ai` whenever `ai-service` code changes.
 - Use authenticated browser sessions with:
   - full admin permissions,
   - partial admin permissions,
@@ -81,6 +82,7 @@
 - [ ] Persisted user+assistant query rows share `correlation_id`.
 - [ ] 429 has an audit event but no chat rows.
 - [ ] ProblemDetails include correlationId.
+- [ ] DB checks use `audit_events.occurred_at` for audit time and `documents.uploaded_at` for document upload time; document lifecycle statuses are `UPLOADED`, `INDEXING`, `INDEXED`, and `INDEXING_FAILED`.
 
 ## Do-Not-Break Gates
 

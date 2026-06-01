@@ -11,7 +11,7 @@ requirements: [CHAT-01, CHAT-02, UI-01, UI-02, UI-03]
 
 `human_needed`
 
-Automated validation is green. Live UAT on 2026-05-31 partially exercised the backend/API path, but browser UI UAT still needs rerun after applying the Java AI runtime env fix and rebuilding the frontend image.
+Automated validation is green. Live UAT on 2026-05-31 partially exercised the backend/API path, and Round 2 live UAT on 2026-06-01 found additional rebuild-sensitive fixes. Browser UI UAT still needs rerun after rebuilding every changed service image.
 
 ## Automated Checks
 
@@ -36,11 +36,12 @@ Automated validation is green. Live UAT on 2026-05-31 partially exercised the ba
 ## Human Verification Items
 
 1. Run browser session UAT for `/me`, login, forced password change, refresh, logout, access denied, and service-unavailable behavior.
-2. Restart `java-backend` with the compose `JAVA_AI_BASE_URL` fix, rebuild `frontend`, then run chat UAT with a verified query-visible corpus and one untimed reranker pre-warm query before timed CHAT-02 checks. Reindex only if the retained Phase 5 corpus is missing.
-3. Verify answer, no-evidence, refused, degraded, timeout/unavailable, retry-as-new-pair, history reload, soft-delete, and 429 behavior in browser/DB.
-4. Verify source modal opens from returned citation quote/snippet and never displays `entity:*` graph markers.
-5. Run admin UAT as full and partial admin for documents, users, roles, and access policies.
-6. Collect live audit/database evidence for shared `correlation_id` and 429 audit-without-chat-row behavior.
+2. Rebuild/restart `java-backend` and `frontend`; rebuild/restart `python-ai` whenever `ai-service` changed. Do not rely on static `phase1` tags as freshness signals; check image `CREATED` time.
+3. Run chat UAT with a verified query-visible corpus and one untimed reranker pre-warm query before timed CHAT-02 checks. Reindex only if the retained Phase 5 corpus is missing.
+4. Verify answer, no-evidence, refused, degraded, timeout/unavailable, retry-as-new-pair, history reload, soft-delete, and 429 behavior in browser/DB.
+5. Verify source modal opens from returned citation quote/snippet and never displays `entity:*` graph markers.
+6. Run admin UAT as full and partial admin for documents, users, roles, and access policies.
+7. Collect live audit/database evidence for shared `correlation_id` and 429 audit-without-chat-row behavior, using `audit_events.occurred_at` and `documents.uploaded_at` where applicable.
 
 ## References
 

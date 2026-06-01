@@ -3,14 +3,14 @@ status: partial
 phase: 06-chat-frontend-experience
 source: [06-VERIFICATION.md]
 started: 2026-05-27
-updated: 2026-05-31
+updated: 2026-06-01
 ---
 
 # Phase 6 Human UAT
 
 ## Current Test
 
-Live browser/API UAT ran on 2026-05-31 with the Java backend rebuilt from current code and the frontend still on a stale pre-Phase-6 image. The known Phase 5 corpus was still present; reindex was not required.
+Live browser/API UAT ran on 2026-05-31 with the Java backend rebuilt from current code and the frontend still on a stale pre-Phase-6 image. Follow-up live UAT on 2026-06-01 confirmed several fixes and found Round 2 issues in users pagination, draft chat send state, cited synthesis stability, graph indexing degradation, and raw document URLs. The known Phase 5 corpus was still present; reindex was not required.
 
 ## Tests
 
@@ -50,6 +50,16 @@ evidence:
 - Five `CHAT_QUERY_RATE_LIMITED` audit rows were observed.
 - Zero `chat_messages` rows were observed for rate-limited correlation ids.
 - The audit timestamp column is `occurred_at`, not `created_at`.
+- Document upload time is `documents.uploaded_at`, not `created_at`; document lifecycle statuses are `UPLOADED`, `INDEXING`, `INDEXED`, and `INDEXING_FAILED`.
+
+### 6. Runbook Drift
+
+expected: live UAT runbook points operators at fresh images and correct DB columns.
+result: updated
+
+evidence:
+- Compose image tags remain static `phase1`; freshness must be checked by image `CREATED` time after rebuilding changed services.
+- Live UAT should rebuild `java-backend` and `frontend` for backend/frontend code changes, and rebuild `python-ai` when `ai-service` code changes.
 
 ## Summary
 

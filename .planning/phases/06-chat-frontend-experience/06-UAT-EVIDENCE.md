@@ -1,6 +1,6 @@
 # Phase 6 UAT Evidence
 
-Execution dates: 2026-05-27 automated baseline; 2026-05-31 live browser/API UAT update.
+Execution dates: 2026-05-27 automated baseline; 2026-05-31 live browser/API UAT update; 2026-06-01 Round 2 live UAT update.
 
 ## Automated Checks
 
@@ -29,6 +29,17 @@ Runtime fixes applied after this UAT:
 - `BUILD-01`: `corp-rag-contracts` runs `scripts/generate_constants.py` during Maven `generate-sources`.
 
 The earlier prep note about direct `http://localhost:8080/api/v1` is superseded by the nginx `/api/v1/` proxy.
+
+## Live UAT Update 2026-06-01
+
+Round 2 live UAT confirmed the Docker-network AI URL, frontend rebuild/proxy, AMQP poison-message DLQ, and Maven constants-generation fixes. It also found follow-up defects in Docker-built Java parameter metadata, draft chat send-button state, citation-critical synthesis variance, optional graph indexing failure handling, and browser-facing raw-document URLs.
+
+Runbook corrections:
+
+- The retained Phase 5 corpus is present; reindex is not required while `documents_chunks` remains query-visible with the four known demo documents.
+- DB audit checks must use `audit_events.occurred_at`, not `created_at`.
+- DB document checks must use `documents.uploaded_at`, not `created_at`; document statuses are `UPLOADED`, `INDEXING`, `INDEXED`, and `INDEXING_FAILED`.
+- Compose image tags are static `phase1`; operators must verify image freshness by `CREATED` time and rebuild every service whose code changed (`java-backend`, `frontend`, and `python-ai` when `ai-service` changes).
 
 ## Browser/API UAT Status
 
