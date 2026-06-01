@@ -13,6 +13,9 @@ async def test_diagnostics_reports_query_readiness_without_live_checks() -> None
         "query_router_configured",
         "reranker_configured",
         "llm_configured",
+        "query_prewarm_enabled",
+        "query_prewarm_embedding_ready",
+        "query_prewarm_reranker_ready",
     )
     app.state.query_service = object()
     app.state.query_router_configured = True
@@ -29,6 +32,9 @@ async def test_diagnostics_reports_query_readiness_without_live_checks() -> None
     assert result["query_router"] is True
     assert result["reranker_configured"] is True
     assert result["llm_reachable"] is False
+    assert result["query_prewarm_enabled"] is False
+    assert result["query_prewarm_embedding_ready"] is False
+    assert result["query_prewarm_reranker_ready"] is False
 
 
 def _clear_state(*names: str) -> None:

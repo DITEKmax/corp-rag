@@ -127,6 +127,27 @@ async def test_warm_working_reranker_is_not_falsely_degraded_by_timeout() -> Non
     assert [candidate.score for candidate in outcome.candidates] == [0.95, 0.2]
 
 
+async def test_prewarm_loads_reranker_once_before_first_query() -> None:
+    model = _FakeReranker([1.0])
+    factory_calls = 0
+
+    def factory(_name: str) -> _FakeReranker:
+        nonlocal factory_calls
+        factory_calls += 1
+        return model
+
+    reranker = LocalReranker(model_factory=factory, timeout_seconds=0.5, load_timeout_seconds=0.5)
+
+    prewarmed = await reranker.prewarm()
+    model.scores = [0.88]
+    outcome = await reranker.rerank(query="q", candidates=(_candidate("first", 0.8),), top_n=1)
+
+    assert prewarmed is True
+    assert factory_calls == 1
+    assert outcome.reranker_used is True
+    assert outcome.warnings == ()
+
+
 def test_reranker_step_budget_must_stay_below_query_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AI_QUERY_TIMEOUT_SECONDS", "25")
     monkeypatch.setenv("AI_RERANKER_TIMEOUT_SECONDS", "25")

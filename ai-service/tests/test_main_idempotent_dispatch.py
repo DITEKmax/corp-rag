@@ -73,6 +73,8 @@ def test_query_runtime_settings_defaults() -> None:
     assert settings.reranker_model == "BAAI/bge-reranker-v2-m3"
     assert settings.reranker_timeout_seconds == 25.0
     assert settings.reranker_load_timeout_seconds == 28.0
+    assert settings.query_prewarm_enabled is False
+    assert settings.query_prewarm_timeout_seconds == 45.0
     assert settings.context_token_cap == 4000
     assert settings.weak_evidence_threshold == 0.4
     assert settings.flagged_chunk_score_multiplier == 0.5

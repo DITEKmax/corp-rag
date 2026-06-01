@@ -51,6 +51,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.query_router_configured = True
             app.state.reranker_configured = settings.reranker_enabled
             app.state.llm_configured = settings.openrouter_api_key is not None
+            app.state.query_prewarm_enabled = settings.query_prewarm_enabled
+
+            if settings.query_prewarm_enabled:
+                logger.info("LIFESPAN: query_prewarm begin")
+                result = await query_runtime.prewarm_local_models(
+                    timeout_seconds=settings.query_prewarm_timeout_seconds,
+                )
+                app.state.query_prewarm_embedding_ready = result.embedding_ready
+                app.state.query_prewarm_reranker_ready = result.reranker_ready
+                app.state.query_prewarm_warnings = result.warnings
+                if result.warnings:
+                    logger.warning("LIFESPAN: query_prewarm soft-degraded warnings=%s", result.warnings)
+                else:
+                    logger.info("LIFESPAN: query_prewarm done")
+            else:
+                app.state.query_prewarm_embedding_ready = False
+                app.state.query_prewarm_reranker_ready = False
+                app.state.query_prewarm_warnings = ()
 
             if settings.neo4j_initialize_schema:
                 logger.info("LIFESPAN: neo4j_init begin")
@@ -356,4 +374,7 @@ async def diagnostics() -> dict[str, bool]:
         "query_router": bool(getattr(app.state, "query_router_configured", False)),
         "reranker_configured": bool(getattr(app.state, "reranker_configured", False)),
         "llm_reachable": bool(getattr(app.state, "llm_configured", False)),
+        "query_prewarm_enabled": bool(getattr(app.state, "query_prewarm_enabled", False)),
+        "query_prewarm_embedding_ready": bool(getattr(app.state, "query_prewarm_embedding_ready", False)),
+        "query_prewarm_reranker_ready": bool(getattr(app.state, "query_prewarm_reranker_ready", False)),
     }

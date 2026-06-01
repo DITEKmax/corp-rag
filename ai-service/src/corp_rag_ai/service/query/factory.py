@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable
 from dataclasses import dataclass
 from typing import Any
 
@@ -24,11 +26,36 @@ from corp_rag_ai.service.query.service import QueryService
 
 
 @dataclass(slots=True)
+class QueryPrewarmResult:
+    embedding_ready: bool
+    reranker_ready: bool
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(slots=True)
 class QueryRuntime:
     service: QueryService
     database_engine: Any
     qdrant_index: QdrantVectorIndex
     graph_driver: Any
+    embedder: LocalBgeM3Embedder
+    reranker: LocalReranker
+
+    async def prewarm_local_models(self, *, timeout_seconds: float) -> QueryPrewarmResult:
+        embedding_ready, embedding_warning = await _prewarm_component(
+            "embedding",
+            asyncio.wait_for(asyncio.to_thread(self.embedder.preflight), timeout=timeout_seconds),
+        )
+        reranker_ready, reranker_warning = await _prewarm_component(
+            "reranker",
+            asyncio.wait_for(self.reranker.prewarm(), timeout=timeout_seconds),
+        )
+        warnings = tuple(warning for warning in (embedding_warning, reranker_warning) if warning)
+        return QueryPrewarmResult(
+            embedding_ready=embedding_ready,
+            reranker_ready=reranker_ready,
+            warnings=warnings,
+        )
 
     async def close(self) -> None:
         await self.qdrant_index.close()
@@ -68,6 +95,13 @@ def build_query_runtime(settings: Settings) -> QueryRuntime:
         model_name=settings.embedding_model_name,
         batch_size=settings.embedding_batch_size,
     )
+    reranker = LocalReranker(
+        enabled=settings.reranker_enabled,
+        model_name=settings.reranker_model,
+        concurrency=settings.reranker_concurrency,
+        timeout_seconds=settings.reranker_timeout_seconds,
+        load_timeout_seconds=settings.reranker_load_timeout_seconds,
+    )
     components = QueryGraphComponents(
         input_guard=InputGuard(model_id=settings.deepseek_model_id),
         router=QueryRouter(
@@ -81,13 +115,7 @@ def build_query_runtime(settings: Settings) -> QueryRuntime:
         ),
         graph_retriever=GraphRetriever(graph_driver),
         parent_resolver=ParentResolver(SessionParentChunkReader(session_factory)),
-        reranker=LocalReranker(
-            enabled=settings.reranker_enabled,
-            model_name=settings.reranker_model,
-            concurrency=settings.reranker_concurrency,
-            timeout_seconds=settings.reranker_timeout_seconds,
-            load_timeout_seconds=settings.reranker_load_timeout_seconds,
-        ),
+        reranker=reranker,
         context_packer=ContextPacker(token_cap=settings.context_token_cap),
         synthesizer=DeepSeekAnswerSynthesizer(
             api_key=api_key,
@@ -103,8 +131,18 @@ def build_query_runtime(settings: Settings) -> QueryRuntime:
         database_engine=database_engine,
         qdrant_index=qdrant_index,
         graph_driver=graph_driver,
+        embedder=embedder,
+        reranker=reranker,
     )
 
 
 def _secret_value(value) -> str | None:
     return value.get_secret_value() if value is not None else None
+
+
+async def _prewarm_component(name: str, awaitable: Awaitable[object]) -> tuple[bool, str | None]:
+    try:
+        ready = await awaitable
+    except Exception as exc:  # pragma: no cover - dependency exceptions vary by host
+        return False, f"{name}_prewarm_failed:{exc.__class__.__name__}"
+    return bool(ready), None

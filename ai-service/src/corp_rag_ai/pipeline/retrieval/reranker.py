@@ -96,6 +96,26 @@ class LocalReranker:
         )[:top_n]
         return RerankOutcome(candidates=reranked, reranker_used=True)
 
+    async def prewarm(self) -> bool:
+        if not self._enabled:
+            return False
+        async with self._semaphore:
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + max(self._timeout_seconds, self._load_timeout_seconds)
+            model = await asyncio.wait_for(
+                asyncio.to_thread(self._get_model),
+                timeout=min(self._load_timeout_seconds, _remaining_seconds(deadline, loop)),
+            )
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    model.compute_score,
+                    [("corporate policy", "Employees follow corporate policy.")],
+                    normalize=True,
+                ),
+                timeout=min(self._timeout_seconds, _remaining_seconds(deadline, loop)),
+            )
+        return True
+
     def _get_model(self) -> _RerankerModel:
         if self._model is None:
             self._model = self._model_factory(self._model_name)

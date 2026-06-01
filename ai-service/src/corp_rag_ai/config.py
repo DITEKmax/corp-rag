@@ -94,6 +94,11 @@ class Settings(BaseSettings):
     reranker_concurrency: int = Field(default=1, validation_alias="AI_RERANKER_CONCURRENCY")
     reranker_timeout_seconds: float = Field(default=25.0, validation_alias="AI_RERANKER_TIMEOUT_SECONDS")
     reranker_load_timeout_seconds: float = Field(default=28.0, validation_alias="AI_RERANKER_LOAD_TIMEOUT_SECONDS")
+    query_prewarm_enabled: bool = Field(default=False, validation_alias="AI_QUERY_PREWARM_ENABLED")
+    query_prewarm_timeout_seconds: float = Field(
+        default=45.0,
+        validation_alias="AI_QUERY_PREWARM_TIMEOUT_SECONDS",
+    )
     query_final_top_n: int = Field(default=5, validation_alias="AI_QUERY_FINAL_TOP_N")
     context_token_cap: int = Field(default=4000, validation_alias="AI_CONTEXT_TOKEN_CAP")
     weak_evidence_threshold: float = Field(default=0.4, validation_alias="AI_WEAK_EVIDENCE_THRESHOLD")
@@ -120,6 +125,8 @@ class Settings(BaseSettings):
             raise ValueError("AI_RERANKER_TIMEOUT_SECONDS must be positive")
         if self.reranker_load_timeout_seconds <= 0:
             raise ValueError("AI_RERANKER_LOAD_TIMEOUT_SECONDS must be positive")
+        if self.query_prewarm_timeout_seconds <= 0:
+            raise ValueError("AI_QUERY_PREWARM_TIMEOUT_SECONDS must be positive")
 
         reranker_step_budget = max(self.reranker_timeout_seconds, self.reranker_load_timeout_seconds)
         if reranker_step_budget >= self.query_timeout_seconds:
