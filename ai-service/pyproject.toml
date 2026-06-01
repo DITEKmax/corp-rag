@@ -39,7 +39,7 @@ requires = ["hatchling>=1.26.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/corp_rag_ai"]
+packages = ["src/corp_rag_ai", "eval"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
