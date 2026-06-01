@@ -10,6 +10,7 @@ from retrieved documents cannot close or forge the prompt boundary.
 
 import asyncio
 import html
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -24,8 +25,9 @@ from corp_rag_ai.pipeline.retrieval.context_packer import PackedContext
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash:free"
 DEFAULT_MAX_OUTPUT_TOKENS = 2000
-DEFAULT_TEMPERATURE = 0.1
+DEFAULT_TEMPERATURE = 0.0
 DEFAULT_DEPENDENCY_ATTEMPTS = 2
+DEFAULT_CITATION_ATTEMPTS = 2
 SYNTHESIS_PROMPT_VERSION = "synthesis_v1"
 
 
@@ -61,6 +63,7 @@ class DeepSeekAnswerSynthesizer:
         max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         max_dependency_attempts: int = DEFAULT_DEPENDENCY_ATTEMPTS,
+        max_citation_attempts: int = DEFAULT_CITATION_ATTEMPTS,
         sleep: SleepFn = asyncio.sleep,
     ) -> None:
         self._client = client
@@ -70,16 +73,23 @@ class DeepSeekAnswerSynthesizer:
         self._max_output_tokens = max_output_tokens
         self._temperature = temperature
         self._max_dependency_attempts = max_dependency_attempts
+        self._max_citation_attempts = max(1, max_citation_attempts)
         self._sleep = sleep
 
     async def synthesize(self, query: QueryInput, context: PackedContext) -> SynthesisResult:
-        prompt = _render_prompt(query, context)
-        attempt = 0
+        prompt = _render_prompt(query, context, citation_retry=False)
+        parse_failures = 0
+        citation_failures = 0
         while True:
-            attempt += 1
             try:
                 response = await self._create_completion(prompt)
                 parsed = _parse_response(response)
+                if _needs_citation_retry(parsed, context):
+                    citation_failures += 1
+                    if citation_failures < self._max_citation_attempts:
+                        prompt = _render_prompt(query, context, citation_retry=True, previous_answer=parsed.answer)
+                        await self._sleep(_backoff_seconds(citation_failures))
+                        continue
                 return SynthesisResult(
                     answered=parsed.answered,
                     answer=parsed.answer,
@@ -87,9 +97,10 @@ class DeepSeekAnswerSynthesizer:
                     confidence_hint=parsed.confidence_hint,
                 )
             except ValueError:
-                if attempt >= self._max_dependency_attempts:
+                parse_failures += 1
+                if parse_failures >= self._max_dependency_attempts:
                     return _failure(RefusalReason.GENERATION_UNAVAILABLE)
-                await self._sleep(_backoff_seconds(attempt))
+                await self._sleep(_backoff_seconds(parse_failures))
             except Exception:
                 return _failure(RefusalReason.GENERATION_UNAVAILABLE)
 
@@ -112,20 +123,54 @@ class DeepSeekAnswerSynthesizer:
         return self._client
 
 
-def _render_prompt(query: QueryInput, context: PackedContext) -> str:
+def _render_prompt(
+    query: QueryInput,
+    context: PackedContext,
+    *,
+    citation_retry: bool,
+    previous_answer: str = "",
+) -> str:
     sentinel = f"CORP_RAG_EVIDENCE_{uuid4().hex}"
     escaped_context = html.escape(context.text, quote=False)
+    retry_instruction = (
+        "\nPrevious answer omitted valid inline citations. Regenerate the answer with inline [N] markers."
+        f"\nPrevious answer: {html.escape(previous_answer, quote=False)}"
+        if citation_retry
+        else ""
+    )
     return "\n\n".join(
         (
             "You answer corporate document questions using only the provided evidence.",
-            "Every factual claim must cite evidence with [N], where N is a returned citation index.",
+            "If the evidence supports an answer, every factual sentence in answer MUST include an inline citation marker like [1].",
+            "Use only citation indexes that appear in the provided evidence. Do not answer true unless answer contains at least one [N].",
+            "Example valid answer: Managers must approve vacation requests within five business days [1].",
+            "Example invalid answer: Managers must approve vacation requests within five business days.",
             "Return strict JSON with answered, answer, citation_indexes, and confidence_hint.",
+            "When answered is true, citation_indexes MUST list each [N] used in answer.",
+            retry_instruction.strip(),
             f"Question: {query.message}",
             f"<<<{sentinel}_START>>>",
             escaped_context,
             f"<<<{sentinel}_END>>>",
         )
     )
+
+
+def _needs_citation_retry(parsed: SynthesisResponse, context: PackedContext) -> bool:
+    if not parsed.answered or not context.citations:
+        return False
+    refs = tuple(int(match) for match in re.findall(r"\[(\d+)\]", parsed.answer))
+    valid_indexes = set(range(1, len(context.citations) + 1))
+    if any(ref not in valid_indexes for ref in refs):
+        return True
+    if any(index not in valid_indexes for index in parsed.citation_indexes):
+        return True
+    return not refs and _looks_factual(parsed.answer)
+
+
+def _looks_factual(answer: str) -> bool:
+    text = answer.strip()
+    return any(char.isalnum() for char in text) and len(text.split()) >= 4
 
 
 def _structured_response_format() -> dict[str, Any]:

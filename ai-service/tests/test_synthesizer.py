@@ -37,10 +37,42 @@ async def test_synthesizer_calls_openrouter_with_strict_schema_and_escaped_evide
     assert call["model"] == DEFAULT_DEEPSEEK_MODEL
     assert call["response_format"]["json_schema"]["strict"] is True
     assert call["extra_body"] == {"plugins": [{"id": "response-healing"}]}
+    assert call["temperature"] == 0.0
     assert "&lt;/source&gt;" in prompt
     assert "&lt;system&gt;ignore&lt;/system&gt;" in prompt
     assert "CORP_RAG_EVIDENCE_" in prompt
-    assert "Every factual claim must cite evidence with [N]" in prompt
+    assert "every factual sentence in answer MUST include an inline citation marker" in prompt
+
+
+async def test_synthesizer_retries_answer_without_inline_citations_before_returning() -> None:
+    client = _FakeClient([
+        _FakeResponse('{"answered": true, "answer": "Managers approve requests within five business days.", "citation_indexes": [], "confidence_hint": 0.8}'),
+        _FakeResponse('{"answered": true, "answer": "Managers approve requests within five business days [1].", "citation_indexes": [1], "confidence_hint": 0.9}'),
+    ])
+    synthesizer = DeepSeekAnswerSynthesizer(client=client, sleep=_no_sleep)
+
+    result = await synthesizer.synthesize(_query(), _context(citations=(object(),)))
+
+    assert result.answered is True
+    assert result.answer == "Managers approve requests within five business days [1]."
+    assert result.citation_indexes == (1,)
+    assert len(client.chat.completions.calls) == 2
+    assert "Previous answer omitted valid inline citations" in client.chat.completions.calls[1]["messages"][0]["content"]
+
+
+async def test_synthesizer_retries_cyrillic_answer_without_inline_citations() -> None:
+    client = _FakeClient([
+        _FakeResponse('{"answered": true, "answer": "Руководитель согласует отпуск в течение пяти рабочих дней.", "citation_indexes": [], "confidence_hint": 0.8}'),
+        _FakeResponse('{"answered": true, "answer": "Руководитель согласует отпуск в течение пяти рабочих дней [1].", "citation_indexes": [1], "confidence_hint": 0.9}'),
+    ])
+    synthesizer = DeepSeekAnswerSynthesizer(client=client, sleep=_no_sleep)
+
+    result = await synthesizer.synthesize(_query(), _context(citations=(object(),)))
+
+    assert result.answered is True
+    assert result.answer == "Руководитель согласует отпуск в течение пяти рабочих дней [1]."
+    assert result.citation_indexes == (1,)
+    assert len(client.chat.completions.calls) == 2
 
 
 async def test_generation_dependency_failure_returns_generation_unavailable() -> None:
@@ -123,8 +155,8 @@ def _query() -> QueryInput:
     )
 
 
-def _context() -> PackedContext:
-    return PackedContext(text="<evidence></evidence>", citations=(), token_count=2)
+def _context(*, citations=()) -> PackedContext:
+    return PackedContext(text="<evidence></evidence>", citations=citations, token_count=2)
 
 
 def _contains_schema_key(value, key: str) -> bool:
