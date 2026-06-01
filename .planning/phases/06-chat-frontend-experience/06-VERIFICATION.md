@@ -1,7 +1,8 @@
 ---
 phase: 06-chat-frontend-experience
-status: human_needed
+status: pass
 created: 2026-05-27
+updated: 2026-06-01
 requirements: [CHAT-01, CHAT-02, UI-01, UI-02, UI-03]
 ---
 
@@ -9,9 +10,9 @@ requirements: [CHAT-01, CHAT-02, UI-01, UI-02, UI-03]
 
 ## Verdict
 
-`human_needed`
+`PASS`
 
-Automated validation is green. Live UAT on 2026-05-31 partially exercised the backend/API path, and Round 2 live UAT on 2026-06-01 found additional rebuild-sensitive fixes. Browser UI UAT still needs rerun after rebuilding every changed service image.
+Automated validation is green. Final human live UAT passed on 2026-06-01 after rebuilding and rechecking the changed Java, frontend, and Python images in the Docker stack. This file is reconciled with `06-HUMAN-UAT.md` and `06-UAT-EVIDENCE.md`; residual Low/OBS items are tracked in `.planning/BACKLOG.md` and do not block Phase 7.
 
 ## Automated Checks
 
@@ -27,21 +28,21 @@ Automated validation is green. Live UAT on 2026-05-31 partially exercised the ba
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| CHAT-01 | pass | Backend persistence/conversation tests passed; API lifecycle passed in live UAT on 2026-05-31. |
-| CHAT-02 | partial | Backend query/orchestration/rate-limit tests passed; live outcomes were observed, but Java ANSWERED was blocked before the `JAVA_AI_BASE_URL` fix. |
-| UI-01 | blocked | Frontend session shell/static checks passed; browser session UAT was blocked by stale frontend image content. |
-| UI-02 | blocked | Source modal/static checks passed; browser source-modal UAT was blocked by stale frontend image content. |
-| UI-03 | blocked | Admin screens/static/backend endpoint checks passed; browser full/partial admin UAT was blocked by stale frontend image content. |
+| CHAT-01 | pass | Backend persistence/conversation tests passed; API and browser lifecycle passed in final live UAT. |
+| CHAT-02 | pass | Java-to-Python query, outcomes, audit/rate-limit/correlation behavior, and cited answers passed in final live UAT. |
+| UI-01 | pass | Browser session flow passed: `/me` 401, login, authenticated return, and guarded navigation. |
+| UI-02 | pass | Chat UI, citation chips, source cards, and quote-only source modal passed without `entity:*` leakage. |
+| UI-03 | pass | Admin Documents, Users, Roles, Access policies, and permission gating passed in browser UAT. |
 
-## Human Verification Items
+## Closed Human Verification Items
 
-1. Run browser session UAT for `/me`, login, forced password change, refresh, logout, access denied, and service-unavailable behavior.
-2. Rebuild/restart `java-backend` and `frontend`; rebuild/restart `python-ai` whenever `ai-service` changed. Do not rely on static `phase1` tags as freshness signals; check image `CREATED` time.
-3. Run chat UAT with a verified query-visible corpus and one untimed reranker pre-warm query before timed CHAT-02 checks. Reindex only if the retained Phase 5 corpus is missing.
-4. Verify answer, no-evidence, refused, degraded, timeout/unavailable, retry-as-new-pair, history reload, soft-delete, and 429 behavior in browser/DB.
-5. Verify source modal opens from returned citation quote/snippet and never displays `entity:*` graph markers.
-6. Run admin UAT as full and partial admin for documents, users, roles, and access policies.
-7. Collect live audit/database evidence for shared `correlation_id` and 429 audit-without-chat-row behavior, using `audit_events.occurred_at` and `documents.uploaded_at` where applicable.
+1. Browser session UAT passed for unauthenticated `/me`, login, authenticated route return, and protected navigation.
+2. `java-backend`, `frontend`, and `python-ai` were rebuilt/rechecked as needed during final UAT.
+3. Chat UAT passed with a query-visible corpus and reranker-aware path.
+4. Answer, no-evidence, unsupported/refused, degraded/unavailable, retry/history, soft-delete, and 429 behavior were verified in browser/API/database evidence.
+5. Source modal opened from returned citation quote/snippet and did not display `entity:*` graph markers.
+6. Admin UAT passed for documents, users, roles, and access policies with permission gating.
+7. Audit/database evidence covered shared `correlationId` and 429 audit-without-chat-row behavior.
 
 ## References
 
