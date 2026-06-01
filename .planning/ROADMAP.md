@@ -278,13 +278,26 @@ Plans:
 
 ### Phase 07.1: Fix Russian router and graph retrieval quality for RAGAS baseline (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Repair the Russian router, graph aggregation, and Neo4j frozen-corpus state found by the committed 07-06 RAGAS baseline, then rerun one comparable RAGAS pass without weakening guard/access contracts.
+**Requirements**: AGT-01, RET-02, RET-03, EVAL-02, OPS-01
 **Depends on:** Phase 7
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 07.1 to break down)
+**Wave 1**
+- [ ] 07.1-01-PLAN.md - Fix Russian router rules, Cyrillic aggregation terms, and eval route diagnostics.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 07.1-02-PLAN.md - Repair live Neo4j corpus state with targeted cleanup and preserved-UUID graph rebuild.
+
+**Wave 3** *(blocked on Waves 1 and 2 completion)*
+- [ ] 07.1-03-PLAN.md - Rerun one clean post-fix RAGAS comparison against baseline commit `4d23614`.
+
+**Cross-cutting constraints:**
+- D-413: Do not weaken output guard, citation validation, prompt-injection checks, or weak-evidence thresholds.
+- D-414: Do not broaden or bypass Qdrant/Neo4j access filtering.
+- D-415: Do not change production `RetrievalOptions.topK` defaults or add production retrieval-mode switches.
+- D-416: Do not mutate the frozen corpus, golden questions, reference answers, or expected document UUIDs.
 
 ### Phase 8: Delivery Polish & Demo Readiness
 **Goal**: The MVP is packaged for a production-like local run and can be demonstrated with seeded corpus, regression evidence, and documentation.
@@ -300,7 +313,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 → 7.1 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -312,4 +325,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 �
 | 5.1. Phase 5 UAT Fix Wave | 5/5 | Complete | 2026-05-26 |
 | 6. Chat & Frontend Experience | 9/9 | Complete | 2026-06-01 |
 | 7. Evaluation & Observability | 0/8 | Ready to execute | - |
+| 7.1. Fix Russian router and graph retrieval quality for RAGAS baseline | 0/3 | Ready to execute | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |
