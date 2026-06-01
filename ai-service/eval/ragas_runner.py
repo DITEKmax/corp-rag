@@ -74,8 +74,12 @@ class RagasRunnerConfig:
     embedding_model_id: str | None = DEFAULT_EMBEDDING_MODEL_ID
     embedding_base_url: str | None = None
     embedding_api_key: str | None = None
-    batch_size: int | None = None
+    concurrency: int = 1
     show_progress: bool = False
+
+    def __post_init__(self) -> None:
+        if self.concurrency != 1:
+            raise ValueError("RAGAS production runner is pinned to concurrency=1")
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +181,8 @@ async def collect_query_results(
     results: list[QuerySampleResult] = []
     async with factory(client_config) as client:
         for record in records:
+            # Keep production queries strictly sequential so each /v1/query
+            # releases reranker/model resources before the next request starts.
             results.append(await client.query_golden(record))
     return tuple(results)
 
@@ -221,14 +227,16 @@ def evaluate_ragas_rows(rows: tuple[RagasRow, ...], config: RagasRunnerConfig) -
         raise RagasRunnerError("ragas and datasets must be installed to run the quality evaluation") from exc
 
     dataset = Dataset.from_list([row.to_dataset_row() for row in rows])
+    from ragas.run_config import RunConfig
+
     result = evaluate(
         dataset,
         metrics=metrics,
         llm=llm,
         embeddings=embeddings,
+        run_config=RunConfig(timeout=int(config.timeout_seconds), max_workers=config.concurrency),
         raise_exceptions=False,
         show_progress=config.show_progress,
-        batch_size=config.batch_size,
     )
     per_record_scores = _per_record_scores(result, rows)
     aggregate_scores = _aggregate_scores(per_record_scores, skipped_metrics)
@@ -320,6 +328,8 @@ def build_evaluation_report(
             "judge_model_id": config.judge_model_id,
             "judge_base_url": config.judge_base_url or _default_judge_base_url(),
             "embedding_model_id": config.embedding_model_id,
+            "concurrency": config.concurrency,
+            "batching": "disabled",
             "answer_relevancy_skipped": "answer_relevancy" in scoring.skipped_metrics,
             "token_usage": scoring.token_usage,
             "total_cost": scoring.total_cost,
@@ -508,7 +518,6 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
     parser.add_argument("--judge-base-url", default=os.getenv("RAGAS_JUDGE_BASE_URL"))
     parser.add_argument("--embedding-model-id", default=os.getenv("RAGAS_EMBEDDING_MODEL_ID", DEFAULT_EMBEDDING_MODEL_ID))
     parser.add_argument("--embedding-base-url", default=os.getenv("RAGAS_EMBEDDING_BASE_URL"))
-    parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--show-progress", action="store_true")
     args = parser.parse_args(argv)
     return RagasRunnerConfig(
@@ -526,7 +535,7 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
         judge_base_url=args.judge_base_url,
         embedding_model_id=args.embedding_model_id,
         embedding_base_url=args.embedding_base_url,
-        batch_size=args.batch_size,
+        concurrency=1,
         show_progress=args.show_progress,
     )
 

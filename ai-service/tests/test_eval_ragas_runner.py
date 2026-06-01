@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from eval.io import load_golden_records
@@ -69,6 +71,10 @@ def test_build_ragas_rows_keeps_only_answered_answerable_records() -> None:
 
 @pytest.mark.asyncio
 async def test_runner_writes_reports_for_all_records_with_fake_clients(tmp_path) -> None:
+    active_queries = 0
+    max_active_queries = 0
+    query_events: list[tuple[str, str]] = []
+
     class FakeClient:
         def __init__(self, config):
             self.config = config
@@ -80,6 +86,15 @@ async def test_runner_writes_reports_for_all_records_with_fake_clients(tmp_path)
             return None
 
         async def query_golden(self, record: GoldenRecord) -> QuerySampleResult:
+            nonlocal active_queries, max_active_queries
+            assert self.config.access_filter is not None
+            assert self.config.top_k == 10
+            active_queries += 1
+            max_active_queries = max(max_active_queries, active_queries)
+            query_events.append(("start", record.id))
+            await asyncio.sleep(0)
+            active_queries -= 1
+            query_events.append(("end", record.id))
             return _sample(record)
 
     def fake_evaluator(rows, config) -> RagasScoringResult:
@@ -113,3 +128,15 @@ async def test_runner_writes_reports_for_all_records_with_fake_clients(tmp_path)
     markdown = output.markdown_path.read_text(encoding="utf-8")
     assert "ru-factual-001" in markdown
     assert "ru-out-010" in markdown
+    assert max_active_queries == 1
+    assert query_events[:4] == [
+        ("start", "ru-factual-001"),
+        ("end", "ru-factual-001"),
+        ("start", "ru-factual-002"),
+        ("end", "ru-factual-002"),
+    ]
+
+
+def test_runner_config_rejects_parallel_concurrency() -> None:
+    with pytest.raises(ValueError, match="concurrency=1"):
+        RagasRunnerConfig(concurrency=2)
