@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import re
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field as dataclass_field
 from functools import lru_cache
@@ -42,7 +44,10 @@ DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MAX_OUTPUT_TOKENS = 2000
 DEFAULT_TEMPERATURE = 0.1
 DEFAULT_DEPENDENCY_ATTEMPTS = 3
+DEFAULT_MALFORMED_OUTPUT_ATTEMPTS = 3
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
 PROMPT_PATH = Path(__file__).with_name("prompts") / f"{ENTITY_EXTRACTION_PROMPT_VERSION}.md"
+JSON_FENCE_PATTERN = re.compile(r"```(?:json)?\s*(.*?)```", re.IGNORECASE | re.DOTALL)
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +157,8 @@ class DeepSeekEntityExtractor:
         max_output_tokens: int = DEFAULT_MAX_OUTPUT_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         max_dependency_attempts: int = DEFAULT_DEPENDENCY_ATTEMPTS,
+        max_malformed_attempts: int = DEFAULT_MALFORMED_OUTPUT_ATTEMPTS,
+        request_timeout_seconds: float = DEFAULT_REQUEST_TIMEOUT_SECONDS,
         sleep: SleepFn = asyncio.sleep,
     ) -> None:
         self._client = client
@@ -162,6 +169,8 @@ class DeepSeekEntityExtractor:
         self._max_output_tokens = max_output_tokens
         self._temperature = temperature
         self._max_dependency_attempts = max_dependency_attempts
+        self._max_malformed_attempts = max(1, max_malformed_attempts)
+        self._request_timeout_seconds = request_timeout_seconds
         self._sleep = sleep
 
     async def extract_parent(
@@ -171,40 +180,58 @@ class DeepSeekEntityExtractor:
         document_title: str,
         language: str,
     ) -> ParentEntityExtraction:
-        contents = self._render_contents(source, document_title=document_title, language=language)
-        malformed_retry_used = False
-        dependency_attempt = 0
+        base_contents = self._render_contents(source, document_title=document_title, language=language)
 
-        while True:
-            dependency_attempt += 1
-            try:
-                response = await self._create_completion(contents)
-            except StageFailure:
-                raise
-            except Exception as exc:
-                if _is_auth_error(exc):
-                    raise _dependency_failure(exc, retryable=False) from exc
-                if _is_retryable_dependency_error(exc) and dependency_attempt < self._max_dependency_attempts:
-                    await self._sleep(_backoff_seconds(dependency_attempt))
-                    continue
-                if _is_retryable_dependency_error(exc):
-                    raise _dependency_failure(exc, retryable=True) from exc
-                raise _malformed_or_sdk_failure(exc) from exc
+        for malformed_attempt in range(1, self._max_malformed_attempts + 1):
+            contents = _malformed_retry_contents(base_contents) if malformed_attempt > 1 else base_contents
+            dependency_attempt = 0
+            while True:
+                dependency_attempt += 1
+                try:
+                    response = await self._create_completion(contents)
+                    break
+                except StageFailure:
+                    raise
+                except Exception as exc:
+                    if _is_auth_error(exc):
+                        raise _dependency_failure(exc, retryable=False) from exc
+                    if _is_retryable_dependency_error(exc) and dependency_attempt < self._max_dependency_attempts:
+                        await self._sleep(_backoff_seconds(dependency_attempt))
+                        continue
+                    if _is_retryable_dependency_error(exc):
+                        raise _dependency_failure(exc, retryable=True) from exc
+                    raise _malformed_or_sdk_failure(exc) from exc
 
             try:
                 parsed = _parse_response(response)
             except (ValidationError, ValueError) as exc:
+                retrying = malformed_attempt < self._max_malformed_attempts
                 logger.warning(
                     "Malformed DeepSeek/OpenRouter structured entity extraction response",
-                    extra={"raw_openrouter_response": _raw_response_text(response)},
+                    extra={
+                        "raw_openrouter_response": _raw_response_text(response),
+                        "malformed_attempt": malformed_attempt,
+                        "max_malformed_attempts": self._max_malformed_attempts,
+                        "outcome": "retrying" if retrying else "exhausted",
+                    },
                 )
-                if malformed_retry_used:
+                if not retrying:
                     raise _malformed_output_failure() from exc
-                malformed_retry_used = True
-                await self._sleep(_backoff_seconds(1))
+                await self._sleep(_backoff_seconds(malformed_attempt))
                 continue
 
+            if malformed_attempt > 1:
+                logger.info(
+                    "Recovered DeepSeek/OpenRouter structured entity extraction response after malformed retry",
+                    extra={
+                        "malformed_attempt": malformed_attempt,
+                        "max_malformed_attempts": self._max_malformed_attempts,
+                        "outcome": "parsed",
+                    },
+                )
             return _map_parent_extraction(parsed, source)
+
+        raise _malformed_output_failure()
 
     def _render_contents(self, source: EntityExtractionSource, *, document_title: str, language: str) -> str:
         return "\n\n".join(
@@ -227,6 +254,7 @@ class DeepSeekEntityExtractor:
             extra_body={"plugins": [{"id": "response-healing"}]},
             temperature=self._temperature,
             max_tokens=self._max_output_tokens,
+            timeout=self._request_timeout_seconds,
         )
 
     def _get_client(self) -> Any:
@@ -302,7 +330,99 @@ def _parse_response(response: Any) -> EntityExtractionResponse:
         text = _completion_message_content(response)
     if not isinstance(text, str) or not text.strip():
         raise ValueError("OpenRouter response text is empty")
-    return EntityExtractionResponse.model_validate_json(text)
+    errors: list[Exception] = []
+    for candidate in _response_json_candidates(text):
+        try:
+            return EntityExtractionResponse.model_validate_json(candidate)
+        except (ValidationError, ValueError) as exc:
+            errors.append(exc)
+    if errors:
+        raise errors[-1]
+    raise ValueError("OpenRouter response text does not contain a JSON object")
+
+
+def _response_json_candidates(text: str) -> tuple[str, ...]:
+    candidates: list[str] = []
+    _append_unique_candidate(candidates, text)
+    for match in JSON_FENCE_PATTERN.finditer(text):
+        _append_unique_candidate(candidates, match.group(1))
+    first_object = _extract_first_json_object(text)
+    if first_object is not None:
+        _append_unique_candidate(candidates, first_object)
+
+    for candidate in tuple(candidates):
+        for nested in _nested_json_candidates(candidate):
+            _append_unique_candidate(candidates, nested)
+    return tuple(candidates)
+
+
+def _append_unique_candidate(candidates: list[str], value: str) -> None:
+    stripped = value.strip()
+    if stripped and stripped not in candidates:
+        candidates.append(stripped)
+
+
+def _extract_first_json_object(text: str) -> str | None:
+    for start, character in enumerate(text):
+        if character != "{":
+            continue
+        depth = 0
+        in_string = False
+        escaped = False
+        for index in range(start, len(text)):
+            current = text[index]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif current == "\\":
+                    escaped = True
+                elif current == '"':
+                    in_string = False
+                continue
+            if current == '"':
+                in_string = True
+            elif current == "{":
+                depth += 1
+            elif current == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start : index + 1]
+    return None
+
+
+def _nested_json_candidates(candidate: str) -> tuple[str, ...]:
+    try:
+        decoded = json.loads(candidate)
+    except json.JSONDecodeError:
+        return ()
+    nested: list[str] = []
+    _collect_nested_json_candidates(decoded, nested)
+    return tuple(nested)
+
+
+def _collect_nested_json_candidates(value: Any, target: list[str]) -> None:
+    if isinstance(value, dict):
+        if "entities" in value or "relations" in value:
+            _append_unique_candidate(target, json.dumps(value))
+        for child in value.values():
+            _collect_nested_json_candidates(child, target)
+        return
+    if isinstance(value, list):
+        for child in value:
+            _collect_nested_json_candidates(child, target)
+        return
+    if isinstance(value, str):
+        extracted = _extract_first_json_object(value)
+        if extracted is not None:
+            _append_unique_candidate(target, extracted)
+
+
+def _malformed_retry_contents(contents: str) -> str:
+    return (
+        f"{contents}\n\n"
+        "Retry instruction: Return strictly valid JSON matching the schema above, "
+        "with no markdown, no commentary, no prose, and no extra text."
+    )
 
 
 def _completion_message_content(response: Any) -> str | None:

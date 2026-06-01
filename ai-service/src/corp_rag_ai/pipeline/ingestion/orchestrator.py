@@ -369,6 +369,7 @@ class DocumentIngestionService:
                     "document_id": str(metadata.document_id),
                     "stage": failure.stage.value,
                     "error_code": failure.error_code,
+                    "detail": failure.template_vars.get("detail", "n/a"),
                 },
             )
             if failure.stage == IndexingStage.GRAPH_UPSERT:

@@ -311,13 +311,14 @@ Plans:
   3. Final regression proves the core chat/citation/evaluation path still works.
   4. README, architecture diagram, demo assets, and short video are ready for review.
   5. Phase 7.1 carry-over is addressed or explicitly waived: Russian multi-hop graph retrieval for `ru-multihop-002/003/005/006` needs text-conditioned multi-document evidence gathering beyond the router fix.
-**Plans:** 5 plans
+**Plans:** 6 plans
 Plans:
 
 **Wave 1**
 - [ ] 08-01-PLAN.md - Build Java-API demo corpus reset and seed evidence.
 - [ ] 08-02-PLAN.md - Document and verify the existing local demo compose stack.
 - [ ] 08-05-PLAN.md - Close low-risk delivery polish, traceability, and known-limit boundaries.
+- [x] 08-06-PLAN.md - Harden entity-extraction parsing and bounded retries for stable graph indexing.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 08-03-PLAN.md - Run final compose/seed/chat/citation/eval regression evidence.
@@ -329,6 +330,7 @@ Plans:
 - Use the single existing `infra/docker-compose.yml`; do not create a prod compose file.
 - Seed reset must use Java document APIs and must not wipe Docker volumes.
 - Do not weaken guard, access-filter, citation, refusal, or eval thresholds to improve demo outcomes.
+- Entity-extraction reliability fixes are path-limited to parsing, bounded retries, and explicit skip warning detail.
 - Generated stochastic eval reports require review before commit.
 
 ## Progress

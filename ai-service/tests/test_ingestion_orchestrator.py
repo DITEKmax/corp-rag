@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -59,7 +60,7 @@ async def test_upload_graph_failure_keeps_vector_index_and_marks_indexed() -> No
 
 
 @pytest.mark.asyncio
-async def test_upload_entity_extraction_failure_keeps_vector_index_and_marks_indexed() -> None:
+async def test_upload_entity_extraction_failure_keeps_vector_index_and_marks_indexed(caplog) -> None:
     calls: list[str] = []
     document_id = uuid4()
     entity_failure = stage_failure(
@@ -69,6 +70,7 @@ async def test_upload_entity_extraction_failure_keeps_vector_index_and_marks_ind
         detail="malformed_structured_output",
     )
     service = _service(calls=calls, entity_extract_error=entity_failure)
+    caplog.set_level(logging.WARNING)
 
     await service.handle_uploaded(_uploaded_event(document_id))
 
@@ -81,6 +83,17 @@ async def test_upload_entity_extraction_failure_keeps_vector_index_and_marks_ind
     assert "vector.delete" not in calls
     assert "publisher.failed" not in calls
     assert "state.mark_failed" not in calls
+
+    warning = next(
+        record
+        for record in caplog.records
+        if record.message == "Skipping graph indexing after vector indexing succeeded"
+    )
+    assert warning.levelno == logging.WARNING
+    assert getattr(warning, "document_id") == str(document_id)
+    assert getattr(warning, "stage") == IndexingStage.ENTITY_EXTRACTION.value
+    assert getattr(warning, "error_code") == DEPENDENCY_UNAVAILABLE
+    assert getattr(warning, "detail") == "malformed_structured_output"
 
 
 @pytest.mark.asyncio

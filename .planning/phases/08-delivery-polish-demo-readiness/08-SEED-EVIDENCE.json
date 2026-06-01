@@ -1,0 +1,288 @@
+{
+  "compose_targets": {
+    "java_base_url": "http://localhost:8080",
+    "neo4j_database": "neo4j",
+    "neo4j_uri": "bolt://localhost:7687",
+    "qdrant_collection": "documents_chunks",
+    "qdrant_url": "http://localhost:6333"
+  },
+  "corpus_version": "ru-aviation-logistics-v1",
+  "document_count": 16,
+  "document_id_map": [
+    {
+      "indexed_document_id": "337f4a65-efdc-4b3a-91a1-f2e3434439ca",
+      "manifest_doc_id": "CORP-RU-AV-001",
+      "title": "Регламент передачи рейса"
+    },
+    {
+      "indexed_document_id": "1c45b64f-5aaa-451c-b675-1079181ff069",
+      "manifest_doc_id": "CORP-RU-AV-002",
+      "title": "Памятка по приоритетам груза"
+    },
+    {
+      "indexed_document_id": "e6d8207a-460b-4f4f-a986-3dc143e51271",
+      "manifest_doc_id": "CORP-RU-AV-003",
+      "title": "Норматив топливного резерва"
+    },
+    {
+      "indexed_document_id": "22618bcb-ada0-497a-916c-e072110c70c5",
+      "manifest_doc_id": "CORP-RU-AV-004",
+      "title": "Отчет по окнам технического обслуживания"
+    },
+    {
+      "indexed_document_id": "0f7c5f9f-4808-4d86-a8b9-29c3893d03c6",
+      "manifest_doc_id": "CORP-RU-AV-005",
+      "title": "Политика планирования экипажей"
+    },
+    {
+      "indexed_document_id": "43da091e-fcb9-4fde-8615-82518f4d452f",
+      "manifest_doc_id": "CORP-RU-AV-006",
+      "title": "Руководство склада запасных частей"
+    },
+    {
+      "indexed_document_id": "1e07115f-b79a-4f2b-a2b2-88e3e7460fe6",
+      "manifest_doc_id": "CORP-RU-AV-007",
+      "title": "Памятка по метеозадержкам"
+    },
+    {
+      "indexed_document_id": "33b3e4ed-755a-4646-8a68-3ea843e1fe24",
+      "manifest_doc_id": "CORP-RU-AV-008",
+      "title": "SLA наземного обслуживания"
+    },
+    {
+      "indexed_document_id": "805c11c2-d915-4ca9-b188-b1116020e13e",
+      "manifest_doc_id": "CORP-RU-AV-009",
+      "title": "Руководство по таможенному транзиту"
+    },
+    {
+      "indexed_document_id": "1b7d28c7-3a05-4501-826f-ba36b8e8aaf4",
+      "manifest_doc_id": "CORP-RU-AV-010",
+      "title": "Политика безопасности аэропорта"
+    },
+    {
+      "indexed_document_id": "7b04026e-6663-4d40-b07a-6463b8afd19c",
+      "manifest_doc_id": "CORP-RU-AV-011",
+      "title": "Норматив по опасным грузам"
+    },
+    {
+      "indexed_document_id": "e30b55fe-d647-4563-99ce-d8820417f0c8",
+      "manifest_doc_id": "CORP-RU-AV-012",
+      "title": "Отчет по холодовой цепи"
+    },
+    {
+      "indexed_document_id": "fa5c99e6-33d2-42ec-bb31-57630a765734",
+      "manifest_doc_id": "CORP-RU-AV-013",
+      "title": "Руководство по реагированию на инциденты"
+    },
+    {
+      "indexed_document_id": "7b953631-a816-494e-acc6-ac539086b9b4",
+      "manifest_doc_id": "CORP-RU-AV-014",
+      "title": "Отчет аудита поставщиков"
+    },
+    {
+      "indexed_document_id": "82ae8890-6b63-4cff-9937-96ff72dbc25b",
+      "manifest_doc_id": "CORP-RU-AV-015",
+      "title": "Руководство по интеграции диспетчеризации"
+    },
+    {
+      "indexed_document_id": "dfae45b9-e8f6-4f25-919f-8572ca1f894b",
+      "manifest_doc_id": "CORP-RU-AV-016",
+      "title": "Политика багажных исключений"
+    }
+  ],
+  "expected_document_count": 16,
+  "java_documents": [
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "337f4a65-efdc-4b3a-91a1-f2e3434439ca",
+      "indexed_at": "2026-06-01T21:11:48.353805Z",
+      "manifest_doc_id": "CORP-RU-AV-001",
+      "status": "INDEXED",
+      "title": "Регламент передачи рейса"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "1c45b64f-5aaa-451c-b675-1079181ff069",
+      "indexed_at": "2026-06-01T21:12:00.851015Z",
+      "manifest_doc_id": "CORP-RU-AV-002",
+      "status": "INDEXED",
+      "title": "Памятка по приоритетам груза"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "e6d8207a-460b-4f4f-a986-3dc143e51271",
+      "indexed_at": "2026-06-01T21:12:33.891279Z",
+      "manifest_doc_id": "CORP-RU-AV-003",
+      "status": "INDEXED",
+      "title": "Норматив топливного резерва"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "22618bcb-ada0-497a-916c-e072110c70c5",
+      "indexed_at": "2026-06-01T21:12:58.726487Z",
+      "manifest_doc_id": "CORP-RU-AV-004",
+      "status": "INDEXED",
+      "title": "Отчет по окнам технического обслуживания"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "0f7c5f9f-4808-4d86-a8b9-29c3893d03c6",
+      "indexed_at": "2026-06-01T21:13:45.973668Z",
+      "manifest_doc_id": "CORP-RU-AV-005",
+      "status": "INDEXED",
+      "title": "Политика планирования экипажей"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "43da091e-fcb9-4fde-8615-82518f4d452f",
+      "indexed_at": "2026-06-01T21:14:56.819941Z",
+      "manifest_doc_id": "CORP-RU-AV-006",
+      "status": "INDEXED",
+      "title": "Руководство склада запасных частей"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "1e07115f-b79a-4f2b-a2b2-88e3e7460fe6",
+      "indexed_at": "2026-06-01T21:16:30.602389Z",
+      "manifest_doc_id": "CORP-RU-AV-007",
+      "status": "INDEXED",
+      "title": "Памятка по метеозадержкам"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "33b3e4ed-755a-4646-8a68-3ea843e1fe24",
+      "indexed_at": "2026-06-01T21:16:57.95427Z",
+      "manifest_doc_id": "CORP-RU-AV-008",
+      "status": "INDEXED",
+      "title": "SLA наземного обслуживания"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "805c11c2-d915-4ca9-b188-b1116020e13e",
+      "indexed_at": "2026-06-01T21:17:25.254739Z",
+      "manifest_doc_id": "CORP-RU-AV-009",
+      "status": "INDEXED",
+      "title": "Руководство по таможенному транзиту"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "1b7d28c7-3a05-4501-826f-ba36b8e8aaf4",
+      "indexed_at": "2026-06-01T21:18:07.023491Z",
+      "manifest_doc_id": "CORP-RU-AV-010",
+      "status": "INDEXED",
+      "title": "Политика безопасности аэропорта"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "7b04026e-6663-4d40-b07a-6463b8afd19c",
+      "indexed_at": "2026-06-01T21:19:04.967768Z",
+      "manifest_doc_id": "CORP-RU-AV-011",
+      "status": "INDEXED",
+      "title": "Норматив по опасным грузам"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "e30b55fe-d647-4563-99ce-d8820417f0c8",
+      "indexed_at": "2026-06-01T21:19:28.764117Z",
+      "manifest_doc_id": "CORP-RU-AV-012",
+      "status": "INDEXED",
+      "title": "Отчет по холодовой цепи"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "fa5c99e6-33d2-42ec-bb31-57630a765734",
+      "indexed_at": "2026-06-01T21:19:55.848113Z",
+      "manifest_doc_id": "CORP-RU-AV-013",
+      "status": "INDEXED",
+      "title": "Руководство по реагированию на инциденты"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "7b953631-a816-494e-acc6-ac539086b9b4",
+      "indexed_at": "2026-06-01T21:20:25.173822Z",
+      "manifest_doc_id": "CORP-RU-AV-014",
+      "status": "INDEXED",
+      "title": "Отчет аудита поставщиков"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "82ae8890-6b63-4cff-9937-96ff72dbc25b",
+      "indexed_at": "2026-06-01T21:21:43.60661Z",
+      "manifest_doc_id": "CORP-RU-AV-015",
+      "status": "INDEXED",
+      "title": "Руководство по интеграции диспетчеризации"
+    },
+    {
+      "chunk_count": 1,
+      "failure_reason": null,
+      "id": "dfae45b9-e8f6-4f25-919f-8572ca1f894b",
+      "indexed_at": "2026-06-01T21:22:16.749541Z",
+      "manifest_doc_id": "CORP-RU-AV-016",
+      "status": "INDEXED",
+      "title": "Политика багажных исключений"
+    }
+  ],
+  "non_seed_java_documents": [],
+  "stores": {
+    "neo4j": {
+      "details": {
+        "entity_count_zero": [],
+        "expected_count": 16,
+        "extra": [],
+        "java_entity_count_zero": [],
+        "java_missing": [],
+        "java_neo4j_count_mismatch": [],
+        "java_status_not_indexed": [],
+        "missing": [],
+        "neo4j_count": 16,
+        "ok": true
+      },
+      "ok": true,
+      "status": "passed"
+    },
+    "qdrant": {
+      "details": {
+        "document_count": 16,
+        "extra_document_ids": [],
+        "missing_document_ids": [],
+        "point_count": 16,
+        "points_by_document_id": {
+          "0f7c5f9f-4808-4d86-a8b9-29c3893d03c6": 1,
+          "1b7d28c7-3a05-4501-826f-ba36b8e8aaf4": 1,
+          "1c45b64f-5aaa-451c-b675-1079181ff069": 1,
+          "1e07115f-b79a-4f2b-a2b2-88e3e7460fe6": 1,
+          "22618bcb-ada0-497a-916c-e072110c70c5": 1,
+          "337f4a65-efdc-4b3a-91a1-f2e3434439ca": 1,
+          "33b3e4ed-755a-4646-8a68-3ea843e1fe24": 1,
+          "43da091e-fcb9-4fde-8615-82518f4d452f": 1,
+          "7b04026e-6663-4d40-b07a-6463b8afd19c": 1,
+          "7b953631-a816-494e-acc6-ac539086b9b4": 1,
+          "805c11c2-d915-4ca9-b188-b1116020e13e": 1,
+          "82ae8890-6b63-4cff-9937-96ff72dbc25b": 1,
+          "dfae45b9-e8f6-4f25-919f-8572ca1f894b": 1,
+          "e30b55fe-d647-4563-99ce-d8820417f0c8": 1,
+          "e6d8207a-460b-4f4f-a986-3dc143e51271": 1,
+          "fa5c99e6-33d2-42ec-bb31-57630a765734": 1
+        }
+      },
+      "ok": true,
+      "status": "passed"
+    }
+  },
+  "success": true
+}

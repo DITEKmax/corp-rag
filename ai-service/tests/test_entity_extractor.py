@@ -156,12 +156,76 @@ async def test_empty_entities_are_valid() -> None:
 
 
 @pytest.mark.asyncio
-async def test_malformed_structured_output_retries_once_total_then_fails() -> None:
+async def test_markdown_fenced_json_parses_without_retry() -> None:
     client = _FakeClient(
         [
-            _FakeResponse('{"entities": [{"type": "person", "description": "missing name"}], "relations": []}'),
-            _FakeResponse("not json"),
+            _FakeResponse(
+                """```json
+                {"entities": [{"name": "HR", "type": "department", "description": "Human resources."}], "relations": []}
+                ```"""
+            ),
             _FakeResponse('{"entities": [], "relations": []}'),
+        ]
+    )
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
+
+    result = await extractor.extract_parent(_source(), document_title="Fenced", language="en")
+
+    assert [entity.name for entity in result.entities] == ["HR"]
+    assert len(client.chat.completions.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_preamble_json_postamble_parses_without_retry() -> None:
+    client = _FakeClient(
+        [
+            _FakeResponse(
+                """
+                Here is the extracted graph.
+                {
+                  "entities": [{"name": "Workday", "type": "system", "description": "HR system."}],
+                  "relations": []
+                }
+                Done.
+                """
+            ),
+            _FakeResponse('{"entities": [], "relations": []}'),
+        ]
+    )
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
+
+    result = await extractor.extract_parent(_source(), document_title="Preamble", language="en")
+
+    assert [entity.name for entity in result.entities] == ["Workday"]
+    assert len(client.chat.completions.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_malformed_structured_output_retries_with_strict_json_instruction_then_succeeds() -> None:
+    client = _FakeClient(
+        [
+            _FakeResponse("not json"),
+            _FakeResponse('{"entities": [{"name": "Vacation Policy", "type": "policy", "description": "Vacation rules."}], "relations": []}'),
+        ]
+    )
+    extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
+
+    result = await extractor.extract_parent(_source(), document_title="Retry", language="en")
+
+    assert [entity.name for entity in result.entities] == ["Vacation Policy"]
+    assert len(client.chat.completions.calls) == 2
+    retry_content = client.chat.completions.calls[1]["messages"][0]["content"]
+    assert "strictly valid JSON" in retry_content
+    assert "no markdown" in retry_content
+
+
+@pytest.mark.asyncio
+async def test_malformed_structured_output_exhausts_bounded_attempts_then_fails(caplog) -> None:
+    client = _FakeClient(
+        [
+            _FakeResponse("not json"),
+            _FakeResponse("still not json"),
+            _FakeResponse("finally not json"),
         ]
     )
     extractor = DeepSeekEntityExtractor(client=client, sleep=_no_sleep)
@@ -172,7 +236,9 @@ async def test_malformed_structured_output_retries_once_total_then_fails() -> No
     assert failure.value.stage == IndexingStage.ENTITY_EXTRACTION
     assert failure.value.error_code == INDEXING_PIPELINE_ERROR
     assert failure.value.retryable is False
-    assert len(client.chat.completions.calls) == 2
+    assert failure.value.template_vars["detail"] == "malformed_structured_output"
+    assert len(client.chat.completions.calls) == 3
+    assert "Malformed DeepSeek/OpenRouter structured entity extraction response" in caplog.text
 
 
 @pytest.mark.asyncio
