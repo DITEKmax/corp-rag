@@ -129,6 +129,7 @@ services:
       JAVA_DB_PASSWORD: ${JAVA_DB_PASSWORD:-corp_rag_java_password}
       JAVA_MINIO_ENDPOINT: ${JAVA_MINIO_ENDPOINT:-http://minio:9000}
       JAVA_MINIO_PUBLIC_ENDPOINT: ${JAVA_MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      JAVA_MINIO_REGION: ${JAVA_MINIO_REGION:-us-east-1}
       JAVA_MINIO_ACCESS_KEY: ${JAVA_MINIO_ACCESS_KEY:-local-minio-root}
       JAVA_MINIO_SECRET_KEY: ${JAVA_MINIO_SECRET_KEY:-local-minio-password}
       JAVA_MINIO_SECURE: ${JAVA_MINIO_SECURE:-false}

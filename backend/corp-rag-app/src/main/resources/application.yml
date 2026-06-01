@@ -70,6 +70,7 @@ app:
   document-storage:
     endpoint: ${JAVA_MINIO_ENDPOINT:http://localhost:9000}
     public-endpoint: ${JAVA_MINIO_PUBLIC_ENDPOINT:http://localhost:9000}
+    region: ${JAVA_MINIO_REGION:us-east-1}
     access-key: ${JAVA_MINIO_ACCESS_KEY:local-minio-root}
     secret-key: ${JAVA_MINIO_SECRET_KEY:local-minio-password}
     secure: ${JAVA_MINIO_SECURE:false}

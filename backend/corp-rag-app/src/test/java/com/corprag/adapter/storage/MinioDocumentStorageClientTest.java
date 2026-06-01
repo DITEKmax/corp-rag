@@ -47,4 +47,20 @@ class MinioDocumentStorageClientTest {
         org.assertj.core.api.Assertions.assertThat(result)
                 .isEqualTo(URI.create("http://localhost:9000/corp-rag-documents/file.txt?signature=test"));
     }
+
+    @Test
+    void presignedGetUrlDoesNotConnectToPublicEndpointWhenRegionIsConfigured() {
+        MinioClient internalClient = mock(MinioClient.class);
+        DocumentStorageProperties properties = new DocumentStorageProperties();
+        properties.setBucket("corp-rag-documents");
+        properties.setPublicEndpoint("http://127.0.0.1:1");
+        properties.setRegion("us-east-1");
+
+        URI result = new MinioDocumentStorageClient(internalClient, properties)
+                .presignedGetUrl("file.txt", Duration.ofMinutes(5));
+
+        org.assertj.core.api.Assertions.assertThat(result.getHost()).isEqualTo("127.0.0.1");
+        org.assertj.core.api.Assertions.assertThat(result.getPort()).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(result.getQuery()).contains("X-Amz-SignedHeaders=host");
+    }
 }

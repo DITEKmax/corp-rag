@@ -17,6 +17,7 @@ public class DocumentStorageConfig {
         }
         return MinioClient.builder()
                 .endpoint(endpoint)
+                .region(properties.getRegion())
                 .credentials(properties.getAccessKey(), properties.getSecretKey())
                 .build();
     }

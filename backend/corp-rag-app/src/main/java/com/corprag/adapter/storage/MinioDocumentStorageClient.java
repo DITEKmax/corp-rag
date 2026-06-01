@@ -27,6 +27,7 @@ public class MinioDocumentStorageClient implements DocumentStorageClient {
                 minioClient,
                 MinioClient.builder()
                         .endpoint(endpointWithScheme(properties.getPublicEndpoint(), properties.isSecure()))
+                        .region(properties.getRegion())
                         .credentials(properties.getAccessKey(), properties.getSecretKey())
                         .build(),
                 properties);
@@ -77,6 +78,7 @@ public class MinioDocumentStorageClient implements DocumentStorageClient {
             String url = publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(properties.getBucket())
+                    .region(properties.getRegion())
                     .object(objectKey)
                     .expiry(Math.toIntExact(ttl.toSeconds()), TimeUnit.SECONDS)
                     .build());

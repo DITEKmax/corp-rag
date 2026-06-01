@@ -8,6 +8,7 @@ public class DocumentStorageProperties {
 
     private String endpoint = "http://localhost:9000";
     private String publicEndpoint = "http://localhost:9000";
+    private String region = "us-east-1";
     private String accessKey = "local-minio-root";
     private String secretKey = "local-minio-password";
     private boolean secure;
@@ -29,6 +30,14 @@ public class DocumentStorageProperties {
 
     public void setPublicEndpoint(String publicEndpoint) {
         this.publicEndpoint = publicEndpoint;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region == null || region.isBlank() ? "us-east-1" : region;
     }
 
     public String getAccessKey() {
