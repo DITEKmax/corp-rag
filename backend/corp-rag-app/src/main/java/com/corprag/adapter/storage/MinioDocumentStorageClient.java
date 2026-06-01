@@ -11,16 +11,33 @@ import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MinioDocumentStorageClient implements DocumentStorageClient {
 
     private final MinioClient minioClient;
+    private final MinioClient publicMinioClient;
     private final DocumentStorageProperties properties;
 
+    @Autowired
     public MinioDocumentStorageClient(MinioClient minioClient, DocumentStorageProperties properties) {
+        this(
+                minioClient,
+                MinioClient.builder()
+                        .endpoint(endpointWithScheme(properties.getPublicEndpoint(), properties.isSecure()))
+                        .credentials(properties.getAccessKey(), properties.getSecretKey())
+                        .build(),
+                properties);
+    }
+
+    MinioDocumentStorageClient(
+            MinioClient minioClient,
+            MinioClient publicMinioClient,
+            DocumentStorageProperties properties) {
         this.minioClient = minioClient;
+        this.publicMinioClient = publicMinioClient;
         this.properties = properties;
     }
 
@@ -57,7 +74,7 @@ public class MinioDocumentStorageClient implements DocumentStorageClient {
     @Override
     public URI presignedGetUrl(String objectKey, Duration ttl) {
         try {
-            String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            String url = publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(properties.getBucket())
                     .object(objectKey)
@@ -67,5 +84,12 @@ public class MinioDocumentStorageClient implements DocumentStorageClient {
         } catch (Exception exception) {
             throw new DocumentStorageException("Could not create document object URL", exception);
         }
+    }
+
+    private static String endpointWithScheme(String endpoint, boolean secure) {
+        if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+            return endpoint;
+        }
+        return (secure ? "https://" : "http://") + endpoint;
     }
 }

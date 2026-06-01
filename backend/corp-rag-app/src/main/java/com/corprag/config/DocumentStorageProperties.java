@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class DocumentStorageProperties {
 
     private String endpoint = "http://localhost:9000";
+    private String publicEndpoint = "http://localhost:9000";
     private String accessKey = "local-minio-root";
     private String secretKey = "local-minio-password";
     private boolean secure;
@@ -20,6 +21,14 @@ public class DocumentStorageProperties {
 
     public void setEndpoint(String endpoint) {
         this.endpoint = endpoint;
+    }
+
+    public String getPublicEndpoint() {
+        return publicEndpoint;
+    }
+
+    public void setPublicEndpoint(String publicEndpoint) {
+        this.publicEndpoint = publicEndpoint;
     }
 
     public String getAccessKey() {
