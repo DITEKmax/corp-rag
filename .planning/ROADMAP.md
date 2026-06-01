@@ -276,6 +276,16 @@ Plans:
 **Wave 6** *(blocked on quality and ablation reports)*
 - [ ] 07-08-PLAN.md - Run injection probes, verify Langfuse/diagnostics evidence, and assemble the final eval summary.
 
+### Phase 07.1: Fix Russian router and graph retrieval quality for RAGAS baseline (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 07.1 to break down)
+
 ### Phase 8: Delivery Polish & Demo Readiness
 **Goal**: The MVP is packaged for a production-like local run and can be demonstrated with seeded corpus, regression evidence, and documentation.
 **Depends on**: Phase 7
