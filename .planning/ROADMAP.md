@@ -264,7 +264,7 @@ Plans:
 - [x] 07-03-PLAN.md - Create eval harness foundation, freeze the Russian demo corpus, and add report metadata plumbing.
 
 **Wave 3** *(blocked on Wave 2 corpus foundation)*
-- [ ] 07-04-PLAN.md - Add eval-only retrieval modes and BM25 baseline harness.
+- [x] 07-04-PLAN.md - Add eval-only retrieval modes and BM25 baseline harness.
 
 **Wave 4** *(blocked on corpus freeze, indexing, and retrieval-mode harness)*
 - [ ] 07-05-PLAN.md - Author and validate the 40-record Russian golden dataset.
