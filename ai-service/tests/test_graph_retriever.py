@@ -65,6 +65,31 @@ def test_aggregation_query_uses_query_terms_instead_of_constant_evidence() -> No
     assert params["queryTerms"] == ["aircraft", "aviation"]
 
 
+def test_aggregation_query_terms_preserve_cyrillic_tokens() -> None:
+    session = _FakeGraphSession([])
+    retriever = GraphRetriever(_FakeDriver(session))
+
+    cypher, params = retriever._query_and_params(
+        _query("Какие компании перечислены в реестре поставщиков и за что отвечает каждая?"),
+        QueryRoute.AGGREGATION,
+    )
+
+    assert "size(queryTerms) > 0 AND size(matchedTerms) > 0" in cypher
+    assert params["queryTerms"] == ["компании", "реестре", "поставщиков", "отвечает"]
+
+
+def test_aggregation_query_terms_keep_latin_identifiers_and_numbers() -> None:
+    session = _FakeGraphSession([])
+    retriever = GraphRetriever(_FakeDriver(session))
+
+    _cypher, params = retriever._query_and_params(
+        _query("Сколько операций REST и кодов P1 указано в отчете Q1 2026?"),
+        QueryRoute.AGGREGATION,
+    )
+
+    assert {"rest", "p1", "2026"} <= set(params["queryTerms"])
+
+
 async def test_graph_candidate_keeps_graph_path_internal_and_prefers_document_text_when_returned() -> None:
     session = _FakeGraphSession(
         [

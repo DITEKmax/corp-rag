@@ -46,7 +46,33 @@ _AGGREGATION_STOPWORDS = {
     "what",
     "which",
     "with",
+    "а",
+    "в",
+    "где",
+    "для",
+    "за",
+    "и",
+    "из",
+    "как",
+    "какая",
+    "какие",
+    "какой",
+    "каждая",
+    "которые",
+    "на",
+    "о",
+    "об",
+    "от",
+    "перечислена",
+    "перечислены",
+    "перечислено",
+    "по",
+    "сколько",
+    "что",
+    "чтобы",
 }
+
+_UNICODE_TOKEN_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
 
 
 class GraphRetriever:
@@ -240,9 +266,9 @@ def _comparison_entity_names(message: str) -> list[str]:
 
 def _aggregation_query_terms(message: str) -> list[str]:
     terms: list[str] = []
-    for match in re.finditer(r"[A-Za-z0-9]+", message):
+    for match in _UNICODE_TOKEN_PATTERN.finditer(message):
         raw = match.group(0)
-        term = raw.lower()
+        term = raw.casefold()
         if term in _AGGREGATION_STOPWORDS:
             continue
         if len(term) < 3 and not (len(term) >= 2 and raw.isupper()):
