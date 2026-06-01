@@ -12,6 +12,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from corp_rag_ai.pipeline.indexing.embedding import (
+    DEFAULT_BGE_M3_MODEL,
+    DEFAULT_EMBEDDING_BATCH_SIZE,
+    LocalBgeM3Embedder,
+)
 from eval.io import load_corpus_metadata, load_golden_records, load_manifest
 from eval.query_client import (
     ActualOutcome,
@@ -38,7 +43,7 @@ DEFAULT_REPORT_SLUG = "ragas_ru"
 DEFAULT_SERVICE_BASE_URL = "http://localhost:8000"
 DEFAULT_JUDGE_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_JUDGE_MODEL_ID = "deepseek/deepseek-chat"
-DEFAULT_EMBEDDING_MODEL_ID = "text-embedding-3-small"
+DEFAULT_EMBEDDING_MODEL_ID = DEFAULT_BGE_M3_MODEL
 RAGAS_METRIC_NAMES = ("faithfulness", "answer_relevancy", "context_precision", "context_recall")
 RAGAS_THRESHOLDS = {
     "faithfulness": 0.75,
@@ -76,6 +81,7 @@ class RagasRunnerConfig:
     embedding_api_key: str | None = None
     concurrency: int = 1
     show_progress: bool = False
+    score_report_path: Path | None = None
 
     def __post_init__(self) -> None:
         if self.concurrency != 1:
@@ -121,6 +127,31 @@ class RagasRunOutput:
     validation_summary: GoldenValidationSummary
 
 
+class LocalBgeM3LangchainEmbeddings:
+    """LangChain-compatible dense embedding wrapper backed by the service bge-m3 adapter."""
+
+    def __init__(
+        self,
+        *,
+        model_name: str = DEFAULT_BGE_M3_MODEL,
+        batch_size: int = DEFAULT_EMBEDDING_BATCH_SIZE,
+    ) -> None:
+        self.model_name = model_name
+        self._embedder = LocalBgeM3Embedder(model_name=model_name, batch_size=batch_size)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [list(vector.dense) for vector in self._embedder.embed_texts(texts)]
+
+    async def aembed_query(self, text: str) -> list[float]:
+        return await asyncio.to_thread(self.embed_query, text)
+
+    async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
+        return await asyncio.to_thread(self.embed_documents, texts)
+
+
 async def run_ragas_evaluation(
     config: RagasRunnerConfig,
     *,
@@ -162,6 +193,43 @@ async def run_ragas_evaluation(
     )
 
 
+async def run_ragas_scoring_from_report(
+    config: RagasRunnerConfig,
+    source_report_path: Path,
+    *,
+    evaluator: RagasEvaluator | None = None,
+) -> RagasRunOutput:
+    validation_summary = validate_golden(
+        config.golden_path,
+        metadata_path=config.metadata_path,
+        corpus_dir=config.corpus_dir,
+        manifest_path=config.manifest_path,
+    )
+    metadata = load_corpus_metadata(config.metadata_path)
+    records = load_golden_records(config.golden_path)
+    source_report = EvaluationReport.model_validate_json(source_report_path.read_text(encoding="utf-8"))
+    query_results = query_results_from_report(source_report, records)
+    rows = build_ragas_rows(query_results)
+    scoring = evaluator(rows, config) if evaluator is not None else evaluate_ragas_rows(rows, config)
+    report = build_evaluation_report(
+        query_results,
+        scoring=scoring,
+        validation_summary=validation_summary,
+        corpus_version=metadata.corpus_version,
+        corpus_hash=metadata.corpus_hash,
+        config=config,
+    )
+    report.runner_config.options["score_source_report"] = str(source_report_path)
+    artifact = write_report(report, reports_dir=config.reports_dir, slug=config.report_slug, write_csv=True)
+    return RagasRunOutput(
+        report=report,
+        markdown_path=artifact.markdown_path,
+        json_path=artifact.json_path,
+        csv_path=artifact.csv_path,
+        validation_summary=validation_summary,
+    )
+
+
 async def collect_query_results(
     records: Iterable,
     *,
@@ -184,6 +252,48 @@ async def collect_query_results(
             # Keep production queries strictly sequential so each /v1/query
             # releases reranker/model resources before the next request starts.
             results.append(await client.query_golden(record))
+    return tuple(results)
+
+
+def query_results_from_report(
+    report: EvaluationReport,
+    records: Iterable,
+) -> tuple[QuerySampleResult, ...]:
+    records_by_id = {record.id: record for record in records}
+    results: list[QuerySampleResult] = []
+    for detail in report.details:
+        record_id = str(detail.get("id") or detail.get("question_id") or "")
+        record = records_by_id.get(record_id)
+        if record is None:
+            raise RagasRunnerError(f"source report detail {record_id!r} is not present in the golden set")
+        actual_outcome = ActualOutcome(str(detail.get("actual_outcome") or ActualOutcome.REFUSED_NO_EVIDENCE.value))
+        answered = bool(detail.get("answered", actual_outcome is ActualOutcome.ANSWERED))
+        results.append(
+            QuerySampleResult(
+                record_id=record.id,
+                question=str(detail.get("question") or record.question),
+                reference_answer=record.reference_answer,
+                expected_doc_ids=tuple(str(item) for item in (detail.get("expected_doc_ids") or record.expected_doc_ids)),
+                expected_outcome=str(detail.get("expected_outcome") or record.expected_outcome.value),
+                actual_outcome=actual_outcome,
+                answered=answered,
+                answer=str(detail.get("answer") or ""),
+                citations=(),
+                retrieved_contexts=_string_tuple(detail.get("retrieved_contexts")),
+                citation_document_ids=_string_tuple(detail.get("citation_document_ids")),
+                route=str(detail.get("route") or ""),
+                retrievers_attempted=_string_tuple(detail.get("retrievers_attempted")),
+                retrievers_used=_string_tuple(detail.get("retrievers_used")),
+                degradation_warnings=_string_tuple(detail.get("degradation_warnings")),
+                reranker_used=bool(detail.get("reranker_used", False)),
+                model_id=str(detail.get("model_id") or report.model_id),
+                confidence=float(detail.get("confidence") or 0.0),
+                service_latency_ms=int(detail.get("service_latency_ms") or 0),
+                client_latency_ms=int(detail.get("client_latency_ms") or 0),
+                trace_id=str(detail["trace_id"]) if detail.get("trace_id") else None,
+                guard_verdict=detail.get("guard_verdict") if isinstance(detail.get("guard_verdict"), dict) else None,
+            )
+        )
     return tuple(results)
 
 
@@ -370,12 +480,17 @@ def _build_judge_llm(config: RagasRunnerConfig):
 
 
 def _build_embeddings(config: RagasRunnerConfig):
-    if not config.embedding_model_id:
+    embedding_model_id = (config.embedding_model_id or "").strip()
+    if not embedding_model_id:
         return None, "embedding model disabled; answer_relevancy skipped"
 
-    api_key = config.embedding_api_key or os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None, "OPENAI_API_KEY is required for embeddings; answer_relevancy skipped"
+    if _is_local_bge_embedding_model(embedding_model_id):
+        try:
+            from ragas.embeddings import LangchainEmbeddingsWrapper
+        except ImportError as exc:  # pragma: no cover - exercised by dependency/lock verification instead.
+            raise RagasRunnerError("ragas is required for local bge-m3 embedding integration") from exc
+
+        return LangchainEmbeddingsWrapper(LocalBgeM3LangchainEmbeddings(model_name=embedding_model_id)), ""
 
     try:
         from langchain_openai import OpenAIEmbeddings
@@ -383,10 +498,14 @@ def _build_embeddings(config: RagasRunnerConfig):
     except ImportError as exc:  # pragma: no cover - exercised by dependency/lock verification instead.
         raise RagasRunnerError("langchain-openai and ragas are required for embedding integration") from exc
 
+    api_key = config.embedding_api_key or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RagasRunnerError(f"OPENAI_API_KEY is required for non-local embedding model {embedding_model_id!r}")
+
     return (
         LangchainEmbeddingsWrapper(
             OpenAIEmbeddings(
-                model=config.embedding_model_id,
+                model=_openai_embedding_model_id(embedding_model_id),
                 api_key=api_key,
                 base_url=config.embedding_base_url or os.getenv("OPENAI_EMBEDDING_BASE_URL"),
             )
@@ -405,6 +524,15 @@ def _ragas_metrics(*, include_answer_relevancy: bool):
     else:
         skipped["answer_relevancy"] = "embeddings unavailable; answer_relevancy skipped"
     return metrics, skipped
+
+
+def _is_local_bge_embedding_model(model_id: str) -> bool:
+    normalized = model_id.strip().lower()
+    return normalized in {"bge-m3", DEFAULT_BGE_M3_MODEL.lower(), f"local/{DEFAULT_BGE_M3_MODEL.lower()}"}
+
+
+def _openai_embedding_model_id(model_id: str) -> str:
+    return model_id.removeprefix("openai/")
 
 
 def _per_record_scores(result: Any, rows: tuple[RagasRow, ...]) -> dict[str, dict[str, float | str]]:
@@ -447,6 +575,14 @@ def _detail_with_scores(result: QuerySampleResult, ragas_scores: dict[str, float
     detail["outcome_correct"] = _outcome_correct(result)
     detail["ragas_scores"] = ragas_scores
     return detail
+
+
+def _string_tuple(value: Any) -> tuple[str, ...]:
+    if not value:
+        return ()
+    if isinstance(value, (list, tuple)):
+        return tuple(str(item) for item in value)
+    return (str(value),)
 
 
 def _outcome_correct(result: QuerySampleResult) -> bool:
@@ -518,6 +654,7 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
     parser.add_argument("--judge-base-url", default=os.getenv("RAGAS_JUDGE_BASE_URL"))
     parser.add_argument("--embedding-model-id", default=os.getenv("RAGAS_EMBEDDING_MODEL_ID", DEFAULT_EMBEDDING_MODEL_ID))
     parser.add_argument("--embedding-base-url", default=os.getenv("RAGAS_EMBEDDING_BASE_URL"))
+    parser.add_argument("--score-report", type=Path, default=None)
     parser.add_argument("--show-progress", action="store_true")
     args = parser.parse_args(argv)
     return RagasRunnerConfig(
@@ -537,11 +674,16 @@ def config_from_args(argv: list[str] | None = None) -> RagasRunnerConfig:
         embedding_base_url=args.embedding_base_url,
         concurrency=1,
         show_progress=args.show_progress,
+        score_report_path=args.score_report,
     )
 
 
 async def async_main(argv: list[str] | None = None) -> int:
-    output = await run_ragas_evaluation(config_from_args(argv))
+    config = config_from_args(argv)
+    if config.score_report_path is not None:
+        output = await run_ragas_scoring_from_report(config, config.score_report_path)
+    else:
+        output = await run_ragas_evaluation(config)
     print(
         json.dumps(
             {
