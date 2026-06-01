@@ -303,7 +303,7 @@ Plans:
 
 ### Phase 8: Delivery Polish & Demo Readiness
 **Goal**: The MVP is packaged for a production-like local run and can be demonstrated with seeded corpus, regression evidence, and documentation.
-**Depends on**: Phase 7
+**Depends on**: Phase 7.1
 **Requirements**: DEL-01
 **Success Criteria** (what must be TRUE):
   1. Production-like Docker Compose starts the full MVP stack.
@@ -311,7 +311,25 @@ Plans:
   3. Final regression proves the core chat/citation/evaluation path still works.
   4. README, architecture diagram, demo assets, and short video are ready for review.
   5. Phase 7.1 carry-over is addressed or explicitly waived: Russian multi-hop graph retrieval for `ru-multihop-002/003/005/006` needs text-conditioned multi-document evidence gathering beyond the router fix.
-**Plans**: TBD
+**Plans:** 5 plans
+Plans:
+
+**Wave 1**
+- [ ] 08-01-PLAN.md - Build Java-API demo corpus reset and seed evidence.
+- [ ] 08-02-PLAN.md - Document and verify the existing local demo compose stack.
+- [ ] 08-05-PLAN.md - Close low-risk delivery polish, traceability, and known-limit boundaries.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 08-03-PLAN.md - Run final compose/seed/chat/citation/eval regression evidence.
+
+**Wave 3** *(blocked on 08-03 and 08-05 completion)*
+- [ ] 08-04-PLAN.md - Assemble README, architecture diagram, demo script, and video checklist.
+
+**Cross-cutting constraints:**
+- Use the single existing `infra/docker-compose.yml`; do not create a prod compose file.
+- Seed reset must use Java document APIs and must not wipe Docker volumes.
+- Do not weaken guard, access-filter, citation, refusal, or eval thresholds to improve demo outcomes.
+- Generated stochastic eval reports require review before commit.
 
 ## Progress
 
@@ -329,4 +347,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 �
 | 6. Chat & Frontend Experience | 9/9 | Complete | 2026-06-01 |
 | 7. Evaluation & Observability | 8/8 | Complete | 2026-06-01 |
 | 7.1. Fix Russian router and graph retrieval quality for RAGAS baseline | 3/3 | Complete | 2026-06-01 |
-| 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |
+| 8. Delivery Polish & Demo Readiness | 0/5 | Ready to execute | - |

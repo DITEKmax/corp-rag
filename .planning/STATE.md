@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: RAGAS baseline, retrieval ablation, injection probes, diagnostics, and live Langfuse trace evidence are recorded; remaining graph/router weaknesses are Phase 8 debt
-stopped_at: Phase 8 context gathered
-last_updated: "2026-06-01T18:51:49.881Z"
-last_activity: 2026-06-01
+status: executing
+stopped_at: Phase 8 planned
+last_updated: "2026-06-01T19:14:03.254Z"
+last_activity: 2026-06-01 -- Phase 08 planning complete
 progress:
   total_phases: 10
   completed_phases: 9
-  total_plans: 61
+  total_plans: 66
   completed_plans: 62
-  percent: 100
+  percent: 94
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 
 ## Current Position
 
-Phase: 07 (evaluation-observability) — COMPLETE
-Plan: 8 of 8
-Status: RAGAS baseline, retrieval ablation, injection probes, diagnostics, and live Langfuse trace evidence are recorded; remaining graph/router weaknesses are Phase 8 debt
-Last activity: 2026-06-01
+Phase: 08 (delivery-polish-demo-readiness) — READY TO EXECUTE
+Plan: 0 of 5
+Status: Ready to execute
+Last activity: 2026-06-01 -- Phase 08 planning complete
 
-Progress: [██████████] 97%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
