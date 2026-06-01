@@ -257,7 +257,7 @@ Plans:
 Plans:
 
 **Wave 1**
-- [ ] 07-01-PLAN.md - Stabilize the local evaluation runtime, memory contour, cold-start diagnostics, and pre-warm path.
+- [x] 07-01-PLAN.md - Stabilize the local evaluation runtime, memory contour, cold-start diagnostics, and pre-warm path.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 07-02-PLAN.md - Add Langfuse graph/generation tracing and lightweight diagnostics counters.
