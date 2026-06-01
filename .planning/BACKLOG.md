@@ -1,16 +1,18 @@
 ---
 status: active
-updated: 2026-05-26
+updated: 2026-06-01
 source:
   - ".planning/phases/05-retrieval-guards-query-api/05-UAT-EVIDENCE.md"
   - ".planning/phases/05-retrieval-guards-query-api/PHASE5-UAT-FIX-REPORT.md"
   - ".planning/phases/05.1-phase-5-uat-fix-wave/05.1-UAT-EVIDENCE.md"
   - ".planning/phases/05.1-phase-5-uat-fix-wave/05.1-05-SUMMARY.md"
+  - ".planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md"
+  - ".planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md"
 ---
 
 # Project Backlog
 
-These items are deferred follow-ups. They do not block Phase 6. Phase 5.1 is closed: PH5-UAT-DEF-02/03/04, PH5.1-DEF-A, PH5-UAT-DEF-06, and P4 are closed by the 05.1 evidence.
+These items are deferred follow-ups. They do not block Phase 7. Phase 5.1 is closed: PH5-UAT-DEF-02/03/04, PH5.1-DEF-A, PH5-UAT-DEF-06, and P4 are closed by the 05.1 evidence. Phase 6 is closed by live human UAT on 2026-06-01; its remaining items are Low/OBS unless noted otherwise.
 
 ## BL-01 - PH5.1-DEF-B: uv Base Image Unpinned and Dockerfile Workaround Uncommitted
 
@@ -40,19 +42,23 @@ Acceptance:
 
 Priority: Medium
 Area: synthesis quality
-Status: Open
+Status: Closed in Phase 6 UAT
 
 Symptom:
 - For single-citation graph `AGGREGATION` answers, the LLM occasionally omits a valid inline `[N]` ref.
 - The output guard correctly blocks these responses with `guardVerdict.reason=missing_citations`.
 - A rerun can produce `[1]` and pass. This is synthesis variance, not a citation-pipeline bug: the pipeline supplies document-backed citations and the guard enforces inline-ref validity.
 
+Closure:
+- Phase 6 UAT `DEFECT-08` hardened citation-critical synthesis without weakening the output guard.
+- Live retest produced 10/10 answered runs.
+
 Action:
-- In Phase 6 chat work, harden the synthesis prompt so single-citation answers reliably include an inline citation reference.
-- Do not weaken the output guard or evidence gate to mask this.
+- Done in Phase 6 UAT fix wave: harden citation-critical synthesis so single-citation answers reliably include an inline citation reference.
+- Preserve the strict output guard; do not weaken `missing_citations` or evidence gates.
 
 Acceptance:
-- Repeated single-citation graph aggregation probes produce cited answers, or deterministic refusals only when evidence is genuinely missing.
+- Met in Phase 6 UAT: repeated graph aggregation probes produced cited answers in 10/10 runs.
 - Output guard remains strict for `missing_citations` and out-of-range refs.
 
 ## BL-03 - Aggregation Graph Match Is Lexical, Not Semantic
@@ -91,6 +97,95 @@ Action:
 
 Acceptance:
 - Either deterministic behavior is proven for identical inputs, or the confidence model is documented as sensitive to candidate set/order and handled accordingly.
+
+## BL-06 - Phase 6 UAT Low/OBS Follow-Ups
+
+Priority: Low / Info
+Area: Phase 6 UAT follow-ups
+Status: Open
+
+Source:
+- `.planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md`
+- `.planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md`
+
+These items came from the final Phase 6 live UAT on 2026-06-01. They do not block Phase 6 or Phase 7. Good candidates are Phase 8 Delivery Polish, or earlier opportunistic fixes.
+
+### BL-UAT-01 - Raw Russian `.txt`/`.md` Browser View Uses Wrong Charset
+
+Severity: Low
+
+Symptom:
+- Admin Documents "Open raw" for Russian text shows mojibake such as `РџРѕР»РёС‚РёРєР°` instead of `Политика`.
+
+Known-good evidence:
+- Stored file is clean UTF-8 without BOM.
+- Qdrant text is readable Russian.
+- Source modal displays clean Russian.
+- Only direct browser rendering of the MinIO object is affected.
+
+Root cause:
+- MinIO returns text objects as `Content-Type: text/plain` without `charset=utf-8`; browsers can guess Windows-1251 for Cyrillic.
+
+Fix options:
+- Save text uploads with `Content-Type: text/plain; charset=utf-8`.
+- Or add a presigned URL `response-content-type` override for text types so existing objects render correctly.
+
+Acceptance:
+- Direct raw viewing of Russian text documents renders readable UTF-8 in the browser.
+
+### BL-UAT-02 - Verify User Message Bubble Visibility In Chat Thread
+
+Severity: TBD after reproduction
+
+Symptom:
+- User reported that sent user messages may not be visible in the chat thread while assistant bubbles are visible.
+
+Current evidence:
+- The issue was not directly reproduced in the final UAT screenshots.
+- Conversation title derivation and `messageCount` imply the user message reaches persistence.
+
+Checks:
+- Confirm `chat_messages` contains `role=USER` for sent turns.
+- Inspect `frontend/js/pages/chat-page.js` message-list rendering for role filtering or invisible user styling.
+
+Acceptance:
+- Each sent user question is visibly rendered as a user bubble in chat history and after reload.
+
+### BL-UAT-03 - Monitor Occasional First-Turn `Response unavailable`
+
+Severity: Low / OBS
+
+Symptom:
+- A few conversations started with an assistant turn rendered as `Response unavailable`; retry then returned `ANSWERED`.
+
+Hypothesis:
+- Cold reranker latency or first-request timeout after `python-ai` restart.
+
+Action:
+- Monitor reproducibility.
+- If reproducible, inspect first-query latency, timeout budget, and reranker warm-up behavior.
+
+### BL-UAT-04 - Improve Document Title Extraction For Markdown/YAML
+
+Severity: Low
+
+Symptom:
+- Uploaded Markdown may show document titles such as `Title` or transliterated fallback `Politica` instead of YAML/frontmatter or first heading text, for example `Политика отпусков компании ТехКорп`.
+
+Action:
+- Improve title extraction in ingestion/upload metadata handling.
+
+Acceptance:
+- Source cards and modals show readable document titles from YAML metadata or the first content heading.
+
+### Phase 6 OBS Items
+
+- HATEOAS `_links.*.method` and `_links.*.title` are always null; fill them or remove them from the contract.
+- Qdrant client `1.17.1` vs server `1.12.6` logs a version mismatch warning; align versions.
+- `GET /favicon.ico` returns 404; add a favicon.
+- `aio_pika.tools ChannelInvalidStateError: No active transport in channel` appears in `python-ai`; inspect AMQP channel resilience.
+- `python-ai` memory limit around 6 GiB is tight for bge-m3 plus reranker after restart; consider 8-9 GiB for demo/runtime.
+- `ai-service` Dockerfile still has the existing BL-01 production-like cleanup concern: ghcr.io reachability workaround and large CUDA-heavy image.
 
 ## BL-05 - Phase 5 Deferred Carry-Over Items
 
@@ -176,4 +271,3 @@ Symptom:
 Action:
 - Document optional `HF_TOKEN`.
 - Add a reproducible model pre-warm step for `BAAI/bge-m3` and `BAAI/bge-reranker-v2-m3`.
-

@@ -9,112 +9,80 @@ requires:
 provides:
   - Phase 6 UAT checklist
   - automated validation evidence
-  - run documentation for the browser app
-  - residual browser-UAT blocker record
+  - final human UAT evidence
+  - Phase 7 handoff
 affects: [verify-work, uat, docs]
 tech-stack:
   added: []
-  patterns: [evidence-first UAT, explicit live-prerequisite blocker recording]
+  patterns: [evidence-first UAT, live browser/API/storage verification]
 key-files:
   created:
     - .planning/phases/06-chat-frontend-experience/06-UAT.md
     - .planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md
+    - .planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md
   modified:
-    - README.md
-    - frontend/README.md
-    - frontend/js/core/api-client.js
+    - .planning/BACKLOG.md
+    - .planning/REQUIREMENTS.md
+    - .planning/ROADMAP.md
+    - .planning/STATE.md
 key-decisions:
-  - "Frontend API calls should stay on Java /api/v1; after live UAT this is handled by nginx proxying /api/v1 to java-backend."
-  - "Browser UAT is recorded as blocked/partial, not passed, until the frontend image is rebuilt and Java reaches python-ai over the Docker network."
+  - "Phase 6 is closed by human live UAT on 2026-06-01."
+  - "Residual Phase 6 items are Low/OBS backlog and do not block Phase 7."
+  - "Phase 7 evaluation data should be Russian-first because the demo corpus is Russian and the Russian path is proven live."
 patterns-established:
-  - "Final validation summaries distinguish automated pass, live UAT blocker, and residual risk."
+  - "Final validation summaries distinguish closed UAT evidence from Low/OBS backlog."
 requirements-completed: [CHAT-01, CHAT-02, UI-01, UI-02, UI-03]
-duration: 6min
-completed: 2026-05-27
+completed: 2026-06-01
 ---
 
 # Phase 06 Plan 09: Validation Summary
 
-**Automated Phase 6 validation is green; live browser UAT is blocked pending the runtime env/frontend image fixes, seeded sessions, verified corpus visibility, and reranker pre-warm.**
-
-## Performance
-
-- **Duration:** 6 min
-- **Started:** 2026-05-27T00:50:11+03:00
-- **Completed:** 2026-05-27T00:55:39+03:00
-- **Tasks:** 6
-- **Files modified:** 5
+Phase 6 is PASS. Human live UAT on 2026-06-01 closed the browser chat/frontend experience after the Round 2 fixes were applied and rechecked in the full Docker stack.
 
 ## Verification
 
-- Contract verifier: PASS.
-- Backend Maven suite: PASS.
-- Frontend JS syntax sweep: PASS, 29 files.
-- Direct fetch boundary: PASS, only `frontend/js/core/api-client.js`.
-- No frontend Python/deferred endpoint references: PASS.
-- Generated permission-code check: PASS.
-- Runtime-code/config scan for Redis/Mongo/shared cache: PASS, no matches.
+- Backend Maven suite: PASS, 146 tests and 0 failures.
+- Python tests: PASS, 227 passed and 12 skipped.
+- Java, frontend, and `python-ai` Docker builds: PASS.
+- Flyway V14: PASS on Testcontainers and live Postgres.
+- Docker stack: PASS, 9 healthy containers.
+- Browser/API/storage UAT: PASS through `http://localhost`, Java API, Python AI, Postgres, Qdrant, RabbitMQ, and MinIO.
 
 ## UAT Status
 
-- `06-UAT.md` now contains the repeatable Phase 6 UAT checklist.
-- `06-UAT-EVIDENCE.md` records command evidence and maps requirements to automated/browser status.
-- Browser UAT was not run because `docker compose -f infra/docker-compose.yml ps` showed no running services and live CHAT-02 prerequisites were not established.
-- CHAT-02 live UAT specifically needs a query-visible corpus, `AI_QUERY_LIVE_CORPUS_READY=true`, and one untimed reranker pre-warm query before timed checks. Live UAT on 2026-05-31 confirmed the retained Phase 5 corpus was still present, so reindex is not required unless that check fails.
-
-## Auto-Fixed Issue
-
-**Frontend API base URL**
-- **Issue:** The static frontend originally needed to avoid direct Python calls while still reaching Java from the browser.
-- **Initial fix:** `frontend/js/core/api-client.js` defaulted to `http://localhost:8080/api/v1`, with `window.CORP_RAG_API_BASE` as an override hook.
-- **Live UAT correction:** the container image did not copy `js/`, and the dev-port default is superseded by nginx proxying `/api/v1` to `java-backend:8080`.
-- **Verification:** Frontend syntax/direct-fetch/no-Python checks passed after the original change; the post-UAT Dockerfile/proxy fix is tracked in 2026-05-31 evidence.
-- **Committed in:** `1deb747`, superseded by `cd6bdf4`
+- `06-UAT.md` contains the repeatable Phase 6 UAT checklist.
+- `06-UAT-EVIDENCE.md` records automated checks, final live evidence, fixed defects, requirement mapping, and handoff.
+- `06-HUMAN-UAT.md` records the final human UAT verdict and live observations.
+- `.planning/BACKLOG.md` tracks the Low/OBS residual items. None block Phase 6 or Phase 7.
 
 ## Requirement Status
 
 | Requirement | Status |
 |-------------|--------|
-| CHAT-01 | PARTIAL: backend/static evidence pass; browser lifecycle UAT blocked |
-| CHAT-02 | PARTIAL: backend/static evidence pass; live query/source UAT blocked |
-| UI-01 | PARTIAL: frontend static evidence pass; browser session UAT blocked |
-| UI-02 | PARTIAL: frontend static evidence pass; browser source-modal UAT blocked |
-| UI-03 | PARTIAL: frontend/backend static evidence pass; browser admin UAT blocked |
+| CHAT-01 | PASS |
+| CHAT-02 | PASS |
+| UI-01 | PASS |
+| UI-02 | PASS |
+| UI-03 | PASS |
 
-## Task Commits
+## Defects Closed During UAT
 
-1. **Task 1: UAT checklist** - `2a9016b` (docs)
-2. **Runtime fix: frontend Java API base** - `1deb747` (fix)
+The UAT fix wave closed stack blockers, frontend stale image/proxy issues, Maven constant generation, Java-to-Python Docker networking, AMQP poison-message DLQ handling, citation stability, raw source URLs, Java parameter metadata, graph-indexing graceful degradation, draft-send UI state, and `sectionPath` downgrade behavior.
 
-**Plan metadata:** pending in summary commit
-
-## Files Created/Modified
-
-- `.planning/phases/06-chat-frontend-experience/06-UAT.md` - Manual and automated UAT checklist with live corpus/pre-warm prerequisites.
-- `.planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md` - Command evidence, live-UAT blocker, audit/correlation evidence map, residual risk.
-- `frontend/js/core/api-client.js` - Java API default base URL.
-- `README.md` - Updated local run URLs and frontend/Java API note.
-- `frontend/README.md` - Updated actual Phase 6 frontend structure and run notes.
+Round 2 path-limited commits: `6236b0e`, `0560a32`, `af759ce`, `f86feb7`, `278cc19`, `656dbfc`, `36f6ea9`, `fcea8e0`.
 
 ## Residual Risks
 
-- Browser UAT remains incomplete until the stack is running with rebuilt frontend and Java AI base URL env.
-- Live audit/database checks for 429 audit-without-chat-row were not collected; automated tests cover the controller/service/repository behavior.
-- Live answer quality depends on corpus readiness and reranker warm-up, which are explicitly called out in `06-UAT.md`.
+- Raw Russian `.txt`/`.md` browser viewing needs explicit UTF-8 charset on object metadata or presigned response override before demo polish.
+- User-message visibility in the chat thread should be reproduced and fixed if confirmed.
+- Occasional first-turn `Response unavailable` should be monitored for reranker cold-start or timeout behavior.
+- Document titles from YAML/content need polish for Russian demo readability.
+- OBS items remain for HATEOAS null metadata, Qdrant client/server version alignment, favicon, AMQP channel warning, reranker memory headroom, and production-like `ai-service` Docker cleanup.
 
-## User Setup Required
+## Phase 7 Readiness
 
-For live UAT:
-
-- Start the stack with `docker compose -f infra/docker-compose.yml up -d --build`.
-- Seed or confirm full-admin, partial-admin, and normal chat users.
-- Verify the retained Phase 5 corpus is query-visible, or upload/reindex a known corpus only if it is missing; then set/record `AI_QUERY_LIVE_CORPUS_READY=true`.
-- Run one untimed reranker pre-warm query before timed CHAT-02 checks.
-
-## Next Phase Readiness
-
-Ready for `$gsd-verify-work` with a clear distinction between automated pass and live browser-UAT blockers.
+Phase 7 can start. The Russian corpus path is confirmed end to end: upload, indexing, Qdrant text, Java-to-Python query, answer synthesis, inline citations, source modal, and confidence display. The Phase 7 golden dataset should be Russian-first.
 
 ---
 *Phase: 06-chat-frontend-experience*
-*Completed: 2026-05-27*
+*Completed: 2026-06-01*

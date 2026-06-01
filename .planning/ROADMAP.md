@@ -16,7 +16,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - [x] **Phase 4: Python Ingestion & Indexing** - Python can parse, sanitize, embed, vector-index, graph-index, and report document status. (completed 2026-05-19)
 - [x] **Phase 5: Retrieval, Guards & Query API** - Python can route queries, retrieve permitted evidence, guard prompts, and return cited answers. (completed 2026-05-19)
 - [x] **Phase 5.1: Phase 5 UAT Fix Wave (INSERTED)** - Reranker runs reliably, reranker failures soft-degrade, graph-route citations/snippets are user-facing safe, and live re-UAT follow-up closes the findings. (completed 2026-05-26)
-- [ ] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows.
+- [x] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows. (completed 2026-06-01)
 - [ ] **Phase 7: Evaluation & Observability** - Quality, safety, ablation, traces, and metrics are measurable.
 - [ ] **Phase 8: Delivery Polish & Demo Readiness** - Production-like compose, seed corpus, final regression, README, and demo assets are ready.
 
@@ -217,30 +217,31 @@ Plans:
   2. Chat query flow calls Python through Java and displays answer, citations, confidence, and guard results.
   3. User can open a cited chunk/source from the answer UI.
   4. Admin can manage documents, users, roles, and access policies from frontend screens.
-**Plans:** 9 plans
+**Plans:** 9/9 plans complete
+**Status:** Complete - human live UAT passed on 2026-06-01 in the Docker stack with browser, API, database, queue, vector store, and object-storage evidence.
 **UI hint**: yes
 Plans:
 
 **Wave 1**
-- [ ] 06-01-PLAN.md - Align Phase 6 contracts and verified preflight.
+- [x] 06-01-PLAN.md - Align Phase 6 contracts and verified preflight.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 06-02-PLAN.md - Add Java chat schema, domain records, and repositories.
-- [ ] 06-03-PLAN.md - Add query audit, rate limiter, and Python query client foundations.
+- [x] 06-02-PLAN.md - Add Java chat schema, domain records, and repositories.
+- [x] 06-03-PLAN.md - Add query audit, rate limiter, and Python query client foundations.
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 06-04-PLAN.md - Implement chat conversation/message REST lifecycle.
+- [x] 06-04-PLAN.md - Implement chat conversation/message REST lifecycle.
 
 **Wave 4** *(blocked on Wave 3 for query endpoint; frontend shell can start after Wave 1)*
-- [ ] 06-05-PLAN.md - Implement Java `/chat/query` orchestration, paired persistence, and audit.
-- [ ] 06-06-PLAN.md - Build vanilla frontend app shell, session flow, API client, router, and guarded nav.
+- [x] 06-05-PLAN.md - Implement Java `/chat/query` orchestration, paired persistence, and audit.
+- [x] 06-06-PLAN.md - Build vanilla frontend app shell, session flow, API client, router, and guarded nav.
 
 **Wave 5** *(blocked on Wave 4 completion for chat; admin depends on Wave 4 shell)*
-- [ ] 06-07-PLAN.md - Build chat UI, status bubbles, retry, citation chips, source modal, and diagnostics.
-- [ ] 06-08-PLAN.md - Build compact operational admin screens for documents, users, roles, and access policies.
+- [x] 06-07-PLAN.md - Build chat UI, status bubbles, retry, citation chips, source modal, and diagnostics.
+- [x] 06-08-PLAN.md - Build compact operational admin screens for documents, users, roles, and access policies.
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 06-09-PLAN.md - Run Phase 6 automated checks, browser UAT, audit evidence, and final docs.
+- [x] 06-09-PLAN.md - Run Phase 6 automated checks, browser UAT, audit evidence, and final docs.
 
 ### Phase 7: Evaluation & Observability
 **Goal**: The project has evidence for answer quality, retrieval quality, guard effectiveness, ablation, and runtime traces.
@@ -278,6 +279,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 5.1 → 6 → 7 �
 | 4. Python Ingestion & Indexing | 9/9 | Complete | 2026-05-19 |
 | 5. Retrieval, Guards & Query API | 8/8 | Complete | 2026-05-19 |
 | 5.1. Phase 5 UAT Fix Wave | 5/5 | Complete | 2026-05-26 |
-| 6. Chat & Frontend Experience | 0/9 | Ready to execute | - |
-| 7. Evaluation & Observability | 0/TBD | Not started | - |
+| 6. Chat & Frontend Experience | 9/9 | Complete | 2026-06-01 |
+| 7. Evaluation & Observability | 0/TBD | Ready to execute | - |
 | 8. Delivery Polish & Demo Readiness | 0/TBD | Not started | - |

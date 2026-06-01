@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: human_verification_required
-stopped_at: Phase 6 execution complete; browser UAT required
-last_updated: "2026-05-26T21:58:02.494Z"
-last_activity: 2026-05-27 -- Phase 6 Plan 06-09 validation complete; human browser UAT pending
+status: ready_for_next_phase
+stopped_at: Phase 6 human UAT passed; Phase 7 ready
+last_updated: "2026-06-01"
+last_activity: 2026-06-01 -- Phase 6 human live UAT passed and Low/OBS backlog captured
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 7
   total_plans: 50
-  completed_plans: 49
-  percent: 98
+  completed_plans: 50
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 06 — Chat & Frontend Experience
+**Current focus:** Phase 07 — Evaluation & Observability
 
 ## Current Position
 
-Phase: 06 (Chat & Frontend Experience) — HUMAN VERIFICATION REQUIRED
-Plan: 9 plans
-Status: Plan execution complete; browser UAT pending
-Last activity: 2026-05-27 -- Phase 6 Plan 06-09 validation complete; human browser UAT pending
+Phase: 07 (Evaluation & Observability) — READY
+Plan: TBD
+Status: Phase 6 passed human live UAT; Phase 7 can start
+Last activity: 2026-06-01 -- Phase 6 human live UAT passed and Low/OBS backlog captured
 
 Progress: [██████████] 100%
 
@@ -50,7 +50,7 @@ Progress: [██████████] 100%
 | 04 | 9/9 | ~2h 21m + manual UAT | ~20m for automated waves |
 | 06 | 9/9 | 123 min | ~14m |
 
-**Recent completed plans:** Phase 04 P01-P09 complete. Phase 04 UAT passed on 2026-05-19 with evidence in `.planning/phases/04-python-ingestion-indexing/04-UAT-EVIDENCE.md`.
+**Recent completed plans:** Phase 06 P01-P09 complete. Phase 6 human live UAT passed on 2026-06-01 with evidence in `.planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md` and `.planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md`.
 | Phase 05 P01 | 27 min | 4 tasks | 18 files |
 | Phase 05 P02 | 16 min | 3 tasks + prerequisite fix | 14 files |
 | Phase 05 P03 | 7 min | 3 tasks | 6 files |
@@ -149,14 +149,16 @@ Recent locked decisions affecting current work:
 
 ### Pending Todos
 
-- Plan Phase 6: Chat & Frontend Experience.
+- Plan Phase 7: Evaluation & Observability.
+- Build a Russian-first golden dataset; Phase 6 confirmed the Russian upload/index/query/citation/source-modal path works end to end.
 - Keep PH5.1-DEF-B as info-level reproducibility debt: restore a pinned uv base image when ghcr.io is reachable from Docker or a mirror is configured.
-- See `.planning/BACKLOG.md` for non-blocking Phase 5 / 5.1 follow-ups. Important current manual state: if `ai-service/Dockerfile` is reset to the committed ghcr.io base while the Docker daemon still cannot reach ghcr.io, manually reapply the temporary Docker Hub `astral/uv:python3.12-bookworm` workaround or fix registry/mirror access before rebuilding `python-ai`.
+- See `.planning/BACKLOG.md` for non-blocking Phase 5 / 5.1 and Phase 6 UAT follow-ups. Important current manual state: if `ai-service/Dockerfile` is reset to the committed ghcr.io base while the Docker daemon still cannot reach ghcr.io, manually reapply the temporary Docker Hub `astral/uv:python3.12-bookworm` workaround or fix registry/mirror access before rebuilding `python-ai`.
 
 ### Blockers/Concerns
 
-- No current Phase 6 blocker from Phase 5.1. DEF-A is closed by live Probe B/C evidence; DEF-B remains non-blocking Docker base-image reproducibility debt.
-- Phase 5 UAT evidence is recorded in `.planning/phases/05-retrieval-guards-query-api/05-UAT-EVIDENCE.md`; the high-priority fix list is recorded in `.planning/phases/05-retrieval-guards-query-api/PHASE5-UAT-FIX-REPORT.md`.
+- No current Phase 7 blocker from Phase 6. Phase 6 is closed by human live UAT on 2026-06-01.
+- Phase 6 UAT evidence is recorded in `.planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md` and `.planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md`.
+- Phase 6 residual items are Low/OBS backlog and do not block evaluation work.
 
 ## Deferred Items
 
@@ -172,9 +174,10 @@ Recent locked decisions affecting current work:
 | Phase 5 | Consider bumping `python-ai` memory limit from 4 GiB to 6 GiB before reranker/query work. | Closed in 05-01 | Phase 4 UAT |
 | Phase 5/7 | Decide orphan Neo4j entity cleanup strategy; retrieval must filter through accessible Document evidence. | Backlog | Phase 4 UAT Scenario 6 |
 | Phase 5/5.1 | Track UAT/re-UAT follow-ups including DEF-B uv base reproducibility, synthesis variance, lexical graph matching, reranker score stability, entity extraction flakiness, timeout defaults, Qdrant degraded metadata, orphan cleanup, Qdrant version alignment, and HF model pre-warm. | Backlog | `.planning/BACKLOG.md` |
+| Phase 6/8 | Track Low/OBS UAT polish: raw Russian charset, user bubble visibility, first-turn `Response unavailable`, title extraction, HATEOAS nulls, favicon, AMQP channel warning, reranker memory, and Dockerfile cleanup. | Backlog | Phase 6 UAT |
 
 ## Session Continuity
 
-Last session: 2026-05-26T19:37:21.640Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-chat-frontend-experience/06-CONTEXT.md
+Last session: 2026-06-01
+Stopped at: Phase 7 ready
+Resume file: .planning/ROADMAP.md

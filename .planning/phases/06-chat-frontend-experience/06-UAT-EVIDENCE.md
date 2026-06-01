@@ -1,107 +1,103 @@
 # Phase 6 UAT Evidence
 
-Execution dates: 2026-05-27 automated baseline; 2026-05-31 live browser/API UAT update; 2026-06-01 Round 2 live UAT update.
+Execution dates: 2026-05-27 automated baseline; 2026-05-31 live browser/API UAT update; 2026-06-01 final live UAT.
 
-## Automated Checks
+Final verdict: PASS. Phase 6 is closed by human live UAT in the Docker stack, browser, direct API probes, and storage/queue inspection.
 
-| Check | Command | Result |
-|-------|---------|--------|
-| Contract verifier | `$env:MAVEN_CMD='C:\dev\apache-maven-3.9.15\bin\mvn.cmd'; uv run --project ai-service --group dev python scripts/verify-contracts.py` | PASS |
-| Backend tests | `C:\dev\apache-maven-3.9.15\bin\mvn.cmd --% -q -pl corp-rag-app -am test -DskipTests=false` from `backend/` | PASS |
-| Frontend JS syntax | PowerShell loop over `frontend/js/**/*.js` with `node --check` | PASS, 29 JS files |
-| Direct fetch boundary | `rg -n -P "(?<![A-Za-z_])fetch\(" frontend/js -g "*.js"` | PASS: only `frontend/js/core/api-client.js` matched |
-| No Python/deferred endpoint references | `rg -n "localhost:8000|127\.0\.0\.1:8000|:8000|/v1/query|/chunks|chunk_detail|chat/messages/.*/citations|#/admin/user-roles" frontend/js frontend/styles` | PASS: no matches |
-| Permission-code generation | `uv run python scripts/generate_frontend_permission_codes.py --check` | PASS |
-| No Redis/Mongo/shared cache in runtime code/config | `rg -n "redis|mongo|shared cache" infra backend ai-service frontend --glob "!**/target/**" --glob "!**/.venv/**" --glob "!**/__pycache__/**"` | PASS: no matches |
-| Compose service list | `docker compose -f infra/docker-compose.yml config --services` | PASS: postgres, minio, rabbitmq, qdrant, neo4j, langfuse, java-backend, python-ai, frontend |
+## Final Automated And Build Evidence
 
-## Live UAT Update 2026-05-31
+| Check | Result |
+|-------|--------|
+| Backend Maven suite | PASS: 146 tests, 0 failures |
+| Python tests | PASS: `uv run pytest`, 227 passed, 12 skipped |
+| Java Docker build | PASS |
+| Frontend Docker build | PASS |
+| Python AI Docker build | PASS |
+| Maven contract constant generation | PASS; integrated into `generate-sources` and Docker-compatible with `python3` |
+| Flyway V14 | PASS on Testcontainers and live Postgres |
+| Docker stack health | PASS: 9 containers healthy |
 
-The live stack had Java backend rebuilt from current code. The frontend image was stale (`corp-rag-frontend:phase1`, created before Phase 6), so browser UI-01/02/03 could not be completed until the frontend image is rebuilt.
+Earlier Phase 6 static checks also passed: contract verifier, frontend JS syntax sweep, direct fetch boundary, permission-code generation, no frontend direct Python calls, and no Redis/Mongo/shared-cache runtime additions.
 
-Runtime fixes applied after this UAT:
+## Success Criteria Evidence
 
-- `BLOCK-1`: `infra/docker-compose.yml` now sets `JAVA_AI_BASE_URL` to `http://python-ai:8000` by default for the Docker network.
-- `BLOCK-2`: `frontend/Dockerfile` now copies `js/`, and nginx proxies `/api/v1/` to `java-backend:8080`; `api-client.js` defaults to relative `/api/v1`.
-- `DEFECT-01a`: Python `DocumentResultPublisher` emits `indexedAt` through the shared ISO-8601 UTC formatter.
-- `DEFECT-01b`: Java document-indexed and document-failed AMQP consumers reject invalid envelope/payload messages with `AmqpRejectAndDontRequeueException`, allowing the existing DLQ bindings to catch poison messages.
-- `DEFECT-02`: factual numeric deadline lookups such as "In how many business days..." route to `FACTUAL`/HYBRID instead of `AGGREGATION`/GRAPH.
-- `BUILD-01`: `corp-rag-contracts` runs `scripts/generate_constants.py` during Maven `generate-sources`.
-
-The earlier prep note about direct `http://localhost:8080/api/v1` is superseded by the nginx `/api/v1/` proxy.
-
-## Live UAT Update 2026-06-01
-
-Round 2 live UAT confirmed the Docker-network AI URL, frontend rebuild/proxy, AMQP poison-message DLQ, and Maven constants-generation fixes. It also found follow-up defects in Docker-built Java parameter metadata, draft chat send-button state, citation-critical synthesis variance, optional graph indexing failure handling, and browser-facing raw-document URLs.
-
-Runbook corrections:
-
-- The retained Phase 5 corpus is present; reindex is not required while `documents_chunks` remains query-visible with the four known demo documents.
-- DB audit checks must use `audit_events.occurred_at`, not `created_at`.
-- DB document checks must use `documents.uploaded_at`, not `created_at`; document statuses are `UPLOADED`, `INDEXING`, `INDEXED`, and `INDEXING_FAILED`.
-- Compose image tags are static `phase1`; operators must verify image freshness by `CREATED` time and rebuild every service whose code changed (`java-backend`, `frontend`, and `python-ai` when `ai-service` changes).
-
-## Browser/API UAT Status
-
-Live UAT on 2026-05-31 was partial.
-
-Passed on the rebuilt backend/API path:
-
-- Backend unit and integration suite passed with 142 tests, 0 failures/errors/skips during UAT.
-- Cross-origin validation passed: `Origin: http://localhost` accepted and `Origin: http://evil.example` rejected with `ORIGIN_VALIDATION_FAILED`.
-- CHAT-01 API lifecycle passed: create, list, messages, failed assistant row visibility, idempotent delete, post-delete list, and DB soft-delete.
-- CHAT-02 outcomes were observable across Java/Python direct checks: ANSWERED, NO_EVIDENCE, UNSUPPORTED, REFUSED/missing_citations, DEGRADED/reranker_unavailable, and AI_UNAVAILABLE.
-- Rate limit moved from 503 to 429 on request 31; 429 produced audit rows and no chat message rows.
-
-Blocked before fixes:
-
-- Java `/chat/query` ANSWERED path was blocked by missing Docker-network `JAVA_AI_BASE_URL`, causing `AI_SERVICE_UNAVAILABLE`.
-- Browser UI-01/UI-02/UI-03 were blocked by stale frontend image content.
-- One factual "how many business days" query routed to `AGGREGATION` and failed output guard with `missing_citations` despite the fact being citeable through `FACTUAL`.
+| ROADMAP criterion | Evidence | Status |
+|-------------------|----------|--------|
+| User can create or continue a private conversation and see persisted history | Draft send creates conversation; list/messages/title derivation/messageCount work; idempotent delete and soft-delete confirmed; failed turns remain visible without fabricated content | PASS |
+| Chat query calls Python through Java and displays answer, citations, confidence, and guard results | `/chat/query` through Java to Python returns `ANSWERED` with citations; all outcomes observed: `ANSWERED`, `NO_EVIDENCE`, `UNSUPPORTED`, `REFUSED`, `DEGRADED`; UI renders answer, citations, confidence, and guard outcomes | PASS |
+| User can open a cited source from the answer UI | Citation chips/cards open the quote-only source detail modal with source number, title, access badge, and document text; no `entity:*` marker leakage | PASS |
+| Admin can manage documents, users, roles, and access policies from frontend screens | Browser UAT covered Documents, Users, Roles, Access policies, and permission gating | PASS |
 
 ## Requirement Evidence Map
 
-| Requirement | Automated evidence | Browser/live evidence | Status |
-|-------------|--------------------|-----------------------|--------|
-| CHAT-01 | Backend tests passed; `ChatRepositoryPersistenceIT` covers conversation/message persistence, shared correlation ids, history pairing, and soft-delete behavior. | API lifecycle passed on 2026-05-31 | PASS |
-| CHAT-02 | Backend tests passed; `ChatQueryServiceTest`, `ChatControllerTest`, `ChatRateLimiterTest`, and `PythonQueryClientTest` cover query outcomes, 429, Retry-After, Java-to-Python boundary, and persisted pairs. | Partial: outcomes observed, Java ANSWERED blocked before `JAVA_AI_BASE_URL` fix | PARTIAL |
-| UI-01 | Frontend syntax/static checks passed; app shell/router/API client implementation is present. | Blocked by stale frontend image before rebuild | BLOCKED |
-| UI-02 | Frontend syntax/static checks passed; static grep proves no Python/deferred source endpoint references. | Blocked by stale frontend image before rebuild | BLOCKED |
-| UI-03 | Frontend syntax/static checks passed; admin endpoint coverage/self-lockout were verified from backend code. | Blocked by stale frontend image before rebuild | BLOCKED |
+| Requirement | Final evidence | Status |
+|-------------|----------------|--------|
+| CHAT-01 | API lifecycle and browser chat lifecycle passed; persisted history and soft-delete verified in Postgres | PASS |
+| CHAT-02 | Java-to-Python query passed for English and Russian corpus; audit/rate-limit/correlation semantics verified | PASS |
+| UI-01 | `/me` 401 leads to login, authenticated return to requested route works | PASS |
+| UI-02 | Chat UI, citation chips, source cards, and source modal passed | PASS |
+| UI-03 | Admin screens for documents, users, roles, and access policies passed | PASS |
 
-## Audit And Correlation Evidence
+## Security And Audit Evidence
 
-Automated/code evidence:
+- `Origin: http://localhost` is allowed.
+- `Origin: http://evil.example` is rejected with 403 `ORIGIN_VALIDATION_FAILED`.
+- `/me` without a session returns 401 ProblemDetail and frontend redirects to `#/login`.
+- Rate limit writes `CHAT_QUERY_RATE_LIMITED` audit events.
+- Rate-limited requests create no `chat_messages`.
+- User and assistant messages for the same turn share one `correlationId`.
+- The audit timestamp column is `audit_events.occurred_at`.
 
-- `AuditEventRepository` persists `correlation_id`.
-- `ChatMessageRepository.appendPair` rejects user/assistant pairs with different correlation ids.
-- `ChatRepositoryPersistenceIT` asserts user and assistant rows share the same correlation id.
-- `ChatQueryServiceTest` asserts the request correlation id is sent to Python and persisted on both pair rows.
-- `ChatControllerTest` asserts 429 includes `Retry-After`, returns `RATE_LIMIT_EXCEEDED`, and calls `queryAuditService.rateLimited(...)`.
-- `ChatQueryAuditServiceTest` asserts `CHAT_QUERY_RATE_LIMITED` audit details include `status=RATE_LIMITED`.
-- `ChatRateLimiterTest` asserts 429 ProblemDetails include `RATE_LIMIT_EXCEEDED`, `retryAfterSeconds`, and `correlationId`.
+## Query And Guard Evidence
 
-Live DB evidence from 2026-05-31:
+- `ANSWERED`, `NO_EVIDENCE`, `UNSUPPORTED`, `REFUSED`, and `DEGRADED` outcomes were observed.
+- Output guard remains strict and blocks missing inline citations.
+- The 30/minute limiter returns 429 on the 31st request.
+- The final smoke fix ensures empty `sectionPath` serializes as `Document` so Java no longer downgrades valid Python `ANSWERED` results to `DEGRADED`.
 
-- Five `CHAT_QUERY_RATE_LIMITED` audit rows were observed.
-- Zero `chat_messages` rows were observed for rate-limited correlation ids.
-- User and assistant message pairs shared one `correlation_id`.
-- The audit timestamp column is `occurred_at`, not `created_at`.
+## Russian Path Evidence
 
-## Do-Not-Break Evidence
+- Russian UTF-8 Markdown uploaded through the UI indexed successfully.
+- Qdrant stores readable Russian text.
+- Russian query returned: `Руководитель должен согласовать заявление на отпуск в течение пяти рабочих дней [1]`.
+- Confidence was High and the citation source was correct.
 
-- Output guard code was not weakened in Phase 6; Plan 05 explicitly did not edit Python synthesis/guard code.
-- BL-02 UI behavior is implemented as `DEGRADED`: compact retry bubble, no answer text, no citation chips.
-- Source modal uses returned citation snapshot fields only and makes zero network calls.
-- Source modal treats `entity:*` marker-like quote text as a rendering error instead of normal document text.
-- Static grep found no frontend Python direct calls.
+## Indexing And Raw Source Evidence
 
-## Backlog Confirmed Not Implemented
+- Documents still reach `INDEXED` when entity extraction fails; Qdrant embeddings are saved and `neo4j_entity_count=0`.
+- Poison message reaches `backend.document.indexed.dlq`; main queue stays clean.
+- Browser raw source opens through a presigned public `localhost:9000` URL and returns 200.
 
-- Distributed Redis rate limiter remains deferred.
-- RAG answer caching remains deferred; future cache keys must include resolved access scope and corpus version.
-- Full-content source viewer remains deferred; future work needs Python chunk-detail wiring, Java proxy, and Java message-ownership/access checks.
+## Fixed Defects During UAT
 
-## Residual Risk
+| ID | Severity | Issue | Status |
+|----|----------|-------|--------|
+| BLOCK-1 | Blocker | Java called `localhost:8000` instead of `python-ai` | fixed + live |
+| BLOCK-2 | Blocker | frontend image was stale Phase 1 content | fixed + live |
+| BUILD-01 | Blocker | constants generation was not in Maven | fixed |
+| BUILD-01-FIX2 | Blocker | Docker Maven generation needed `python3` | fixed + Docker |
+| DEFECT-01a | High | `indexedAt` timestamp format broke consumer | fixed |
+| DEFECT-01b | High | poison message requeued forever | fixed + live |
+| DEFECT-08 | High | inline citation nondeterminism caused false `NO_EVIDENCE` | fixed |
+| DEFECT-09 | Medium | raw URL used internal `minio:9000` host | fixed |
+| DEFECT-09-FIX2 | Medium | public MinIO client failed region lookup | fixed + live |
+| DEFECT-10 | High | `/api/v1/users` 500 without Java `-parameters` | fixed + live |
+| DEFECT-11 | Med-High | entity extraction failure failed whole document | fixed + live |
+| DEFECT-13 | High | draft chat Send button stayed disabled | fixed + live |
+| smoke-fix | Medium | empty `sectionPath` downgraded valid answers | fixed |
 
-The codebase is automated-green, but Phase 6 browser UAT must be rerun after applying the runtime env change and rebuilding the frontend image. Reindex is not required while the retained Phase 5 corpus remains query-visible.
+Round 2 path-limited commits: `6236b0e`, `0560a32`, `af759ce`, `f86feb7`, `278cc19`, `656dbfc`, `36f6ea9`, `fcea8e0`.
+
+## Residual Items
+
+Residual Low/OBS items are tracked in `.planning/BACKLOG.md`:
+
+- BL-UAT-01: raw viewing of Russian text needs explicit UTF-8 charset.
+- BL-UAT-02: verify whether user messages render visibly in the chat thread.
+- BL-UAT-03: monitor occasional first-turn `Response unavailable`.
+- BL-UAT-04: improve document title extraction from YAML/content.
+- OBS: HATEOAS null metadata, Qdrant version mismatch, favicon, AMQP channel warning, reranker memory headroom, and `ai-service` Dockerfile production-like cleanup.
+
+## Phase 7 Handoff
+
+Phase 7 can start. The demo corpus path is Russian, so Phase 7 golden data should be Russian-first. Russian upload, indexing, answer synthesis, inline citations, and source display are confirmed working.

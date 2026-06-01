@@ -50,11 +50,11 @@
 
 ### Chat and Frontend
 
-- [ ] **CHAT-01**: Java stores conversations and messages for authenticated users.
-- [ ] **CHAT-02**: Java chat query endpoint calls Python with the user's access filter and persists user/assistant messages.
-- [ ] **UI-01**: Frontend provides login, app shell, routing, and session guard.
-- [ ] **UI-02**: Frontend provides chat conversation list, message view, input, citation chips, and source viewer.
-- [ ] **UI-03**: Frontend provides admin screens for documents, users, roles, and access policies.
+- [x] **CHAT-01**: Java stores conversations and messages for authenticated users.
+- [x] **CHAT-02**: Java chat query endpoint calls Python with the user's access filter and persists user/assistant messages.
+- [x] **UI-01**: Frontend provides login, app shell, routing, and session guard.
+- [x] **UI-02**: Frontend provides chat conversation list, message view, input, citation chips, and source viewer.
+- [x] **UI-03**: Frontend provides admin screens for documents, users, roles, and access policies.
 
 ### Evaluation and Delivery
 
@@ -117,11 +117,11 @@
 | AGT-02 | Phase 5 | Pending |
 | AGT-03 | Phase 5 | Complete |
 | SEC-01 | Phase 5 | Complete |
-| CHAT-01 | Phase 6 | Pending |
-| CHAT-02 | Phase 6 | Pending |
-| UI-01 | Phase 6 | Pending |
-| UI-02 | Phase 6 | Pending |
-| UI-03 | Phase 6 | Pending |
+| CHAT-01 | Phase 6 | Complete |
+| CHAT-02 | Phase 6 | Complete |
+| UI-01 | Phase 6 | Complete |
+| UI-02 | Phase 6 | Complete |
+| UI-03 | Phase 6 | Complete |
 | EVAL-01 | Phase 7 | Pending |
 | EVAL-02 | Phase 7 | Pending |
 | EVAL-03 | Phase 7 | Pending |
@@ -136,4 +136,4 @@
 
 ---
 *Requirements defined: 2026-05-11*
-*Last updated: 2026-05-11 after ingesting docs/*
+*Last updated: 2026-06-01 after Phase 6 human UAT*
