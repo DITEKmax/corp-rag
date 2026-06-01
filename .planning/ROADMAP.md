@@ -267,7 +267,7 @@ Plans:
 - [x] 07-04-PLAN.md - Add eval-only retrieval modes and BM25 baseline harness.
 
 **Wave 4** *(blocked on corpus freeze, indexing, and retrieval-mode harness)*
-- [ ] 07-05-PLAN.md - Author and validate the 40-record Russian golden dataset.
+- [x] 07-05-PLAN.md - Author and validate the 40-record Russian golden dataset.
 
 **Wave 5** *(blocked on golden data and required retrieval/eval code waves)*
 - [ ] 07-06-PLAN.md - Run production `/v1/query` RAGAS quality evaluation over the full golden set, independent of Langfuse availability.
