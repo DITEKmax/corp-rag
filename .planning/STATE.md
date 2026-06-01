@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 07.1 context gathered
-last_updated: "2026-06-01T14:58:45.328Z"
-last_activity: 2026-06-01 -- Phase 07.1 planning complete
+last_updated: "2026-06-01T15:17:07.028Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 61
-  completed_plans: 56
-  percent: 92
+  completed_plans: 57
+  percent: 93
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 07 — evaluation-observability
+**Current focus:** Phase 07.1 — fix-russian-router-and-graph-retrieval-quality-for-ragas-bas
 
 ## Current Position
 
-Phase: 07 (evaluation-observability) — EXECUTING
-Plan: 6 of 8
+Phase: 07.1 (fix-russian-router-and-graph-retrieval-quality-for-ragas-bas) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-01 -- Phase 07.1 planning complete
+Last activity: 2026-06-01
 
-Progress: [██████████] 95%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
