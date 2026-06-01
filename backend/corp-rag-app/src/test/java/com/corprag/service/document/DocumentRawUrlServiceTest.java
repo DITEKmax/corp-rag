@@ -50,13 +50,20 @@ class DocumentRawUrlServiceTest {
     void issueRawUrlChecksVisibilityPresignsForFiveMinutesAndAuditsSuccess() {
         URI url = URI.create("https://minio.local/corp-rag-documents/2026/05/file.txt?signature=test");
         when(queryService.getVisible(ACTOR_ID, DOCUMENT_ID)).thenReturn(document());
-        when(storageClient.presignedGetUrl("2026/05/" + DOCUMENT_ID + ".txt", Duration.ofMinutes(5))).thenReturn(url);
+        when(storageClient.presignedGetUrl(
+                        "2026/05/" + DOCUMENT_ID + ".txt",
+                        Duration.ofMinutes(5),
+                        "text/plain; charset=utf-8"))
+                .thenReturn(url);
 
         DocumentRawUrl rawUrl = service.issueRawUrl(ACTOR_ID, DOCUMENT_ID, "127.0.0.1", "JUnit");
 
         assertThat(rawUrl.url()).isEqualTo(url);
         assertThat(rawUrl.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(5)));
-        verify(storageClient).presignedGetUrl("2026/05/" + DOCUMENT_ID + ".txt", Duration.ofMinutes(5));
+        verify(storageClient).presignedGetUrl(
+                "2026/05/" + DOCUMENT_ID + ".txt",
+                Duration.ofMinutes(5),
+                "text/plain; charset=utf-8");
 
         ArgumentCaptor<Map> detailsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(auditEventWriter).writeEvent(
@@ -76,6 +83,36 @@ class DocumentRawUrlServiceTest {
     }
 
     @Test
+    void issueRawUrlAddsUtf8MarkdownOverrideFromFilenameWhenMetadataIsGeneric() {
+        URI url = URI.create("https://minio.local/corp-rag-documents/2026/05/file.md?signature=test");
+        String storageKey = "2026/05/" + DOCUMENT_ID + ".md";
+        when(queryService.getVisible(ACTOR_ID, DOCUMENT_ID))
+                .thenReturn(document("policy.md", "application/octet-stream", storageKey));
+        when(storageClient.presignedGetUrl(storageKey, Duration.ofMinutes(5), "text/markdown; charset=utf-8"))
+                .thenReturn(url);
+
+        DocumentRawUrl rawUrl = service.issueRawUrl(ACTOR_ID, DOCUMENT_ID, "127.0.0.1", "JUnit");
+
+        assertThat(rawUrl.url()).isEqualTo(url);
+        verify(storageClient).presignedGetUrl(storageKey, Duration.ofMinutes(5), "text/markdown; charset=utf-8");
+    }
+
+    @Test
+    void issueRawUrlLeavesNonTextObjectsOnExistingPresignPath() {
+        URI url = URI.create("https://minio.local/corp-rag-documents/2026/05/file.pdf?signature=test");
+        String storageKey = "2026/05/" + DOCUMENT_ID + ".pdf";
+        when(queryService.getVisible(ACTOR_ID, DOCUMENT_ID))
+                .thenReturn(document("policy.pdf", "application/pdf", storageKey));
+        when(storageClient.presignedGetUrl(storageKey, Duration.ofMinutes(5))).thenReturn(url);
+
+        DocumentRawUrl rawUrl = service.issueRawUrl(ACTOR_ID, DOCUMENT_ID, "127.0.0.1", "JUnit");
+
+        assertThat(rawUrl.url()).isEqualTo(url);
+        verify(storageClient).presignedGetUrl(storageKey, Duration.ofMinutes(5));
+        verify(storageClient, never()).presignedGetUrl(eq(storageKey), eq(Duration.ofMinutes(5)), any());
+    }
+
+    @Test
     void invisibleDocumentDoesNotPresignOrAudit() {
         when(queryService.getVisible(ACTOR_ID, DOCUMENT_ID)).thenThrow(new ApiProblemException(
                 ErrorCodes.DOCUMENT_NOT_FOUND,
@@ -87,16 +124,21 @@ class DocumentRawUrlServiceTest {
                 .isEqualTo(ErrorCodes.DOCUMENT_NOT_FOUND);
 
         verify(storageClient, never()).presignedGetUrl(any(), any());
+        verify(storageClient, never()).presignedGetUrl(any(), any(), any());
         verify(auditEventWriter, never()).writeEvent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     private static DocumentRecord document() {
+        return document("policy.txt", "text/plain", "2026/05/" + DOCUMENT_ID + ".txt");
+    }
+
+    private static DocumentRecord document(String originalFilename, String contentType, String storageKey) {
         return new DocumentRecord(
                 DOCUMENT_ID,
                 "Policy",
                 null,
-                "policy.txt",
-                "text/plain",
+                originalFilename,
+                contentType,
                 10,
                 AccessLevel.INTERNAL,
                 "HR",
@@ -105,7 +147,7 @@ class DocumentRawUrlServiceTest {
                 DocumentStatus.UPLOADED,
                 ACTOR_ID,
                 "corp-rag-documents",
-                "2026/05/" + DOCUMENT_ID + ".txt",
+                storageKey,
                 "0".repeat(64),
                 NOW,
                 null,

@@ -1,6 +1,6 @@
 ---
 status: active
-updated: 2026-06-01
+updated: 2026-06-02
 source:
   - ".planning/phases/05-retrieval-guards-query-api/05-UAT-EVIDENCE.md"
   - ".planning/phases/05-retrieval-guards-query-api/PHASE5-UAT-FIX-REPORT.md"
@@ -8,6 +8,7 @@ source:
   - ".planning/phases/05.1-phase-5-uat-fix-wave/05.1-05-SUMMARY.md"
   - ".planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md"
   - ".planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md"
+  - ".planning/phases/08-delivery-polish-demo-readiness/08-KNOWN-LIMITATIONS.md"
 ---
 
 # Project Backlog
@@ -102,7 +103,7 @@ Acceptance:
 
 Priority: High for Phase 8
 Area: graph retrieval / Russian golden regression
-Status: Open / Phase 8 debt
+Status: Waived for Phase 8 demo / Future work
 
 Source:
 - `.planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-03-SUMMARY.md`
@@ -118,11 +119,12 @@ Finding:
 - They expose graph multi-hop retrieval weakness: current graph retrieval does not reliably gather text-conditioned multi-document evidence for Russian multi-hop questions.
 
 Action:
-- In Phase 8, improve or explicitly waive text-conditioned graph multi-hop retrieval for these four records.
-- Candidate work includes Russian entity linking, semantic path ranking, duplicate path suppression, and hybrid graph/vector fallback for multi-document evidence.
+- Phase 8 Plan 08-05 explicitly waives text-conditioned graph multi-hop retrieval for the demo scope.
+- Future work candidates include Russian entity linking, semantic path ranking, duplicate path suppression, and hybrid graph/vector fallback for multi-document evidence.
 
 Acceptance:
-- The four records either answer with valid document-backed citations or have a documented product/eval waiver before final demo regression.
+- Met for Phase 8 demo readiness by documented waiver in `.planning/phases/08-delivery-polish-demo-readiness/08-KNOWN-LIMITATIONS.md`.
+- Future retrieval work must make the four records answer with valid document-backed citations without weakening citation validation, weak-evidence thresholds, or access filters.
 
 ## BL-06 - Phase 6 UAT Low/OBS Follow-Ups
 
@@ -139,6 +141,7 @@ These items came from the final Phase 6 live UAT on 2026-06-01. They do not bloc
 ### BL-UAT-01 - Raw Russian `.txt`/`.md` Browser View Uses Wrong Charset
 
 Severity: Low
+Status: Closed in Phase 8 Plan 08-05
 
 Symptom:
 - Admin Documents "Open raw" for Russian text shows mojibake such as `РџРѕР»РёС‚РёРєР°` instead of `Политика`.
@@ -156,8 +159,48 @@ Fix options:
 - Save text uploads with `Content-Type: text/plain; charset=utf-8`.
 - Or add a presigned URL `response-content-type` override for text types so existing objects render correctly.
 
+Closure:
+- Phase 8 Plan 08-05 adds a narrow MinIO presigned URL `response-content-type` override for `.txt`, `.md`, `text/plain`, and `text/markdown` raw views.
+- Access control remains in Java before URL issuance; raw bytes are not proxied through Java and storage metadata/schema are unchanged.
+
 Acceptance:
-- Direct raw viewing of Russian text documents renders readable UTF-8 in the browser.
+- Met by the UTF-8 raw-view content-type path and unit coverage for text and non-text documents.
+
+### BL-UAT-05 - Explicit Data-Exfiltration Guard Classification
+
+Severity: Low / stretch
+Status: Future work / not attempted in Phase 8 Plan 08-05
+
+Source:
+- `ai-service/eval/reports/injection_ru.md`
+- `.planning/phases/08-delivery-polish-demo-readiness/08-KNOWN-LIMITATIONS.md`
+
+Current behavior:
+- Data-exfiltration probes are blocked from succeeding, but they currently fall through as `refused_no_evidence` / `UNSUPPORTED` rather than an explicit `refused_guard` verdict.
+
+Action:
+- If attempted later, add explicit data-exfiltration guard classification without weakening current prompt-injection, jailbreak, citation, output guard, access-filter, or refusal behavior.
+
+Acceptance:
+- Injection probes continue to block attacks and data-exfiltration cases gain an explicit guard verdict.
+
+### BL-UAT-06 - `ru-factual-009` Router False-Unsupported Stretch
+
+Severity: Low / eval stretch
+Status: Future work / not attempted in Phase 8 Plan 08-05
+
+Source:
+- `ai-service/eval/reports/ragas_ru.md`
+- `.planning/phases/08-delivery-polish-demo-readiness/08-KNOWN-LIMITATIONS.md`
+
+Current behavior:
+- `ru-factual-009` is expected `answered` but currently returns `refused_no_evidence` with route `UNSUPPORTED`.
+
+Action:
+- Investigate as future router/retrieval quality work only. Do not train a classifier, retune against the golden set, or add golden-specific strings solely to improve one eval row.
+
+Acceptance:
+- Future changes improve general routing/retrieval behavior and preserve guard, citation, and access-filter contracts.
 
 ### BL-UAT-02 - Verify User Message Bubble Visibility In Chat Thread
 

@@ -12,6 +12,8 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
@@ -46,6 +48,22 @@ class MinioDocumentStorageClientTest {
         verify(internalClient, never()).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
         org.assertj.core.api.Assertions.assertThat(result)
                 .isEqualTo(URI.create("http://localhost:9000/corp-rag-documents/file.txt?signature=test"));
+    }
+
+    @Test
+    void presignedGetUrlCanOverrideResponseContentType() {
+        MinioClient internalClient = mock(MinioClient.class);
+        DocumentStorageProperties properties = new DocumentStorageProperties();
+        properties.setBucket("corp-rag-documents");
+        properties.setPublicEndpoint("http://127.0.0.1:1");
+        properties.setRegion("us-east-1");
+
+        URI result = new MinioDocumentStorageClient(internalClient, properties)
+                .presignedGetUrl("file.txt", Duration.ofMinutes(5), "text/plain; charset=utf-8");
+
+        String decodedQuery = URLDecoder.decode(result.getQuery(), StandardCharsets.UTF_8);
+        org.assertj.core.api.Assertions.assertThat(decodedQuery)
+                .contains("response-content-type=text/plain; charset=utf-8");
     }
 
     @Test

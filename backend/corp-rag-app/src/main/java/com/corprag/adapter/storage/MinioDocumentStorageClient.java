@@ -10,6 +10,7 @@ import io.minio.http.Method;
 import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -74,14 +75,22 @@ public class MinioDocumentStorageClient implements DocumentStorageClient {
 
     @Override
     public URI presignedGetUrl(String objectKey, Duration ttl) {
+        return presignedGetUrl(objectKey, ttl, null);
+    }
+
+    @Override
+    public URI presignedGetUrl(String objectKey, Duration ttl, String responseContentType) {
         try {
-            String url = publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            GetPresignedObjectUrlArgs.Builder builder = GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(properties.getBucket())
                     .region(properties.getRegion())
                     .object(objectKey)
-                    .expiry(Math.toIntExact(ttl.toSeconds()), TimeUnit.SECONDS)
-                    .build());
+                    .expiry(Math.toIntExact(ttl.toSeconds()), TimeUnit.SECONDS);
+            if (responseContentType != null && !responseContentType.isBlank()) {
+                builder.extraQueryParams(Map.of("response-content-type", responseContentType));
+            }
+            String url = publicMinioClient.getPresignedObjectUrl(builder.build());
             return URI.create(url);
         } catch (Exception exception) {
             throw new DocumentStorageException("Could not create document object URL", exception);

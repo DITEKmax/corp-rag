@@ -11,4 +11,8 @@ public interface DocumentStorageClient {
     void putObject(String objectKey, String contentType, long sizeBytes, InputStream content);
 
     URI presignedGetUrl(String objectKey, Duration ttl);
+
+    default URI presignedGetUrl(String objectKey, Duration ttl, String responseContentType) {
+        return presignedGetUrl(objectKey, ttl);
+    }
 }

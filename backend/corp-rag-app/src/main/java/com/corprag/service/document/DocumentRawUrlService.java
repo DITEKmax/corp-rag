@@ -5,9 +5,11 @@ import com.corprag.config.DocumentStorageProperties;
 import com.corprag.domain.AuditOutcome;
 import com.corprag.domain.DocumentRecord;
 import com.corprag.service.audit.AuditEventWriter;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class DocumentRawUrlService {
+
+    private static final String TEXT_MARKDOWN_UTF_8 = "text/markdown; charset=utf-8";
+    private static final String TEXT_PLAIN_UTF_8 = "text/plain; charset=utf-8";
 
     private final DocumentQueryService queryService;
     private final DocumentStorageClient storageClient;
@@ -48,9 +53,7 @@ public class DocumentRawUrlService {
         DocumentRecord document = queryService.getVisible(actorUserId, documentId);
         Duration ttl = storageProperties.getRawUrlTtl();
         Instant issuedAt = clock.instant();
-        DocumentRawUrl rawUrl = new DocumentRawUrl(
-                storageClient.presignedGetUrl(document.storageKey(), ttl),
-                issuedAt.plus(ttl));
+        DocumentRawUrl rawUrl = new DocumentRawUrl(presignedRawUrl(document, ttl), issuedAt.plus(ttl));
         auditEventWriter.writeEvent(
                 "DOCUMENT",
                 "DOCUMENT_RAW_URL_ISSUED",
@@ -65,5 +68,36 @@ public class DocumentRawUrlService {
                         "accessLevel", document.accessLevel().name(),
                         "department", document.department()));
         return rawUrl;
+    }
+
+    private URI presignedRawUrl(DocumentRecord document, Duration ttl) {
+        String responseContentType = rawViewResponseContentType(document);
+        if (responseContentType == null) {
+            return storageClient.presignedGetUrl(document.storageKey(), ttl);
+        }
+        return storageClient.presignedGetUrl(document.storageKey(), ttl, responseContentType);
+    }
+
+    private static String rawViewResponseContentType(DocumentRecord document) {
+        String contentType = normalize(document.mimeType());
+        if (contentType.startsWith("text/plain")) {
+            return TEXT_PLAIN_UTF_8;
+        }
+        if (contentType.startsWith("text/markdown")) {
+            return TEXT_MARKDOWN_UTF_8;
+        }
+
+        String filename = normalize(document.originalFilename());
+        if (filename.endsWith(".txt")) {
+            return TEXT_PLAIN_UTF_8;
+        }
+        if (filename.endsWith(".md") || filename.endsWith(".markdown")) {
+            return TEXT_MARKDOWN_UTF_8;
+        }
+        return null;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 }

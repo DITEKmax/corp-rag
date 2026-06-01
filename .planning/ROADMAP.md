@@ -317,7 +317,7 @@ Plans:
 **Wave 1**
 - [x] 08-01-PLAN.md - Build Java-API demo corpus reset and seed evidence.
 - [x] 08-02-PLAN.md - Document and verify the existing local demo compose stack.
-- [ ] 08-05-PLAN.md - Close low-risk delivery polish, traceability, and known-limit boundaries.
+- [x] 08-05-PLAN.md - Close low-risk delivery polish, traceability, and known-limit boundaries.
 - [x] 08-06-PLAN.md - Harden entity-extraction parsing and bounded retries for stable graph indexing.
 
 **Wave 2** *(blocked on Wave 1 completion)*
