@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_for_next_phase
-stopped_at: Phase 07.1 complete; Phase 8 multi-hop graph retrieval debt recorded
-last_updated: "2026-06-01T17:20:00Z"
+stopped_at: Phase 07 complete; Phase 8 ready with graph/router carry-forward debt recorded
+last_updated: "2026-06-01T18:29:30Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 10
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 61
-  completed_plans: 59
-  percent: 97
+  completed_plans: 60
+  percent: 98
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Employees can ask natural-language questions over permitted corporate documents and receive grounded, cited answers without leaking data across access boundaries.
-**Current focus:** Phase 8 — Delivery Polish & Demo Readiness, with Phase 07.1 multi-hop graph retrieval debt carried forward
+**Current focus:** Phase 8 — Delivery Polish & Demo Readiness, with Phase 7/7.1 graph and router debt carried forward
 
 ## Current Position
 
-Phase: 07.1 (fix-russian-router-and-graph-retrieval-quality-for-ragas-bas) — COMPLETE
-Plan: 3 of 3
-Status: Post-fix RAGAS report validated and committed; remaining multi-hop graph retrieval weakness is Phase 8 debt
+Phase: 07 (evaluation-observability) — COMPLETE
+Plan: 8 of 8
+Status: RAGAS baseline, retrieval ablation, injection probes, diagnostics, and live Langfuse trace evidence are recorded; remaining graph/router weaknesses are Phase 8 debt
 Last activity: 2026-06-01
 
 Progress: [██████████] 97%
@@ -50,7 +50,7 @@ Progress: [██████████] 97%
 | 04 | 9/9 | ~2h 21m + manual UAT | ~20m for automated waves |
 | 06 | 9/9 | 123 min | ~14m |
 
-**Recent completed plans:** Phase 07.1 P01-P03 complete. Post-fix RAGAS score-only report was validated on 2026-06-01 with evidence in `.planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-03-SUMMARY.md` and `ai-service/eval/reports/ragas_ru.json`.
+**Recent completed plans:** Phase 07 P01-P08 and Phase 07.1 P01-P03 complete. Final Phase 7 evidence is recorded in `.planning/phases/07-evaluation-observability/07-EVAL-SUMMARY.md`, with RAGAS baseline, ablation, injection probes, diagnostics, and visually confirmed Langfuse traces.
 | Phase 05 P01 | 27 min | 4 tasks | 18 files |
 | Phase 05 P02 | 16 min | 3 tasks + prerequisite fix | 14 files |
 | Phase 05 P03 | 7 min | 3 tasks | 6 files |
@@ -69,6 +69,9 @@ Progress: [██████████] 97%
 | Phase 07 P03 | 8 min | 4 tasks | 27 files |
 | Phase 07 P04 | 16 min | 3 tasks | 9 files |
 | Phase 07 P05 | 29 min | 3 tasks | 4 files |
+| Phase 07 P06 | live eval | 4 tasks | RAGAS reports |
+| Phase 07 P07 | retrieval ablation | 4 tasks | ablation reports |
+| Phase 07 P08 | live validation | 4 tasks | injection + Langfuse evidence |
 
 ## Accumulated Context
 
@@ -156,17 +159,19 @@ Recent locked decisions affecting current work:
 - [Phase 05.1]: 05.1-03: Final query responses return the full packed citation index space and validate inline refs against the final REST citations array; graph citations resolve user-facing quote/snippet from document text rather than graph markers.
 - [Phase 05.1]: 05.1-05 resolves graph citation/scoring text from the existing parent chunk store before reranking instead of requiring Neo4j relationship text or a corpus reindex. Aggregation graph score is query-term matched, not a hardcoded confidence bypass; absent graph evidence still refuses.
 - [Phase 07.1]: Russian router/aggregation localization and frozen graph-corpus state are repaired. Post-fix RAGAS improved answered_count 15 -> 18 and faithfulness 0.9167 -> 0.9630 with degraded_count 0; four remaining multi-hop refusals now route correctly to MULTI_HOP and are Phase 8 graph retrieval debt.
+- [Phase 07]: Evaluation and observability are complete. Final evidence includes RAGAS baseline faithfulness 0.9630/context_recall 1.0, retrieval ablation showing learned sparse/hybrid ceiling, injection probe block-rate reports, diagnostics counters, and live Langfuse traces with root query spans plus synthesis generation.
 
 ### Pending Todos
 
-- Execute remaining evaluation/delivery work after Phase 07.1: Phase 8 must address or explicitly waive the multi-hop graph retrieval debt for `ru-multihop-002/003/005/006`.
-- Build a Russian-first golden dataset; Phase 6 confirmed the Russian upload/index/query/citation/source-modal path works end to end.
+- Phase 8 must address or explicitly waive the multi-hop graph retrieval debt for `ru-multihop-002/003/005/006`.
+- Phase 8 should decide whether to make data-exfiltration probes explicit guard refusals instead of unsupported/no-evidence fallback refusals.
 - Keep PH5.1-DEF-B as info-level reproducibility debt: restore a pinned uv base image when ghcr.io is reachable from Docker or a mirror is configured.
 - See `.planning/BACKLOG.md` for non-blocking Phase 5 / 5.1 and Phase 6 UAT follow-ups. Important current manual state: if `ai-service/Dockerfile` is reset to the committed ghcr.io base while the Docker daemon still cannot reach ghcr.io, manually reapply the temporary Docker Hub `astral/uv:python3.12-bookworm` workaround or fix registry/mirror access before rebuilding `python-ai`.
 
 ### Blockers/Concerns
 
-- No current Phase 7 blocker from Phase 6. Phase 6 is closed by human live UAT on 2026-06-01.
+- Phase 7 is closed. No current Phase 7 blocker remains.
+- Phase 6 is closed by human live UAT on 2026-06-01.
 - Phase 6 UAT evidence is recorded in `.planning/phases/06-chat-frontend-experience/06-HUMAN-UAT.md` and `.planning/phases/06-chat-frontend-experience/06-UAT-EVIDENCE.md`.
 - Phase 6 residual items are Low/OBS backlog and do not block evaluation work.
 
@@ -190,5 +195,5 @@ Recent locked decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-06-01T17:20:00Z
-Stopped at: Phase 07.1 complete
+Stopped at: Phase 07 complete
 Resume file: .planning/phases/07.1-fix-russian-router-and-graph-retrieval-quality-for-ragas-bas/07.1-03-SUMMARY.md

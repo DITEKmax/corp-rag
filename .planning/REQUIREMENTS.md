@@ -60,7 +60,7 @@
 
 - [x] **EVAL-01**: Golden dataset covers factual, aggregation, multi-hop, and out-of-scope questions.
 - [x] **EVAL-02**: RAGAS and retrieval metrics report faithfulness, relevancy, context precision/recall, recall@k, and MRR.
-- [ ] **EVAL-03**: Injection probes measure guard block rate.
+- [x] **EVAL-03**: Injection probes measure guard block rate.
 - [x] **EVAL-04**: Ablation compares BM25, dense, sparse, hybrid, and hybrid+reranker variants.
 - [x] **OPS-01**: Langfuse traces and service metrics are available for demo and diagnostics.
 - [ ] **DEL-01**: Production-like Docker Compose, seed corpus script, final regression, README/demo assets, and short video demo are ready.
@@ -124,7 +124,7 @@
 | UI-03 | Phase 6 | Complete |
 | EVAL-01 | Phase 7 | Complete |
 | EVAL-02 | Phase 7 | Complete |
-| EVAL-03 | Phase 7 | Pending |
+| EVAL-03 | Phase 7 | Complete |
 | EVAL-04 | Phase 7 | Complete |
 | OPS-01 | Phase 7 | Complete |
 | DEL-01 | Phase 8 | Pending |
