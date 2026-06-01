@@ -15,6 +15,44 @@ sources:
 
 This document records demo-readiness limitations that remain visible after Phase 8 Wave 1 polish. These are not hidden defects and are not treated as successful answers.
 
+## Final Regression Quality vs Coverage
+
+The final Phase 8 regression evidence shows high answer quality where the system answers, and limited answer coverage where it safely refuses instead of fabricating.
+
+Final RAGAS quality metrics:
+- `faithfulness=0.991`
+- `context_precision=1.0`
+- `context_recall=1.0`
+- `answer_relevancy=0.865`
+
+Interpretation:
+- The system is not hallucinating on answered rows.
+- Retrieved context is correct and sufficient for the scored answered rows.
+- The cited-answer path remains suitable for demo use with the seeded 16-document corpus.
+
+Coverage limits remain visible and are not hidden:
+- `answered_count=16` out of 30 answerable golden rows.
+- `outcome_accuracy=0.575` against threshold `0.8` is not passed.
+- `citation_doc_recall=0.533` against threshold `0.7` is not passed.
+
+The coverage gap is caused by two documented behaviors. Both produce safe `refused_no_evidence` outcomes rather than invented answers:
+
+1. Multi-hop graph retrieval remains waived for Phase 8. The `ru-multihop-*` rows require text-conditioned multi-document graph retrieval that was deliberately not implemented in the final demo-readiness phase.
+2. Router false-`MULTI_HOP` remains a reproducible limitation. The production synthesis/router model, `deepseek/deepseek-v4-flash`, can nondeterministically classify some answerable factual and aggregation questions as `MULTI_HOP`; once routed to graph retrieval, the current graph path may refuse. Across final regression attempts, `answered_count` varied `19 -> 17 -> 16`, while `MULTI_HOP` volume varied `10 -> 12`. This is a measured limitation, not a one-off random miss.
+
+`citation_doc_recall=0.533` is partly explained by the same two causes: rows that fall into multi-hop refusal do not produce citations, so document-id recall is capped even though answered rows have strong faithfulness and context scores.
+
+Judge stability remains a separate report-only caveat:
+- The final evidence includes 3 DeepSeek judge `OUTPUT_PARSING_FAILURE` cases (`ru-aggregation-001`, `ru-aggregation-006`, `ru-aggregation-007`).
+- This is the same structured-output instability class seen elsewhere with DeepSeek.
+- It was bounded with `--ragas-max-retries 1` and is recorded rather than masked.
+
+Backlog candidates:
+- Stabilize router false-`MULTI_HOP` behavior for answerable factual and aggregation questions.
+- Improve judge structured-output resilience for RAGAS scoring.
+
+These items were consciously not fixed in Phase 8 because this is the final delivery-polish phase and the scope was not expanded to router redesign, judge redesign, or graph retrieval redesign.
+
 ## Waived For Phase 8 Demo
 
 ### Russian Multi-Hop Graph Retrieval
