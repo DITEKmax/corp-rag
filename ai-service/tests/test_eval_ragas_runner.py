@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import pytest
+
+from eval.io import load_golden_records
+from eval.query_client import ActualOutcome, QuerySampleResult
+from eval.ragas_runner import (
+    DEFAULT_GOLDEN_PATH,
+    RagasRunnerConfig,
+    RagasScoringResult,
+    build_ragas_rows,
+    run_ragas_evaluation,
+)
+from eval.schema import ExpectedOutcome, GoldenRecord
+
+
+def _sample(record: GoldenRecord) -> QuerySampleResult:
+    answered = record.expected_outcome is ExpectedOutcome.ANSWERED
+    if answered:
+        actual_outcome = ActualOutcome.ANSWERED
+        citation_document_ids = tuple(record.expected_doc_ids)
+        retrieved_contexts = (f"Контекст для {record.id}",)
+        answer = record.reference_answer
+    elif record.expected_outcome is ExpectedOutcome.REFUSED_GUARD:
+        actual_outcome = ActualOutcome.REFUSED_GUARD
+        citation_document_ids = ()
+        retrieved_contexts = ()
+        answer = "Запрос отклонен защитной системой."
+    else:
+        actual_outcome = ActualOutcome.REFUSED_NO_EVIDENCE
+        citation_document_ids = ()
+        retrieved_contexts = ()
+        answer = "В доступных документах нет подтвержденной информации."
+
+    return QuerySampleResult(
+        record_id=record.id,
+        question=record.question,
+        reference_answer=record.reference_answer,
+        expected_doc_ids=tuple(record.expected_doc_ids),
+        expected_outcome=record.expected_outcome.value,
+        actual_outcome=actual_outcome,
+        answered=answered,
+        answer=answer,
+        citations=(),
+        retrieved_contexts=retrieved_contexts,
+        citation_document_ids=citation_document_ids,
+        route="FACTUAL",
+        retrievers_attempted=("HYBRID",),
+        retrievers_used=("HYBRID",) if answered else (),
+        degradation_warnings=(),
+        reranker_used=True,
+        model_id="deepseek/deepseek-chat",
+        confidence=0.9,
+        service_latency_ms=100,
+        client_latency_ms=120,
+        trace_id=None,
+        guard_verdict={"safe": False, "reason": "fixture"} if actual_outcome is ActualOutcome.REFUSED_GUARD else None,
+    )
+
+
+def test_build_ragas_rows_keeps_only_answered_answerable_records() -> None:
+    records = load_golden_records(DEFAULT_GOLDEN_PATH)
+    rows = build_ragas_rows(tuple(_sample(record) for record in records))
+
+    assert len(rows) == 30
+    assert all(row.record_id.startswith(("ru-factual", "ru-aggregation", "ru-multihop")) for row in rows)
+    assert rows[0].retrieved_contexts
+
+
+@pytest.mark.asyncio
+async def test_runner_writes_reports_for_all_records_with_fake_clients(tmp_path) -> None:
+    class FakeClient:
+        def __init__(self, config):
+            self.config = config
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return None
+
+        async def query_golden(self, record: GoldenRecord) -> QuerySampleResult:
+            return _sample(record)
+
+    def fake_evaluator(rows, config) -> RagasScoringResult:
+        assert len(rows) == 30
+        return RagasScoringResult(
+            aggregate_scores={
+                "faithfulness": 0.91,
+                "answer_relevancy": "skipped",
+                "context_precision": 0.83,
+                "context_recall": 0.87,
+            },
+            per_record_scores={row.record_id: {"faithfulness": 0.91, "context_precision": 0.83} for row in rows},
+            skipped_metrics={"answer_relevancy": "embedding fixture not configured"},
+            external_judge_used=True,
+            token_usage={"input_tokens": 10, "output_tokens": 5},
+            total_cost=0.01,
+        )
+
+    output = await run_ragas_evaluation(
+        RagasRunnerConfig(reports_dir=tmp_path / "reports"),
+        query_client_factory=FakeClient,
+        evaluator=fake_evaluator,
+    )
+
+    assert len(output.report.details) == 40
+    assert output.report.external_judge_used is True
+    assert {metric.name: metric.value for metric in output.report.metrics}["answer_relevancy"] == "skipped"
+    assert output.markdown_path.exists()
+    assert output.json_path.exists()
+    assert output.csv_path is not None and output.csv_path.exists()
+    markdown = output.markdown_path.read_text(encoding="utf-8")
+    assert "ru-factual-001" in markdown
+    assert "ru-out-010" in markdown

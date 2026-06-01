@@ -13,7 +13,10 @@ def test_write_report_creates_markdown_json_and_csv(tmp_path) -> None:
 
     artifact = write_report(report, reports_dir=tmp_path / "reports", slug="smoke", write_csv=True)
 
-    assert artifact.markdown_path.read_text(encoding="utf-8").startswith("# Smoke Report")
+    markdown = artifact.markdown_path.read_text(encoding="utf-8")
+    assert markdown.startswith("# Smoke Report")
+    assert "## Details" in markdown
+    assert "ru_fact_001" in markdown
     assert '"corpus_hash": "abc123"' in artifact.json_path.read_text(encoding="utf-8")
     assert artifact.csv_path is not None
     assert "question_id" in artifact.csv_path.read_text(encoding="utf-8")

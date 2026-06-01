@@ -56,8 +56,43 @@ def _render_markdown(report: EvaluationReport) -> str:
         threshold = "" if metric.threshold is None else str(metric.threshold)
         passed = "" if metric.passed is None else str(metric.passed).lower()
         lines.append(f"| {metric.name} | {metric.value} | {threshold} | {passed} | {metric.notes} |")
+    if report.details:
+        lines.extend(
+            [
+                "",
+                "## Details",
+                "",
+                "| ID | Expected | Actual | Correct | Route | Citation Docs | Trace ID |",
+                "|---|---|---|---|---|---|---|",
+            ]
+        )
+        for detail in report.details:
+            citation_docs = detail.get("citation_document_ids") or detail.get("expected_doc_ids") or []
+            if isinstance(citation_docs, list):
+                citation_docs_value = ", ".join(str(item) for item in citation_docs)
+            else:
+                citation_docs_value = str(citation_docs)
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        _markdown_cell(detail.get("id") or detail.get("question_id") or ""),
+                        _markdown_cell(detail.get("expected_outcome", "")),
+                        _markdown_cell(detail.get("actual_outcome", "")),
+                        _markdown_cell(detail.get("outcome_correct", "")),
+                        _markdown_cell(detail.get("route", "")),
+                        _markdown_cell(citation_docs_value),
+                        _markdown_cell(detail.get("trace_id", "")),
+                    ]
+                )
+                + " |"
+            )
     lines.append("")
     return "\n".join(lines)
+
+
+def _markdown_cell(value: Any) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ").strip()
 
 
 def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
