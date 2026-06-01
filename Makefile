@@ -10,7 +10,7 @@ JAVA_DB_USER ?= corp_rag_java
 JAVA_DB_PASSWORD ?= corp_rag_java_password
 FLYWAY_MAVEN_PLUGIN_VERSION ?= 10.20.1
 
-.PHONY: verify-contracts compose-up compose-ps compose-down migrate-java migrate-python
+.PHONY: verify-contracts compose-up compose-ps compose-down demo-check demo-seed migrate-java migrate-python
 
 verify-contracts:
 	$(PYTHON) scripts/verify-contracts.py
@@ -23,6 +23,12 @@ compose-ps:
 
 compose-down:
 	$(DOCKER_COMPOSE) --env-file $(COMPOSE_ENV) -f $(COMPOSE_FILE) down
+
+demo-check:
+	$(PYTHON) scripts/check_demo_stack.py --compose-file $(COMPOSE_FILE) --env-file $(COMPOSE_ENV) --output .planning/phases/08-delivery-polish-demo-readiness/08-COMPOSE-EVIDENCE.md
+
+demo-seed:
+	./scripts/seed-demo-corpus.ps1
 
 migrate-java:
 	cd backend && $(MAVEN) -q -N install && $(MAVEN) -q -pl corp-rag-contracts install -DskipTests && $(MAVEN) -q -pl corp-rag-app org.flywaydb:flyway-maven-plugin:$(FLYWAY_MAVEN_PLUGIN_VERSION):migrate -Dflyway.url="$(JAVA_MIGRATION_DB_URL)" -Dflyway.user="$(JAVA_DB_USER)" -Dflyway.password="$(JAVA_DB_PASSWORD)" -Dflyway.locations="filesystem:corp-rag-app/src/main/resources/db/migration"

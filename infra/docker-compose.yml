@@ -209,8 +209,8 @@ services:
       - "${PYTHON_AI_PORT:-8000}:8000"
     volumes:
       - bge-m3-cache:/root/.cache/huggingface
-    mem_limit: ${PYTHON_AI_MEMORY_LIMIT:-8g}
-    mem_reservation: ${PYTHON_AI_MEMORY_RESERVATION:-6g}
+    mem_limit: ${PYTHON_AI_MEMORY_LIMIT:-10g}
+    mem_reservation: ${PYTHON_AI_MEMORY_RESERVATION:-8g}
     depends_on:
       postgres:
         condition: service_healthy
