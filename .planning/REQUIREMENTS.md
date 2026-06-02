@@ -63,7 +63,7 @@
 - [x] **EVAL-03**: Injection probes measure guard block rate.
 - [x] **EVAL-04**: Ablation compares BM25, dense, sparse, hybrid, and hybrid+reranker variants.
 - [x] **OPS-01**: Langfuse traces and service metrics are available for demo and diagnostics.
-- [ ] **DEL-01**: Production-like Docker Compose, seed corpus script, final regression, README/demo assets, and short video demo are ready.
+- [x] **DEL-01**: Production-like Docker Compose, seed corpus script, final regression, README/demo assets, and short video demo are ready.
 
 ## v2 Requirements
 
@@ -127,7 +127,7 @@
 | EVAL-03 | Phase 7 | Complete |
 | EVAL-04 | Phase 7 | Complete |
 | OPS-01 | Phase 7 | Complete |
-| DEL-01 | Phase 8 | Pending |
+| DEL-01 | Phase 8 | Complete |
 
 **Coverage:**
 - v1 requirements: 39 total
@@ -136,4 +136,4 @@
 
 ---
 *Requirements defined: 2026-05-11*
-*Last updated: 2026-06-02 after Phase 8 traceability cleanup*
+*Last updated: 2026-06-02 after Phase 8 demo-assets closeout*

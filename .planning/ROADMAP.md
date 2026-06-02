@@ -19,7 +19,7 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
 - [x] **Phase 6: Chat & Frontend Experience** - Users can use the browser app for login, chat, citations, and admin workflows. (completed 2026-06-01)
 - [x] **Phase 7: Evaluation & Observability** - Quality, safety, ablation, traces, and metrics are measurable. (completed 2026-06-01)
 - [x] **Phase 7.1: Fix Russian router and graph retrieval quality for RAGAS baseline (INSERTED)** - Russian router/aggregation and frozen graph corpus defects are repaired and post-fix RAGAS comparison is validated. (completed 2026-06-01)
-- [ ] **Phase 8: Delivery Polish & Demo Readiness** - Production-like compose, seed corpus, final regression, README, and demo assets are ready.
+- [x] **Phase 8: Delivery Polish & Demo Readiness** - Production-like compose, seed corpus, final regression, README, and demo assets are ready. (completed 2026-06-02)
 
 ## Phase Details
 
@@ -32,7 +32,8 @@ This roadmap turns the ingested architecture, ADRs, and implementation breakdown
   2. Java, Python, frontend, and contract directories exist with consistent project structure.
   3. OpenAPI and AsyncAPI files describe the v1 REST and RabbitMQ contracts.
   4. Generated DTO/model code can be produced from the contracts.
-**Plans:** 6 plans
+**Plans:** 6/6 plans complete
+**Status:** Complete - local demo stack, seed corpus, final regression, known-limit waiver, README, architecture, demo script, and video checklist are ready for review.
 Plans:
 - [x] 01-01-PLAN.md - Define root OpenAPI, AsyncAPI, and constants contracts.
 - [x] 01-02-PLAN.md - Add contract generation and verification harness.
@@ -321,10 +322,10 @@ Plans:
 - [x] 08-06-PLAN.md - Harden entity-extraction parsing and bounded retries for stable graph indexing.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 08-03-PLAN.md - Run final compose/seed/chat/citation/eval regression evidence.
+- [x] 08-03-PLAN.md - Run final compose/seed/chat/citation/eval regression evidence.
 
 **Wave 3** *(blocked on 08-03 and 08-05 completion)*
-- [ ] 08-04-PLAN.md - Assemble README, architecture diagram, demo script, and video checklist.
+- [x] 08-04-PLAN.md - Assemble README, architecture diagram, demo script, and video checklist.
 
 **Cross-cutting constraints:**
 - Use the single existing `infra/docker-compose.yml`; do not create a prod compose file.
