@@ -63,65 +63,66 @@
 
 ### 2.1 Компонентная диаграмма
 
-```
-                          ┌─────────────────────────────┐
-                          │   Frontend (SPA, vanilla)   │
-                          │     HTML5 + CSS3 + JS       │
-                          └──────────────┬──────────────┘
-                                         │  HTTPS (JWT в httpOnly cookie)
-                                         ▼
-       ┌───────────────────────────────────────────────────────────┐
-       │                  Java Spring Backend (BFF)                │
-       │  ┌─────────────────────────────────────────────────────┐  │
-       │  │  REST API (OpenAPI v1)                              │  │
-       │  │  Spring Security · JWT · RBAC                       │  │
-       │  │  Document Management · User Management · Chat       │  │
-       │  │  Audit · Outbox · AMQP Publisher · AMQP Consumer    │  │
-       │  └─────────────────────────────────────────────────────┘  │
-       │       │             │                │              │     │
-       └───────┼─────────────┼────────────────┼──────────────┼─────┘
-               │             │                │              │
-               ▼             ▼                ▼              ▼
-        ┌────────────┐  ┌──────────┐  ┌─────────────┐  ┌──────────┐
-        │ PostgreSQL │  │  MinIO   │  │  RabbitMQ   │  │ Python   │
-        │ (Java DB)  │  │ (files)  │  │  (events)   │  │ AI svc   │
-        └────────────┘  └──────────┘  └──────┬──────┘  └────┬─────┘
-                              ▲              │              │
-                              │              │   sync REST  │
-                              │              ▼              │
-                              │  ┌────────────────────────┐ │
-                              └──┤ Python AI Service      │◄┘
-                                 │ (FastAPI + LangGraph)  │
-                                 │                        │
-                                 │ Ingestion · Retrieval  │
-                                 │ Graph RAG · Guards     │
-                                 │ Generation · Eval      │
-                                 └────┬──────────┬────────┘
-                                      │          │
-                              ┌───────▼───┐  ┌───▼──────┐
-                              │  Qdrant   │  │  Neo4j   │
-                              │ (vectors) │  │  (graph) │
-                              └───────────┘  └──────────┘
+Финальный MVP boundary для локального demo stack: browser/frontend вызывает
+только Java. Python AI service не является browser-facing API и вызывается
+Java через sync REST для query path и через RabbitMQ для indexing lifecycle.
 
-                            ┌────────────────────────────┐
-                            │   Observability            │
-                            │   Langfuse (Docker)        │
-                            │   Prometheus + Grafana     │  Phase 7
-                            └────────────────────────────┘
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Browser                                                                      │
+│                                                                              │
+│  ┌─────────────────────────────┐                                             │
+│  │ Frontend SPA (nginx)        │                                             │
+│  │ HTML5 + CSS3 + ES2022       │                                             │
+│  └──────────────┬──────────────┘                                             │
+│                 │ REST /api/v1, JWT httpOnly cookie                          │
+└─────────────────┼────────────────────────────────────────────────────────────┘
+                  ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Java Spring Backend                                                          │
+│ owns: auth, users, roles, access policies, documents, chat, audit, BFF API    │
+│                                                                              │
+│ REST controllers · Spring Security · RBAC · HATEOAS                          │
+│ Document lifecycle · Chat persistence · Audit · Outbox · AMQP consumers       │
+└───────┬────────────────┬──────────────────────┬─────────────────────────────┘
+        │ owns           │ owns                 │ internal calls/events
+        ▼                ▼                      ▼
+┌──────────────┐   ┌──────────────┐       ┌──────────────────┐
+│ PostgreSQL   │   │ MinIO         │       │ Python AI Service│
+│ Java domain  │   │ source files  │       │ FastAPI+LangGraph│
+└──────────────┘   └──────────────┘       │                  │
+                                          │ owns: ingestion, │
+        ┌──────────────────────┐          │ retrieval, graph,│
+        │ RabbitMQ             │◄────────►│ guards, synthesis│
+        │ document events      │          │ and evaluation   │
+        └──────────────────────┘          └────┬─────┬────┬──┘
+                                               │     │    │
+                                               ▼     ▼    ▼
+                                      ┌──────────┐ ┌──────┐ ┌────────────┐
+                                      │ Qdrant   │ │Neo4j │ │ AI Postgres│
+                                      │ vectors  │ │graph │ │ processed  │
+                                      │ + payload│ │      │ │ events     │
+                                      └──────────┘ └──────┘ └────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Support services                                                             │
+│ Langfuse traces query/LLM spans; local compose also provides service health.  │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 Ответственности сервисов
 
 | Сервис | Отвечает за | НЕ отвечает за |
 |---|---|---|
-| **Java Spring Backend** | Auth, RBAC, пользователи, метаданные документов, история чатов, аудит, оркестрация загрузки, BFF для фронта | Эмбеддинги, поиск, генерацию, граф знаний, парсинг файлов |
-| **Python AI Service** | Парсинг, чанкинг, эмбеддинги, vector/graph storage, retrieval, reranker, генерацию, guards, evaluation | Auth, RBAC (только применяет переданные фильтры), хранение метаданных пользовательских |
-| **Frontend SPA** | UI, общение **только** с Java | Прямое общение с Python, бизнес-логику |
+| **Java Spring Backend** | Auth, RBAC, пользователи, access policies, документы, история чатов, аудит, browser-facing API, orchestration через REST/AMQP | Эмбеддинги, retrieval, synthesis, graph retrieval, evaluation, прямой доступ frontend к Python |
+| **Python AI Service** | Ingestion, parsing, chunking, embeddings, Qdrant/Neo4j writes, retrieval, reranker, graph path, guards, synthesis, evaluation | Auth, RBAC ownership, chat persistence, document metadata lifecycle, browser-facing API |
+| **Frontend SPA** | UI, общение **только** с Java | Прямое общение с Python, бизнес-логику, доступ к storage/support services |
 | **MinIO** | Исходные файлы документов (PDF, DOCX, HTML, MD) | Метаданные, эмбеддинги |
-| **PostgreSQL** | Состояние Java-сервиса | Векторы, граф |
+| **PostgreSQL** | Состояние Java-сервиса; отдельная AI Postgres область используется Python только для idempotency/runtime state | Векторы, граф |
 | **Qdrant** | Dense + sparse векторы чанков с payload | Граф связей |
 | **Neo4j** | Сущности, связи, упоминания | Векторы |
 | **RabbitMQ** | Асинхронная доставка событий между Java и Python | Логику доменов |
+| **Langfuse** | Трейсы query/LLM spans и latency evidence | Бизнес-логику, auth, retrieval decisions |
 
 ### 2.3 Почему именно так
 
